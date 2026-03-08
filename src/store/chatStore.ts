@@ -147,8 +147,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
         role: message.role,
         content: message.content,
         agent: message.agent || null,
-        attachments: message.attachments || [],
-      })
+        attachments: (message.attachments || []) as any,
+      } as any)
       .select()
       .single();
 
