@@ -93,8 +93,8 @@ export function ChatView() {
 
     try {
       const result = await firecrawlApi.scrape(url);
-      const markdown = result.data?.markdown || result.markdown || '';
-      const metadata = result.data?.metadata || result.metadata || {};
+      const markdown = result.data?.markdown || (result as any).markdown || '';
+      const metadata = result.data?.metadata || (result as any).metadata || {};
       const title = metadata?.title || url;
 
       if (!markdown) {
