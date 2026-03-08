@@ -4,8 +4,8 @@ import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { agents } from '@/data/agents';
 import { streamChat } from '@/lib/streamChat';
-import { generateImage } from '@/lib/generateImage';
-import { Loader2 } from 'lucide-react';
+import { generateImage, ImageQuality } from '@/lib/generateImage';
+import { Loader2, ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function ChatView() {
@@ -14,6 +14,7 @@ export function ChatView() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
+  const [loadingLabel, setLoadingLabel] = useState('');
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -21,36 +22,56 @@ export function ChatView() {
 
   const agent = conversation?.agent ? agents.find((a) => a.id === conversation.agent) : null;
 
+  const handleImageGeneration = async (prompt: string, quality: ImageQuality) => {
+    if (!activeConversationId || !prompt) return;
+
+    const qualityLabel = quality === 'hd' ? '(HD)' : '(rápido)';
+    addMessage(activeConversationId, { role: 'user', content: `🎨 Gerar imagem ${qualityLabel}: ${prompt}` });
+    setIsStreaming(true);
+    setLoadingLabel('Gerando imagem...');
+    setStreamingContent('');
+
+    try {
+      const result = await generateImage(prompt, quality);
+      const desc = result.description ? `\n\n${result.description}` : '';
+      addMessage(activeConversationId, {
+        role: 'assistant',
+        content: `![${prompt}](${result.imageUrl})${desc}`,
+      });
+    } catch (e: any) {
+      toast.error(e.message || 'Erro ao gerar imagem.');
+      addMessage(activeConversationId, {
+        role: 'assistant',
+        content: `❌ Não foi possível gerar a imagem. ${e.message || 'Tente novamente.'}`,
+      });
+    } finally {
+      setIsStreaming(false);
+      setStreamingContent('');
+      setLoadingLabel('');
+    }
+  };
+
   const handleSend = async (content: string, attachments?: File[]) => {
     if (!activeConversationId) return;
 
-    // Handle image generation command
+    // /imagine command — fast quality
     if (content.startsWith('/imagine ')) {
       const prompt = content.replace('/imagine ', '').trim();
-      if (!prompt) return;
-      addMessage(activeConversationId, { role: 'user', content });
-      setIsStreaming(true);
-      setStreamingContent('🎨 Gerando imagem...');
+      await handleImageGeneration(prompt, 'fast');
+      return;
+    }
 
-      try {
-        const imageUrl = await generateImage(prompt);
-        addMessage(activeConversationId, {
-          role: 'assistant',
-          content: `Aqui está a imagem gerada:\n\n![${prompt}](${imageUrl})`,
-        });
-      } catch (e) {
-        toast.error('Erro ao gerar imagem. Tente novamente.');
-      } finally {
-        setIsStreaming(false);
-        setStreamingContent('');
-      }
+    // /imaginehd command — HD quality
+    if (content.startsWith('/imaginehd ')) {
+      const prompt = content.replace('/imaginehd ', '').trim();
+      await handleImageGeneration(prompt, 'hd');
       return;
     }
 
     addMessage(activeConversationId, { role: 'user', content });
-
     setIsStreaming(true);
     setStreamingContent('');
+    setLoadingLabel('');
 
     const currentConv = getActiveConversation();
     const history = (currentConv?.messages || []).map((m) => ({
@@ -111,8 +132,34 @@ export function ChatView() {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto scrollbar-thin py-4">
         {conversation?.messages.length === 0 && !isStreaming && (
-          <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-            Envie uma mensagem para começar
+          <div className="flex flex-col items-center justify-center h-full gap-4 text-center px-4">
+            <p className="text-muted-foreground text-sm">Envie uma mensagem para começar</p>
+            <div className="flex flex-wrap gap-2 justify-center max-w-md">
+              <button
+                onClick={() => handleSend('Olá! O que você pode fazer?')}
+                className="px-3 py-1.5 bg-card border border-border rounded-full text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                💬 O que você pode fazer?
+              </button>
+              <button
+                onClick={() => handleImageGeneration('um gato astronauta flutuando no espaço com a Terra ao fundo', 'fast')}
+                className="px-3 py-1.5 bg-card border border-border rounded-full text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                🎨 Gerar uma imagem
+              </button>
+              <button
+                onClick={() => handleSend('Me ajude a criar um plano de negócios')}
+                className="px-3 py-1.5 bg-card border border-border rounded-full text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                📊 Plano de negócios
+              </button>
+              <button
+                onClick={() => handleSend('Escreva um código Python para ordenar uma lista')}
+                className="px-3 py-1.5 bg-card border border-border rounded-full text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                💻 Escrever código
+              </button>
+            </div>
           </div>
         )}
         {conversation?.messages.map((msg) => (
@@ -131,14 +178,22 @@ export function ChatView() {
         {isStreaming && !streamingContent && (
           <div className="flex gap-3 px-4 py-3 max-w-4xl mx-auto">
             <div className="h-7 w-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
-              <Loader2 className="h-4 w-4 text-primary animate-spin" />
+              {loadingLabel ? (
+                <ImageIcon className="h-4 w-4 text-primary animate-pulse" />
+              ) : (
+                <Loader2 className="h-4 w-4 text-primary animate-spin" />
+              )}
             </div>
             <div className="bg-card border border-border rounded-2xl rounded-bl-md px-4 py-3">
-              <div className="flex gap-1">
-                <span className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-pulse" />
-                <span className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-pulse [animation-delay:0.2s]" />
-                <span className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-pulse [animation-delay:0.4s]" />
-              </div>
+              {loadingLabel ? (
+                <span className="text-xs text-muted-foreground">{loadingLabel}</span>
+              ) : (
+                <div className="flex gap-1">
+                  <span className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-pulse" />
+                  <span className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-pulse [animation-delay:0.2s]" />
+                  <span className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-pulse [animation-delay:0.4s]" />
+                </div>
+              )}
             </div>
           </div>
         )}

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Paperclip, Image, Sparkles } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Send, Paperclip, Image, Sparkles, Wand2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface ChatInputProps {
   onSend: (message: string, attachments?: File[]) => void;
@@ -10,9 +10,11 @@ interface ChatInputProps {
 export function ChatInput({ onSend, disabled }: ChatInputProps) {
   const [input, setInput] = useState('');
   const [files, setFiles] = useState<File[]>([]);
+  const [showImageMenu, setShowImageMenu] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -20,6 +22,16 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
       textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 160) + 'px';
     }
   }, [input]);
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowImageMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
 
   const handleSubmit = () => {
     if ((!input.trim() && files.length === 0) || disabled) return;
@@ -46,6 +58,12 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
     setFiles(prev => prev.filter((_, i) => i !== idx));
   };
 
+  const insertCommand = (cmd: string) => {
+    setInput(cmd);
+    setShowImageMenu(false);
+    textareaRef.current?.focus();
+  };
+
   return (
     <div className="px-4 pb-4 pt-2">
       <div className="max-w-3xl mx-auto">
@@ -54,6 +72,9 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
           <div className="flex gap-2 mb-2 flex-wrap">
             {files.map((f, i) => (
               <div key={i} className="flex items-center gap-1 px-2 py-1 bg-muted rounded-lg text-xs text-foreground">
+                {f.type.startsWith('image/') && (
+                  <img src={URL.createObjectURL(f)} alt="" className="h-6 w-6 rounded object-cover" />
+                )}
                 <span className="truncate max-w-[120px]">{f.name}</span>
                 <button onClick={() => removeFile(i)} className="text-muted-foreground hover:text-foreground ml-1">×</button>
               </div>
@@ -78,16 +99,46 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
             >
               <Image className="h-4 w-4" />
             </button>
-            <button
-              onClick={() => {
-                setInput(prev => prev + (prev ? '\n' : '') + '/imagine ');
-                textareaRef.current?.focus();
-              }}
-              className="p-1.5 text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-muted"
-              title="Gerar imagem"
-            >
-              <Sparkles className="h-4 w-4" />
-            </button>
+            <div className="relative" ref={menuRef}>
+              <button
+                onClick={() => setShowImageMenu(!showImageMenu)}
+                className="p-1.5 text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-muted"
+                title="Gerar imagem com IA"
+              >
+                <Sparkles className="h-4 w-4" />
+              </button>
+              <AnimatePresence>
+                {showImageMenu && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                    className="absolute bottom-full left-0 mb-2 w-56 bg-popover border border-border rounded-xl shadow-lg p-1.5 z-50"
+                  >
+                    <button
+                      onClick={() => insertCommand('/imagine ')}
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left text-sm hover:bg-muted transition-colors"
+                    >
+                      <Sparkles className="h-4 w-4 text-primary shrink-0" />
+                      <div>
+                        <p className="font-medium text-foreground text-xs">Rápido</p>
+                        <p className="text-[10px] text-muted-foreground">Nano Banana • Veloz</p>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => insertCommand('/imaginehd ')}
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left text-sm hover:bg-muted transition-colors"
+                    >
+                      <Wand2 className="h-4 w-4 text-accent shrink-0" />
+                      <div>
+                        <p className="font-medium text-foreground text-xs">Alta qualidade</p>
+                        <p className="text-[10px] text-muted-foreground">Gemini Pro • Detalhado</p>
+                      </div>
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
 
           <textarea
@@ -114,7 +165,6 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
           NexusIA pode cometer erros. Verifique informações importantes.
         </p>
 
-        {/* Hidden file inputs */}
         <input ref={fileInputRef} type="file" className="hidden" multiple onChange={handleFileSelect} accept=".pdf,.doc,.docx,.txt,.csv,.json,.xml,.xlsx" />
         <input ref={imageInputRef} type="file" className="hidden" multiple onChange={handleFileSelect} accept="image/*" />
       </div>

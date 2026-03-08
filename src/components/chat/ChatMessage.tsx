@@ -1,9 +1,9 @@
 import { motion } from 'framer-motion';
 import { Message } from '@/types/agent';
 import { cn } from '@/lib/utils';
-import { Bot, User, Download } from 'lucide-react';
+import { Bot, User, Download, Copy, Check } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 
 interface ChatMessageProps {
   message: Message;
@@ -13,10 +13,18 @@ export function ChatMessage({ message }: ChatMessageProps) {
   const isUser = message.role === 'user';
   const [copiedBlock, setCopiedBlock] = useState<number | null>(null);
 
-  const copyCode = (code: string, idx: number) => {
+  const copyCode = useCallback((code: string, idx: number) => {
     navigator.clipboard.writeText(code);
     setCopiedBlock(idx);
     setTimeout(() => setCopiedBlock(null), 2000);
+  }, []);
+
+  const downloadImage = (src: string, name?: string) => {
+    const a = document.createElement('a');
+    a.href = src;
+    a.download = name || 'nexusia-image.png';
+    a.target = '_blank';
+    a.click();
   };
 
   let codeBlockIdx = 0;
@@ -74,9 +82,13 @@ export function ChatMessage({ message }: ChatMessageProps) {
                           <span>{match?.[1] || 'code'}</span>
                           <button
                             onClick={() => copyCode(codeStr, currentIdx)}
-                            className="text-[10px] hover:text-foreground transition-colors"
+                            className="flex items-center gap-1 text-[10px] hover:text-foreground transition-colors"
                           >
-                            {copiedBlock === currentIdx ? 'Copiado!' : 'Copiar'}
+                            {copiedBlock === currentIdx ? (
+                              <><Check className="h-3 w-3" /> Copiado</>
+                            ) : (
+                              <><Copy className="h-3 w-3" /> Copiar</>
+                            )}
                           </button>
                         </div>
                         <pre className="p-3 overflow-x-auto bg-background text-xs leading-relaxed">
@@ -94,8 +106,23 @@ export function ChatMessage({ message }: ChatMessageProps) {
                 },
                 img({ src, alt }) {
                   return (
-                    <div className="my-2">
-                      <img src={src} alt={alt || ''} className="rounded-lg max-h-80 object-contain" />
+                    <div className="my-2 group relative inline-block">
+                      <img
+                        src={src}
+                        alt={alt || ''}
+                        className="rounded-lg max-h-96 object-contain cursor-pointer hover:opacity-95 transition-opacity"
+                        onClick={() => src && window.open(src, '_blank')}
+                      />
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (src) downloadImage(src, alt || undefined);
+                        }}
+                        className="absolute bottom-2 right-2 p-1.5 bg-background/80 backdrop-blur-sm border border-border rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background"
+                        title="Baixar imagem"
+                      >
+                        <Download className="h-3.5 w-3.5 text-foreground" />
+                      </button>
                     </div>
                   );
                 },
