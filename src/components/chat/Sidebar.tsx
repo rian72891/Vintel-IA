@@ -168,6 +168,18 @@ export function Sidebar() {
                   </div>
                 </div>
 
+                <button
+                  onClick={() => navigate('/plans')}
+                  className={`w-full flex items-center justify-center gap-2 px-3 py-2 mt-2 rounded-xl text-xs font-medium transition-colors ${
+                    plan === 'pro'
+                      ? 'bg-primary/10 text-primary'
+                      : 'bg-accent text-accent-foreground hover:bg-accent/80'
+                  }`}
+                >
+                  <Crown className="h-3.5 w-3.5" />
+                  {plan === 'pro' ? 'Plano Pro ✓' : 'Upgrade para Pro'}
+                </button>
+
                 <div className="flex items-center gap-1 mt-2">
                   <button
                     onClick={() => setSettingsOpen(true)}

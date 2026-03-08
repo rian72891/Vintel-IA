@@ -29,10 +29,13 @@ function AppRoutes() {
   }
 
   return (
-    <Routes>
-      <Route path="/" element={<Index />} />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+    <SubscriptionProvider>
+      <Routes>
+        <Route path="/" element={<Index />} />
+        <Route path="/plans" element={<Plans />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </SubscriptionProvider>
   );
 }
 
