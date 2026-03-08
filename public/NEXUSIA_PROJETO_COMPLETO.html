@@ -1,0 +1,2218 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NexusIA — Projeto Completo | Código + Download</title>
+<meta name="description" content="Todo o código-fonte do projeto NexusIA organizado, visualizável e com download em ZIP.">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+*{margin:0;padding:0;box-sizing:border-box}
+
+:root{
+  --bg:#08090d;
+  --bg-elevated:#0f1118;
+  --bg-card:#141620;
+  --bg-code:#0a0c14;
+  --border:#1c1f2e;
+  --border-bright:#2a2d40;
+  --text:#e8eaf0;
+  --text-secondary:#a0a4b8;
+  --text-muted:#6b7084;
+  --blue:#4f8ff7;
+  --blue-bright:#6ba3ff;
+  --purple:#8b6cf6;
+  --purple-bright:#a78bfa;
+  --green:#34d399;
+  --orange:#fb923c;
+  --cyan:#22d3ee;
+  --red:#f87171;
+  --pink:#f472b6;
+}
+
+html{scroll-behavior:smooth}
+
+body{
+  font-family:'Inter',system-ui,-apple-system,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  line-height:1.7;
+  -webkit-font-smoothing:antialiased;
+}
+
+::selection{background:rgba(79,143,247,.3)}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border-bright);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--text-muted)}
+
+/* ===== HERO ===== */
+.hero{
+  position:relative;
+  padding:100px 24px 80px;
+  text-align:center;
+  overflow:hidden;
+  border-bottom:1px solid var(--border);
+}
+.hero::before{
+  content:'';position:absolute;inset:0;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -20%,rgba(79,143,247,.12),transparent),
+    radial-gradient(ellipse 60% 40% at 20% 80%,rgba(139,108,246,.08),transparent),
+    radial-gradient(ellipse 50% 50% at 80% 60%,rgba(34,211,238,.05),transparent);
+  pointer-events:none;
+}
+.hero::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--blue),var(--purple),transparent);
+  opacity:.4;
+}
+
+.hero-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 16px;border-radius:999px;
+  background:rgba(79,143,247,.08);border:1px solid rgba(79,143,247,.15);
+  font-size:.75rem;font-weight:500;color:var(--blue-bright);
+  margin-bottom:24px;letter-spacing:.02em;
+}
+.hero-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse-dot 2s infinite}
+@keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.4}}
+
+.hero h1{
+  font-size:clamp(2.5rem,6vw,4rem);font-weight:900;
+  letter-spacing:-.03em;line-height:1.1;
+  margin-bottom:16px;position:relative;
+}
+.hero h1 .gradient{
+  background:linear-gradient(135deg,var(--blue-bright),var(--purple-bright),var(--cyan));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+.hero p{
+  color:var(--text-secondary);font-size:1.1rem;
+  max-width:560px;margin:0 auto 40px;position:relative;
+}
+
+.hero-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;position:relative}
+
+.btn{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:14px 32px;border-radius:14px;
+  font-size:.95rem;font-weight:600;
+  border:none;cursor:pointer;
+  transition:all .25s ease;text-decoration:none;
+  font-family:inherit;
+}
+.btn-primary{
+  background:linear-gradient(135deg,var(--blue),var(--purple));
+  color:#fff;
+  box-shadow:0 4px 20px rgba(79,143,247,.25),0 0 60px rgba(79,143,247,.08);
+}
+.btn-primary:hover{
+  transform:translateY(-2px);
+  box-shadow:0 8px 30px rgba(79,143,247,.35),0 0 80px rgba(79,143,247,.12);
+}
+.btn-secondary{
+  background:var(--bg-card);color:var(--text);
+  border:1px solid var(--border-bright);
+}
+.btn-secondary:hover{background:var(--bg-elevated);border-color:var(--blue);transform:translateY(-2px)}
+
+/* ===== STATS BAR ===== */
+.stats{
+  display:flex;justify-content:center;gap:40px;flex-wrap:wrap;
+  padding:28px 24px;
+  border-bottom:1px solid var(--border);
+  background:var(--bg-elevated);
+}
+.stat{text-align:center}
+.stat-value{font-size:1.5rem;font-weight:800;color:var(--blue-bright)}
+.stat-label{font-size:.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-top:2px}
+
+/* ===== CONTAINER ===== */
+.container{max-width:1100px;margin:0 auto;padding:48px 24px 80px}
+
+/* ===== NAV / TOC ===== */
+.toc{
+  background:var(--bg-card);border:1px solid var(--border);
+  border-radius:20px;padding:32px;margin-bottom:56px;
+  position:relative;overflow:hidden;
+}
+.toc::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,var(--blue),var(--purple),var(--cyan));
+}
+.toc h2{font-size:1rem;font-weight:700;color:var(--blue-bright);margin-bottom:16px;text-transform:uppercase;letter-spacing:.06em}
+.toc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px}
+.toc a{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 14px;border-radius:10px;
+  text-decoration:none;color:var(--text-secondary);font-size:.9rem;
+  transition:all .2s;
+}
+.toc a:hover{background:rgba(79,143,247,.06);color:var(--text)}
+.toc a .num{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:28px;height:28px;border-radius:8px;
+  background:rgba(79,143,247,.1);color:var(--blue-bright);
+  font-size:.75rem;font-weight:700;flex-shrink:0;
+}
+.toc a .count{
+  margin-left:auto;font-size:.7rem;
+  padding:2px 8px;border-radius:999px;
+  background:rgba(139,108,246,.1);color:var(--purple-bright);
+  font-weight:600;
+}
+
+/* ===== SECTIONS ===== */
+.section{margin-bottom:64px;scroll-margin-top:24px}
+.section-header{
+  display:flex;align-items:center;gap:14px;
+  margin-bottom:28px;padding-bottom:16px;
+  border-bottom:1px solid var(--border);
+}
+.section-icon{
+  width:44px;height:44px;border-radius:14px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.2rem;flex-shrink:0;
+}
+.section-icon.blue{background:rgba(79,143,247,.1);border:1px solid rgba(79,143,247,.15)}
+.section-icon.purple{background:rgba(139,108,246,.1);border:1px solid rgba(139,108,246,.15)}
+.section-icon.green{background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.15)}
+.section-icon.orange{background:rgba(251,146,60,.1);border:1px solid rgba(251,146,60,.15)}
+.section-icon.cyan{background:rgba(34,211,238,.1);border:1px solid rgba(34,211,238,.15)}
+.section-icon.pink{background:rgba(244,114,182,.1);border:1px solid rgba(244,114,182,.15)}
+.section-icon.red{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.15)}
+
+.section-header h2{font-size:1.4rem;font-weight:700}
+.section-header .badge{
+  margin-left:auto;font-size:.7rem;
+  padding:4px 12px;border-radius:999px;
+  background:rgba(52,211,153,.08);color:var(--green);
+  font-weight:600;border:1px solid rgba(52,211,153,.15);
+}
+
+.section-desc{color:var(--text-secondary);margin-bottom:20px;font-size:.9rem}
+
+/* ===== FILE BLOCKS ===== */
+.file-block{
+  background:var(--bg-code);
+  border:1px solid var(--border);
+  border-radius:16px;
+  overflow:hidden;
+  margin-bottom:16px;
+  transition:border-color .2s;
+}
+.file-block:hover{border-color:var(--border-bright)}
+
+.file-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 16px;
+  background:var(--bg-card);
+  border-bottom:1px solid var(--border);
+}
+.file-name{
+  display:flex;align-items:center;gap:8px;
+  font-family:'JetBrains Mono',monospace;
+  font-size:.8rem;font-weight:500;color:var(--text-secondary);
+}
+.file-name .ext{
+  padding:2px 6px;border-radius:4px;
+  font-size:.65rem;font-weight:600;
+  text-transform:uppercase;
+}
+.ext-ts{background:rgba(79,143,247,.12);color:var(--blue-bright)}
+.ext-tsx{background:rgba(139,108,246,.12);color:var(--purple-bright)}
+.ext-css{background:rgba(244,114,182,.12);color:var(--pink)}
+.ext-json{background:rgba(251,146,60,.12);color:var(--orange)}
+.ext-html{background:rgba(248,113,113,.12);color:var(--red)}
+.ext-js{background:rgba(52,211,153,.12);color:var(--green)}
+
+.file-actions{display:flex;gap:4px}
+.file-btn{
+  display:flex;align-items:center;gap:4px;
+  padding:5px 10px;border-radius:6px;
+  font-size:.7rem;font-weight:500;
+  border:1px solid var(--border);background:transparent;
+  color:var(--text-muted);cursor:pointer;
+  transition:all .15s;font-family:inherit;
+}
+.file-btn:hover{background:var(--bg-elevated);color:var(--text);border-color:var(--border-bright)}
+.file-btn.copied{color:var(--green);border-color:rgba(52,211,153,.3)}
+
+.file-code{
+  padding:0;margin:0;max-height:400px;overflow:auto;
+}
+.file-code pre{
+  margin:0;padding:16px 20px;
+  font-family:'JetBrains Mono',monospace;
+  font-size:.78rem;line-height:1.7;
+  color:#c9d1d9;white-space:pre;
+  tab-size:2;background:transparent;
+  overflow-x:auto;
+}
+
+.file-code.collapsed{max-height:0;overflow:hidden;padding:0}
+.file-toggle{
+  display:flex;align-items:center;justify-content:center;
+  padding:8px;background:var(--bg-card);
+  border-top:1px solid var(--border);
+  font-size:.75rem;color:var(--text-muted);
+  cursor:pointer;transition:all .15s;
+}
+.file-toggle:hover{background:var(--bg-elevated);color:var(--text)}
+
+/* ===== PROGRESS OVERLAY ===== */
+.download-overlay{
+  display:none;position:fixed;inset:0;z-index:100;
+  background:rgba(8,9,13,.85);backdrop-filter:blur(12px);
+  align-items:center;justify-content:center;
+}
+.download-overlay.active{display:flex}
+.download-card{
+  background:var(--bg-card);border:1px solid var(--border);
+  border-radius:24px;padding:48px;text-align:center;
+  max-width:420px;width:90%;
+  box-shadow:0 24px 80px rgba(0,0,0,.5);
+}
+.download-card h3{font-size:1.2rem;font-weight:700;margin-bottom:8px}
+.download-card p{color:var(--text-muted);font-size:.85rem;margin-bottom:24px}
+.progress-bar{
+  width:100%;height:6px;border-radius:3px;
+  background:var(--bg-elevated);overflow:hidden;
+  margin-bottom:12px;
+}
+.progress-fill{
+  height:100%;border-radius:3px;
+  background:linear-gradient(90deg,var(--blue),var(--purple));
+  transition:width .3s ease;width:0%;
+}
+.progress-text{font-size:.75rem;color:var(--text-muted)}
+
+/* ===== FOOTER ===== */
+footer{
+  text-align:center;padding:48px 24px;
+  border-top:1px solid var(--border);
+  color:var(--text-muted);font-size:.8rem;
+}
+footer a{color:var(--blue-bright);text-decoration:none}
+footer a:hover{text-decoration:underline}
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:640px){
+  .hero{padding:60px 16px 48px}
+  .stats{gap:24px;padding:20px 16px}
+  .container{padding:24px 16px 60px}
+  .toc-grid{grid-template-columns:1fr}
+  .file-code pre{font-size:.72rem;padding:12px 14px}
+  .section-header h2{font-size:1.1rem}
+  .btn{padding:12px 20px;font-size:.85rem}
+}
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="hero-badge"><span class="dot"></span> Projeto Open Source</div>
+  <h1><span class="gradient">NexusIA</span><br>Código Completo</h1>
+  <p>Todo o código-fonte do projeto organizado por categoria. Visualize, copie ou baixe tudo como ZIP.</p>
+  <div class="hero-actions">
+    <button class="btn btn-primary" onclick="downloadZip()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Baixar ZIP Completo
+    </button>
+    <a href="#toc" class="btn btn-secondary">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      Ver Código
+    </a>
+  </div>
+</header>
+
+<!-- STATS -->
+<div class="stats">
+  <div class="stat"><div class="stat-value" id="totalFiles">0</div><div class="stat-label">Arquivos</div></div>
+  <div class="stat"><div class="stat-value" id="totalLines">0</div><div class="stat-label">Linhas de código</div></div>
+  <div class="stat"><div class="stat-value">7</div><div class="stat-label">Agentes IA</div></div>
+  <div class="stat"><div class="stat-value">8</div><div class="stat-label">Categorias</div></div>
+</div>
+
+<!-- MAIN -->
+<div class="container">
+
+  <!-- TOC -->
+  <nav class="toc" id="toc">
+    <h2>📁 Índice do Projeto</h2>
+    <div class="toc-grid" id="tocGrid"></div>
+  </nav>
+
+  <!-- FILE SECTIONS (generated by JS) -->
+  <div id="sections"></div>
+
+</div>
+
+<!-- DOWNLOAD OVERLAY -->
+<div class="download-overlay" id="downloadOverlay">
+  <div class="download-card">
+    <h3>⚡ Gerando ZIP</h3>
+    <p id="downloadStatus">Empacotando arquivos...</p>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-text" id="progressText">0%</div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <p><strong>NexusIA</strong> — Projeto completo de IA conversacional</p>
+  <p style="margin-top:8px">React + TypeScript + Zustand + Tailwind CSS + Supabase Edge Functions</p>
+  <p style="margin-top:12px">
+    <a href="NEXUSIA_GUIA_CONSTRUCAO_IA.html">📘 Guia de Construção</a> &nbsp;•&nbsp;
+    <a href="NEXUSIA_GUIA_CONSTRUCAO_IA.txt">📄 Guia TXT</a>
+  </p>
+</footer>
+
+<script>
+// ============================================================
+//  ALL PROJECT FILES — organized by section
+// ============================================================
+const PROJECT = [
+  {
+    id: "config",
+    title: "Configuração & Setup",
+    icon: "⚙️",
+    color: "blue",
+    desc: "Configurações do projeto: Vite, TypeScript, Tailwind, ESLint e dependências.",
+    files: {
+"package.json": `{
+  "name": "vite_react_shadcn_ts",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "build:dev": "vite build --mode development",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^3.10.0",
+    "@supabase/supabase-js": "^2.98.0",
+    "@tanstack/react-query": "^5.83.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
+    "date-fns": "^3.6.0",
+    "embla-carousel-react": "^8.6.0",
+    "framer-motion": "^12.35.1",
+    "input-otp": "^1.4.2",
+    "lucide-react": "^0.462.0",
+    "next-themes": "^0.3.0",
+    "react": "^18.3.1",
+    "react-day-picker": "^8.10.1",
+    "react-dom": "^18.3.1",
+    "react-hook-form": "^7.61.1",
+    "react-markdown": "^10.1.0",
+    "react-resizable-panels": "^2.1.9",
+    "react-router-dom": "^6.30.1",
+    "recharts": "^2.15.4",
+    "sonner": "^1.7.4",
+    "tailwind-merge": "^2.6.0",
+    "tailwindcss-animate": "^1.0.7",
+    "vaul": "^0.9.9",
+    "zod": "^3.25.76",
+    "zustand": "^5.0.11"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react-swc": "^3.11.0",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.8.3",
+    "vite": "^5.4.19",
+    "vitest": "^3.2.4"
+  }
+}`,
+
+"vite.config.ts": `import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react-swc";
+import path from "path";
+
+export default defineConfig(({ mode }) => ({
+  server: {
+    host: "::",
+    port: 8080,
+  },
+  plugins: [react()].filter(Boolean),
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
+}));`,
+
+"tailwind.config.ts": `import type { Config } from "tailwindcss";
+
+export default {
+  darkMode: ["class"],
+  content: [
+    "./pages/**/*.{ts,tsx}",
+    "./components/**/*.{ts,tsx}",
+    "./app/**/*.{ts,tsx}",
+    "./src/**/*.{ts,tsx}",
+  ],
+  prefix: "",
+  theme: {
+    fontFamily: {
+      display: ['Inter', 'system-ui', 'sans-serif'],
+      mono: ['JetBrains Mono', 'monospace'],
+    },
+    extend: {
+      colors: {
+        agent: {
+          research: "hsl(var(--agent-research))",
+          coder: "hsl(var(--agent-coder))",
+          business: "hsl(var(--agent-business))",
+          content: "hsl(var(--agent-content))",
+          automation: "hsl(var(--agent-automation))",
+          marketing: "hsl(var(--agent-marketing))",
+          analyst: "hsl(var(--agent-analyst))",
+        },
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
+        sidebar: {
+          DEFAULT: "hsl(var(--sidebar-background))",
+          foreground: "hsl(var(--sidebar-foreground))",
+          primary: "hsl(var(--sidebar-primary))",
+          "primary-foreground": "hsl(var(--sidebar-primary-foreground))",
+          accent: "hsl(var(--sidebar-accent))",
+          "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
+          border: "hsl(var(--sidebar-border))",
+          ring: "hsl(var(--sidebar-ring))",
+        },
+      },
+      borderRadius: {
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
+      },
+    },
+  },
+  plugins: [require("tailwindcss-animate")],
+} satisfies Config;`,
+
+"tsconfig.json": `{
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ]
+}`,
+
+"tsconfig.app.json": `{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "baseUrl": ".",
+    "paths": { "@/*": ["./src/*"] }
+  },
+  "include": ["src"]
+}`,
+
+"index.html": `<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <title>NexusIA — Assistente de Inteligência Artificial</title>
+    <meta name="description" content="Plataforma avançada de IA com agentes especializados.">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/favicon.ico" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>`,
+
+"postcss.config.js": `export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+};`,
+    }
+  },
+
+  {
+    id: "types",
+    title: "Tipos & Interfaces",
+    icon: "🔷",
+    color: "purple",
+    desc: "Definição de tipos TypeScript: Agent, Message, Conversation.",
+    files: {
+"src/types/agent.ts": `export type AgentType = 'research' | 'coder' | 'business' | 'marketing' | 'content' | 'analyst' | 'automation';
+
+export interface Agent {
+  id: AgentType;
+  name: string;
+  description: string;
+  icon: string;
+  capabilities: string[];
+}
+
+export interface MessageAttachment {
+  type: 'image' | 'file';
+  name: string;
+  url: string;
+  mimeType?: string;
+}
+
+export interface Message {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  agent?: AgentType;
+  timestamp: Date;
+  attachments?: MessageAttachment[];
+}
+
+export interface Conversation {
+  id: string;
+  title: string;
+  messages: Message[];
+  agent?: AgentType;
+  createdAt: Date;
+  updatedAt: Date;
+}`,
+    }
+  },
+
+  {
+    id: "design",
+    title: "Design System (CSS)",
+    icon: "🎨",
+    color: "pink",
+    desc: "Tokens de design: cores HSL, fontes, variáveis CSS para light/dark mode.",
+    files: {
+"src/index.css": `@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 224 10% 15%;
+    --card: 0 0% 98%;
+    --card-foreground: 224 10% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 10% 15%;
+    --primary: 220 70% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 224 10% 30%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 8% 46%;
+    --accent: 262 60% 55%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 220 70% 50%;
+    --radius: 0.75rem;
+    --sidebar-background: 220 14% 97%;
+    --sidebar-foreground: 224 10% 30%;
+    --sidebar-primary: 220 70% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 14% 93%;
+    --sidebar-accent-foreground: 224 10% 15%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 220 70% 50%;
+    --font-display: 'Inter', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    --agent-research: 200 80% 50%;
+    --agent-coder: 142 70% 45%;
+    --agent-business: 35 90% 50%;
+    --agent-content: 280 60% 55%;
+    --agent-automation: 220 70% 55%;
+    --agent-marketing: 340 75% 55%;
+    --agent-analyst: 195 80% 45%;
+  }
+
+  .dark {
+    --background: 224 10% 8%;
+    --foreground: 220 20% 92%;
+    --card: 224 10% 11%;
+    --card-foreground: 220 20% 92%;
+    --popover: 224 10% 12%;
+    --popover-foreground: 220 20% 92%;
+    --primary: 220 70% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 224 10% 14%;
+    --secondary-foreground: 220 15% 75%;
+    --muted: 224 8% 16%;
+    --muted-foreground: 220 10% 50%;
+    --accent: 262 60% 60%;
+    --accent-foreground: 220 20% 95%;
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 220 20% 95%;
+    --border: 224 8% 18%;
+    --input: 224 8% 18%;
+    --ring: 220 70% 55%;
+    --sidebar-background: 224 10% 6%;
+    --sidebar-foreground: 220 15% 75%;
+    --sidebar-primary: 220 70% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 224 10% 12%;
+    --sidebar-accent-foreground: 220 20% 92%;
+    --sidebar-border: 224 8% 14%;
+    --sidebar-ring: 220 70% 55%;
+    --agent-research: 200 80% 55%;
+    --agent-coder: 142 70% 50%;
+    --agent-business: 35 90% 55%;
+    --agent-content: 280 60% 60%;
+    --agent-automation: 220 70% 60%;
+    --agent-marketing: 340 75% 60%;
+    --agent-analyst: 195 80% 50%;
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-display);
+  }
+  code, pre { font-family: var(--font-mono); }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar { width: 4px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 2px;
+  }
+}`,
+    }
+  },
+
+  {
+    id: "state",
+    title: "Gerenciamento de Estado",
+    icon: "🧠",
+    color: "cyan",
+    desc: "Store global com Zustand: conversas, agentes, tema, sidebar.",
+    files: {
+"src/store/chatStore.ts": `import { create } from 'zustand';
+import { AgentType, Conversation, Message } from '@/types/agent';
+
+interface ChatState {
+  conversations: Conversation[];
+  activeConversationId: string | null;
+  selectedAgent: AgentType | null;
+  sidebarOpen: boolean;
+  theme: 'light' | 'dark';
+  setSelectedAgent: (agent: AgentType | null) => void;
+  setSidebarOpen: (open: boolean) => void;
+  setTheme: (theme: 'light' | 'dark') => void;
+  createConversation: (agent?: AgentType) => string;
+  setActiveConversation: (id: string | null) => void;
+  addMessage: (conversationId: string, message: Omit<Message, 'id' | 'timestamp'>) => void;
+  getActiveConversation: () => Conversation | undefined;
+  deleteConversation: (id: string) => void;
+  renameConversation: (id: string, title: string) => void;
+}
+
+const generateId = () => Math.random().toString(36).substring(2, 15);
+
+const savedTheme = (typeof window !== 'undefined'
+  && localStorage.getItem('nexusia-theme') as 'light' | 'dark') || 'dark';
+if (typeof window !== 'undefined') {
+  document.documentElement.classList.toggle('dark', savedTheme === 'dark');
+}
+
+export const useChatStore = create<ChatState>((set, get) => ({
+  conversations: [],
+  activeConversationId: null,
+  selectedAgent: null,
+  sidebarOpen: true,
+  theme: savedTheme,
+
+  setSelectedAgent: (agent) => set({ selectedAgent: agent }),
+  setSidebarOpen: (open) => set({ sidebarOpen: open }),
+
+  setTheme: (theme) => {
+    localStorage.setItem('nexusia-theme', theme);
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    set({ theme });
+  },
+
+  createConversation: (agent) => {
+    const id = generateId();
+    const conversation: Conversation = {
+      id,
+      title: 'Nova conversa',
+      messages: [],
+      agent,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    set((state) => ({
+      conversations: [conversation, ...state.conversations],
+      activeConversationId: id,
+      selectedAgent: agent || state.selectedAgent,
+    }));
+    return id;
+  },
+
+  setActiveConversation: (id) => set({ activeConversationId: id }),
+
+  addMessage: (conversationId, message) => {
+    const msg: Message = { ...message, id: generateId(), timestamp: new Date() };
+    set((state) => ({
+      conversations: state.conversations.map((c) => {
+        if (c.id !== conversationId) return c;
+        const messages = [...c.messages, msg];
+        const title = c.messages.length === 0 && message.role === 'user'
+          ? message.content.slice(0, 40) + (message.content.length > 40 ? '...' : '')
+          : c.title;
+        return { ...c, messages, title, updatedAt: new Date() };
+      }),
+    }));
+  },
+
+  deleteConversation: (id) => {
+    set((state) => {
+      const filtered = state.conversations.filter((c) => c.id !== id);
+      return {
+        conversations: filtered,
+        activeConversationId: state.activeConversationId === id
+          ? null : state.activeConversationId,
+      };
+    });
+  },
+
+  renameConversation: (id, title) => {
+    set((state) => ({
+      conversations: state.conversations.map((c) =>
+        c.id === id ? { ...c, title } : c
+      ),
+    }));
+  },
+
+  getActiveConversation: () => {
+    const { conversations, activeConversationId } = get();
+    return conversations.find((c) => c.id === activeConversationId);
+  },
+}));`,
+    }
+  },
+
+  {
+    id: "agents",
+    title: "Dados dos Agentes",
+    icon: "🤖",
+    color: "green",
+    desc: "Definição dos 7 agentes especializados com ícones e capacidades.",
+    files: {
+"src/data/agents.ts": `import { Agent } from '@/types/agent';
+
+export const agents: Agent[] = [
+  {
+    id: 'research',
+    name: 'Pesquisador',
+    description: 'Pesquisa informações, reúne dados, resume conteúdos e compara fontes',
+    icon: '🔍',
+    capabilities: ['Pesquisa web', 'Resumo de artigos', 'Análise de dados', 'Fact-checking'],
+  },
+  {
+    id: 'coder',
+    name: 'Programador',
+    description: 'Cria, analisa, revisa e depura código em qualquer linguagem',
+    icon: '⚡',
+    capabilities: ['Criação de código', 'Debug', 'Arquitetura', 'Code review'],
+  },
+  {
+    id: 'business',
+    name: 'Estrategista',
+    description: 'Análise de mercado, estratégias de negócio e planejamento de startups',
+    icon: '📊',
+    capabilities: ['Análise de mercado', 'Planejamento', 'Monetização', 'Pitch decks'],
+  },
+  {
+    id: 'marketing',
+    name: 'Marketing',
+    description: 'Campanhas, copywriting, estratégias de crescimento e funis de vendas',
+    icon: '🚀',
+    capabilities: ['Campanhas', 'Copywriting', 'Growth', 'Funis de vendas'],
+  },
+  {
+    id: 'content',
+    name: 'Criador',
+    description: 'Criação de artigos, roteiros, posts, scripts de vídeo e copywriting',
+    icon: '✍️',
+    capabilities: ['Artigos', 'Redes sociais', 'Roteiros', 'Scripts de vídeo'],
+  },
+  {
+    id: 'analyst',
+    name: 'Analista',
+    description: 'Interpreta dados, cria relatórios, identifica padrões e tendências',
+    icon: '📈',
+    capabilities: ['Relatórios', 'Padrões', 'Métricas', 'Dashboards'],
+  },
+  {
+    id: 'automation',
+    name: 'Automação',
+    description: 'Cria fluxos automáticos, integra APIs e automatiza processos',
+    icon: '🤖',
+    capabilities: ['Workflows', 'APIs', 'Automação', 'Integrações'],
+  },
+];`,
+    }
+  },
+
+  {
+    id: "lib",
+    title: "Utilitários & Serviços",
+    icon: "⚡",
+    color: "orange",
+    desc: "Streaming SSE, geração de imagens e utilitários gerais.",
+    files: {
+"src/lib/streamChat.ts": `import { AgentType } from '@/types/agent';
+
+type Msg = { role: 'user' | 'assistant' | 'system'; content: string };
+
+const CHAT_URL = \`\${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat\`;
+
+export async function streamChat({
+  messages,
+  agent,
+  onDelta,
+  onDone,
+  onError,
+}: {
+  messages: Msg[];
+  agent?: AgentType;
+  onDelta: (text: string) => void;
+  onDone: () => void;
+  onError: (error: string) => void;
+}) {
+  const resp = await fetch(CHAT_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: \`Bearer \${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}\`,
+    },
+    body: JSON.stringify({ messages, agent }),
+  });
+
+  if (!resp.ok) {
+    const data = await resp.json().catch(() => ({}));
+    onError(data.error || \`Error \${resp.status}\`);
+    return;
+  }
+
+  if (!resp.body) {
+    onError('No response body');
+    return;
+  }
+
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let streamDone = false;
+
+  while (!streamDone) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    let newlineIndex: number;
+    while ((newlineIndex = buffer.indexOf('\\n')) !== -1) {
+      let line = buffer.slice(0, newlineIndex);
+      buffer = buffer.slice(newlineIndex + 1);
+
+      if (line.endsWith('\\r')) line = line.slice(0, -1);
+      if (line.startsWith(':') || line.trim() === '') continue;
+      if (!line.startsWith('data: ')) continue;
+
+      const jsonStr = line.slice(6).trim();
+      if (jsonStr === '[DONE]') {
+        streamDone = true;
+        break;
+      }
+
+      try {
+        const parsed = JSON.parse(jsonStr);
+        const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+        if (content) onDelta(content);
+      } catch {
+        buffer = line + '\\n' + buffer;
+        break;
+      }
+    }
+  }
+
+  // Flush remaining buffer
+  if (buffer.trim()) {
+    for (let raw of buffer.split('\\n')) {
+      if (!raw) continue;
+      if (raw.endsWith('\\r')) raw = raw.slice(0, -1);
+      if (raw.startsWith(':') || raw.trim() === '') continue;
+      if (!raw.startsWith('data: ')) continue;
+      const jsonStr = raw.slice(6).trim();
+      if (jsonStr === '[DONE]') continue;
+      try {
+        const parsed = JSON.parse(jsonStr);
+        const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+        if (content) onDelta(content);
+      } catch { /* ignore */ }
+    }
+  }
+
+  onDone();
+}`,
+
+"src/lib/generateImage.ts": `const GENERATE_URL = \`\${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-image\`;
+
+export type ImageQuality = 'fast' | 'hd';
+
+interface GenerateResult {
+  imageUrl: string;
+  description?: string;
+  model?: string;
+}
+
+export async function generateImage(
+  prompt: string,
+  quality: ImageQuality = 'fast',
+  editImageUrl?: string
+): Promise<GenerateResult> {
+  const resp = await fetch(GENERATE_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: \`Bearer \${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}\`,
+    },
+    body: JSON.stringify({ prompt, quality, editImageUrl }),
+  });
+
+  if (!resp.ok) {
+    const data = await resp.json().catch(() => ({}));
+    throw new Error(data.error || \`Erro \${resp.status}\`);
+  }
+
+  return await resp.json();
+}`,
+
+"src/lib/utils.ts": `import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}`,
+    }
+  },
+
+  {
+    id: "components",
+    title: "Componentes do Chat",
+    icon: "💬",
+    color: "purple",
+    desc: "Interface completa: mensagens com markdown, input, sidebar, agentes e configurações.",
+    files: {
+"src/components/chat/ChatView.tsx": `import { useRef, useEffect, useState } from 'react';
+import { useChatStore } from '@/store/chatStore';
+import { ChatMessage } from './ChatMessage';
+import { ChatInput } from './ChatInput';
+import { agents } from '@/data/agents';
+import { streamChat } from '@/lib/streamChat';
+import { generateImage, ImageQuality } from '@/lib/generateImage';
+import { Loader2, ImageIcon } from 'lucide-react';
+import { toast } from 'sonner';
+
+export function ChatView() {
+  const { activeConversationId, getActiveConversation, addMessage } = useChatStore();
+  const conversation = getActiveConversation();
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamingContent, setStreamingContent] = useState('');
+  const [loadingLabel, setLoadingLabel] = useState('');
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [conversation?.messages.length, streamingContent]);
+
+  const agent = conversation?.agent
+    ? agents.find((a) => a.id === conversation.agent)
+    : null;
+
+  const handleImageGeneration = async (prompt: string, quality: ImageQuality) => {
+    if (!activeConversationId || !prompt) return;
+    const qualityLabel = quality === 'hd' ? '(HD)' : '(rápido)';
+    addMessage(activeConversationId, {
+      role: 'user',
+      content: \`🎨 Gerar imagem \${qualityLabel}: \${prompt}\`,
+    });
+    setIsStreaming(true);
+    setLoadingLabel('Gerando imagem...');
+    setStreamingContent('');
+
+    try {
+      const result = await generateImage(prompt, quality);
+      const desc = result.description || \`Imagem gerada: \${prompt}\`;
+      addMessage(activeConversationId, {
+        role: 'assistant',
+        content: desc,
+        attachments: [{ type: 'image', name: prompt, url: result.imageUrl }],
+      });
+    } catch (e: any) {
+      toast.error(e.message || 'Erro ao gerar imagem.');
+      addMessage(activeConversationId, {
+        role: 'assistant',
+        content: \`❌ Não foi possível gerar a imagem. \${e.message || 'Tente novamente.'}\`,
+      });
+    } finally {
+      setIsStreaming(false);
+      setStreamingContent('');
+      setLoadingLabel('');
+    }
+  };
+
+  const handleSend = async (content: string) => {
+    if (!activeConversationId) return;
+
+    if (content.startsWith('/imagine ')) {
+      await handleImageGeneration(content.replace('/imagine ', '').trim(), 'fast');
+      return;
+    }
+    if (content.startsWith('/imaginehd ')) {
+      await handleImageGeneration(content.replace('/imaginehd ', '').trim(), 'hd');
+      return;
+    }
+
+    addMessage(activeConversationId, { role: 'user', content });
+    setIsStreaming(true);
+    setStreamingContent('');
+    setLoadingLabel('');
+
+    const currentConv = getActiveConversation();
+    const history = (currentConv?.messages || []).map((m) => ({
+      role: m.role as 'user' | 'assistant' | 'system',
+      content: m.content,
+    }));
+    history.push({ role: 'user', content });
+
+    let fullContent = '';
+
+    try {
+      await streamChat({
+        messages: history,
+        agent: conversation?.agent,
+        onDelta: (delta) => {
+          fullContent += delta;
+          setStreamingContent(fullContent);
+        },
+        onDone: () => {
+          if (fullContent) {
+            addMessage(activeConversationId, {
+              role: 'assistant',
+              content: fullContent,
+              agent: conversation?.agent,
+            });
+          }
+          setIsStreaming(false);
+          setStreamingContent('');
+        },
+        onError: (error) => {
+          toast.error(error);
+          setIsStreaming(false);
+          setStreamingContent('');
+        },
+      });
+    } catch (e) {
+      toast.error('Erro ao conectar com a IA. Tente novamente.');
+      setIsStreaming(false);
+      setStreamingContent('');
+    }
+  };
+
+  return (
+    <div className="flex-1 flex flex-col h-screen">
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-border flex items-center gap-2">
+        {agent && <span className="text-lg">{agent.icon}</span>}
+        <span className="text-sm font-medium text-foreground">
+          {agent?.name || 'NexusIA'}
+        </span>
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto scrollbar-thin py-4">
+        {conversation?.messages.map((msg) => (
+          <ChatMessage key={msg.id} message={msg} />
+        ))}
+        {isStreaming && streamingContent && (
+          <ChatMessage
+            message={{
+              id: 'streaming',
+              role: 'assistant',
+              content: streamingContent,
+              timestamp: new Date(),
+            }}
+          />
+        )}
+        {isStreaming && !streamingContent && (
+          <div className="flex gap-3 px-4 py-3 max-w-4xl mx-auto">
+            <div className="h-7 w-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+              {loadingLabel ? (
+                <ImageIcon className="h-4 w-4 text-primary animate-pulse" />
+              ) : (
+                <Loader2 className="h-4 w-4 text-primary animate-spin" />
+              )}
+            </div>
+            <div className="bg-card border border-border rounded-2xl rounded-bl-md px-4 py-3">
+              <div className="flex gap-1">
+                <span className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-pulse" />
+                <span className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-pulse" style="animation-delay:.2s" />
+                <span className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-pulse" style="animation-delay:.4s" />
+              </div>
+            </div>
+          </div>
+        )}
+        <div ref={bottomRef} />
+      </div>
+
+      <ChatInput onSend={handleSend} disabled={isStreaming} />
+    </div>
+  );
+}`,
+
+"src/components/chat/ChatMessage.tsx": `import { motion } from 'framer-motion';
+import { Message } from '@/types/agent';
+import { cn } from '@/lib/utils';
+import { Bot, User, Download, Copy, Check } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import { useState, useCallback } from 'react';
+
+interface ChatMessageProps {
+  message: Message;
+}
+
+export function ChatMessage({ message }: ChatMessageProps) {
+  const isUser = message.role === 'user';
+  const [copiedBlock, setCopiedBlock] = useState<number | null>(null);
+
+  const copyCode = useCallback((code: string, idx: number) => {
+    navigator.clipboard.writeText(code);
+    setCopiedBlock(idx);
+    setTimeout(() => setCopiedBlock(null), 2000);
+  }, []);
+
+  const downloadImage = (src: string, name?: string) => {
+    const a = document.createElement('a');
+    a.href = src;
+    a.download = name || 'nexusia-image.png';
+    a.target = '_blank';
+    a.click();
+  };
+
+  let codeBlockIdx = 0;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className={cn(
+        'flex gap-3 px-4 py-3 max-w-4xl mx-auto',
+        isUser ? 'justify-end' : 'justify-start'
+      )}
+    >
+      {!isUser && (
+        <div className="h-7 w-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 mt-0.5">
+          <Bot className="h-4 w-4 text-primary" />
+        </div>
+      )}
+      <div
+        className={cn(
+          'max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed',
+          isUser
+            ? 'bg-primary text-primary-foreground rounded-br-md'
+            : 'bg-card border border-border text-foreground rounded-bl-md'
+        )}
+      >
+        {/* Attachments */}
+        {message.attachments?.map((att, i) => (
+          <div key={i} className="mb-2">
+            {att.type === 'image' ? (
+              <div className="group relative inline-block">
+                <img src={att.url} alt={att.name}
+                  className="rounded-lg max-h-64 object-contain cursor-pointer hover:opacity-95 transition-opacity"
+                  onClick={() => window.open(att.url, '_blank')}
+                />
+                <button
+                  onClick={(e) => { e.stopPropagation(); downloadImage(att.url, att.name); }}
+                  className="absolute bottom-2 right-2 p-2 bg-background/80 backdrop-blur-sm border border-border rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background flex items-center gap-1.5"
+                >
+                  <Download className="h-4 w-4 text-foreground" />
+                  <span className="text-xs text-foreground font-medium">Baixar</span>
+                </button>
+              </div>
+            ) : (
+              <a href={att.url} download={att.name}
+                className="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg text-xs hover:bg-muted/80 transition-colors">
+                <Download className="h-3.5 w-3.5" />
+                <span className="truncate">{att.name}</span>
+              </a>
+            )}
+          </div>
+        ))}
+
+        {isUser ? (
+          <p className="whitespace-pre-wrap">{message.content}</p>
+        ) : (
+          <div className="prose prose-sm dark:prose-invert max-w-none">
+            <ReactMarkdown
+              components={{
+                code({ className, children, ...props }) {
+                  const match = /language-(\\w+)/.exec(className || '');
+                  const isBlock = match || (typeof children === 'string' && children.includes('\\n'));
+
+                  if (isBlock) {
+                    const currentIdx = codeBlockIdx++;
+                    const codeStr = String(children).replace(/\\n$/, '');
+                    return (
+                      <div className="relative group my-2 rounded-lg overflow-hidden border border-border">
+                        <div className="flex items-center justify-between bg-muted px-3 py-1.5 text-[11px] text-muted-foreground">
+                          <span>{match?.[1] || 'code'}</span>
+                          <button onClick={() => copyCode(codeStr, currentIdx)}
+                            className="flex items-center gap-1 text-[10px] hover:text-foreground transition-colors">
+                            {copiedBlock === currentIdx
+                              ? <><Check className="h-3 w-3" /> Copiado</>
+                              : <><Copy className="h-3 w-3" /> Copiar</>}
+                          </button>
+                        </div>
+                        <pre className="p-3 overflow-x-auto bg-background text-xs leading-relaxed">
+                          <code className={className} {...props}>{children}</code>
+                        </pre>
+                      </div>
+                    );
+                  }
+                  return (
+                    <code className="px-1.5 py-0.5 bg-muted rounded text-xs text-foreground" {...props}>
+                      {children}
+                    </code>
+                  );
+                },
+                img({ src, alt }) {
+                  return (
+                    <div className="my-2 group relative inline-block">
+                      <img src={src} alt={alt || ''}
+                        className="rounded-lg max-h-96 object-contain cursor-pointer hover:opacity-95 transition-opacity"
+                        onClick={() => src && window.open(src, '_blank')}
+                      />
+                      <button
+                        onClick={(e) => { e.stopPropagation(); if (src) downloadImage(src, alt); }}
+                        className="absolute bottom-2 right-2 p-1.5 bg-background/80 backdrop-blur-sm border border-border rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background"
+                      >
+                        <Download className="h-3.5 w-3.5 text-foreground" />
+                      </button>
+                    </div>
+                  );
+                },
+              }}
+            >
+              {message.content}
+            </ReactMarkdown>
+          </div>
+        )}
+      </div>
+      {isUser && (
+        <div className="h-7 w-7 rounded-lg bg-muted flex items-center justify-center shrink-0 mt-0.5">
+          <User className="h-4 w-4 text-muted-foreground" />
+        </div>
+      )}
+    </motion.div>
+  );
+}`,
+
+"src/components/chat/ChatInput.tsx": `import { useState, useRef, useEffect } from 'react';
+import { Send, Paperclip, Image, Sparkles, Wand2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+
+interface ChatInputProps {
+  onSend: (message: string, attachments?: File[]) => void;
+  disabled?: boolean;
+}
+
+export function ChatInput({ onSend, disabled }: ChatInputProps) {
+  const [input, setInput] = useState('');
+  const [showImageMenu, setShowImageMenu] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 160) + 'px';
+    }
+  }, [input]);
+
+  const handleSubmit = () => {
+    if (!input.trim() || disabled) return;
+    onSend(input.trim());
+    setInput('');
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
+
+  const insertCommand = (cmd: string) => {
+    setInput(cmd);
+    setShowImageMenu(false);
+    textareaRef.current?.focus();
+  };
+
+  return (
+    <div className="px-4 pb-4 pt-2">
+      <div className="max-w-3xl mx-auto">
+        <div className="flex items-end gap-2 bg-card border border-border rounded-2xl px-4 py-3 focus-within:border-primary/40 transition-all">
+          <div className="flex items-center gap-0.5 shrink-0 mb-0.5">
+            <div className="relative" ref={menuRef}>
+              <button
+                onClick={() => setShowImageMenu(!showImageMenu)}
+                className="p-1.5 text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-muted"
+                title="Gerar imagem com IA"
+              >
+                <Sparkles className="h-4 w-4" />
+              </button>
+              <AnimatePresence>
+                {showImageMenu && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                    className="absolute bottom-full left-0 mb-2 w-56 bg-popover border border-border rounded-xl shadow-lg p-1.5 z-50"
+                  >
+                    <button
+                      onClick={() => insertCommand('/imagine ')}
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left text-sm hover:bg-muted transition-colors"
+                    >
+                      <Sparkles className="h-4 w-4 text-primary shrink-0" />
+                      <div>
+                        <p className="font-medium text-foreground text-xs">Rápido</p>
+                        <p className="text-[10px] text-muted-foreground">Geração veloz</p>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => insertCommand('/imaginehd ')}
+                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left text-sm hover:bg-muted transition-colors"
+                    >
+                      <Wand2 className="h-4 w-4 text-accent shrink-0" />
+                      <div>
+                        <p className="font-medium text-foreground text-xs">Alta qualidade</p>
+                        <p className="text-[10px] text-muted-foreground">Gemini Pro • Detalhado</p>
+                      </div>
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Pergunte qualquer coisa ao NexusIA..."
+            rows={1}
+            className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none max-h-40 scrollbar-thin"
+          />
+
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={handleSubmit}
+            disabled={!input.trim() || disabled}
+            className="p-2 rounded-lg bg-primary text-primary-foreground disabled:opacity-30 disabled:cursor-not-allowed hover:opacity-90 transition-opacity shrink-0 mb-0.5"
+          >
+            <Send className="h-4 w-4" />
+          </motion.button>
+        </div>
+
+        <p className="text-[10px] text-muted-foreground text-center mt-2">
+          NexusIA pode cometer erros. Verifique informações importantes.
+        </p>
+      </div>
+    </div>
+  );
+}`,
+
+"src/components/chat/AgentSelector.tsx": `import { motion } from 'framer-motion';
+import { agents } from '@/data/agents';
+import { AgentType } from '@/types/agent';
+import { useChatStore } from '@/store/chatStore';
+
+export function AgentSelector() {
+  const { createConversation } = useChatStore();
+
+  const handleSelect = (agentId: AgentType) => {
+    createConversation(agentId);
+  };
+
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center px-6 max-w-4xl mx-auto w-full">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="text-center mb-12"
+      >
+        <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-3">
+          <span className="text-gradient-primary">NexusIA</span>
+        </h1>
+        <p className="text-muted-foreground text-lg">
+          Escolha um agente especializado ou inicie uma conversa livre
+        </p>
+      </motion.div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 w-full mb-8">
+        {agents.map((agent, i) => (
+          <motion.button
+            key={agent.id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: i * 0.08 }}
+            onClick={() => handleSelect(agent.id)}
+            className="group p-4 rounded-xl border bg-card text-left transition-all duration-300 hover:border-primary/40"
+          >
+            <div className="text-2xl mb-2">{agent.icon}</div>
+            <h3 className="font-semibold text-foreground mb-1">{agent.name}</h3>
+            <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{agent.description}</p>
+            <div className="flex flex-wrap gap-1">
+              {agent.capabilities.slice(0, 3).map((cap) => (
+                <span key={cap} className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                  {cap}
+                </span>
+              ))}
+            </div>
+          </motion.button>
+        ))}
+      </div>
+
+      <motion.button
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.5 }}
+        onClick={() => createConversation()}
+        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+      >
+        ou iniciar conversa sem agente específico →
+      </motion.button>
+    </div>
+  );
+}`,
+
+"src/components/chat/Sidebar.tsx": `import { useState } from 'react';
+import { Plus, MessageSquare, PanelLeftClose, Zap, Trash2, Pencil, Check, X, Settings } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useChatStore } from '@/store/chatStore';
+import { cn } from '@/lib/utils';
+import { SettingsDialog } from './SettingsDialog';
+
+export function Sidebar() {
+  const {
+    conversations, activeConversationId, sidebarOpen,
+    setSidebarOpen, setActiveConversation, setSelectedAgent,
+    deleteConversation, renameConversation,
+  } = useChatStore();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const handleNewChat = () => {
+    setSelectedAgent(null);
+    setActiveConversation(null);
+  };
+
+  const startRename = (id: string, title: string) => {
+    setEditingId(id);
+    setEditTitle(title);
+  };
+
+  const confirmRename = () => {
+    if (editingId && editTitle.trim()) {
+      renameConversation(editingId, editTitle.trim());
+    }
+    setEditingId(null);
+  };
+
+  return (
+    <>
+      <AnimatePresence>
+        {sidebarOpen && (
+          <motion.aside
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: 280, opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="h-screen flex flex-col bg-sidebar border-r border-sidebar-border overflow-hidden"
+          >
+            <div className="p-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center">
+                  <Zap className="h-4 w-4 text-primary-foreground" />
+                </div>
+                <span className="font-semibold text-foreground tracking-tight text-sm">NexusIA</span>
+              </div>
+              <button onClick={() => setSidebarOpen(false)}
+                className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                <PanelLeftClose className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="px-3 mb-3">
+              <button onClick={handleNewChat}
+                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border border-border text-sm text-foreground hover:bg-muted transition-colors">
+                <Plus className="h-4 w-4" /> Nova conversa
+              </button>
+            </div>
+
+            <div className="px-3 mb-1">
+              <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider px-2">Conversas</span>
+            </div>
+            <div className="flex-1 overflow-y-auto scrollbar-thin px-3 py-1 space-y-0.5">
+              {conversations.length === 0 && (
+                <p className="text-xs text-muted-foreground px-2 py-4 text-center">Nenhuma conversa ainda</p>
+              )}
+              {conversations.map((conv) => (
+                <div key={conv.id}
+                  className={cn(
+                    'group flex items-center gap-1 rounded-lg text-sm transition-colors',
+                    conv.id === activeConversationId
+                      ? 'bg-muted text-foreground'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                  )}
+                >
+                  {editingId === conv.id ? (
+                    <div className="flex-1 flex items-center gap-1 px-2 py-1.5">
+                      <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && confirmRename()}
+                        className="flex-1 bg-background border border-border rounded px-2 py-1 text-xs text-foreground focus:outline-none"
+                        autoFocus
+                      />
+                      <button onClick={confirmRename} className="p-1 text-primary"><Check className="h-3 w-3" /></button>
+                      <button onClick={() => setEditingId(null)} className="p-1 text-muted-foreground"><X className="h-3 w-3" /></button>
+                    </div>
+                  ) : (
+                    <>
+                      <button onClick={() => setActiveConversation(conv.id)}
+                        className="flex-1 flex items-center gap-2 px-3 py-2 text-left truncate">
+                        <MessageSquare className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate">{conv.title}</span>
+                      </button>
+                      <div className="hidden group-hover:flex items-center pr-1">
+                        <button onClick={() => startRename(conv.id, conv.title)} className="p-1 rounded hover:bg-background/50">
+                          <Pencil className="h-3 w-3" />
+                        </button>
+                        <button onClick={() => deleteConversation(conv.id)} className="p-1 rounded hover:bg-background/50 text-destructive">
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="p-3 border-t border-sidebar-border">
+              <button onClick={() => setSettingsOpen(true)}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                <Settings className="h-4 w-4" /> Configurações
+              </button>
+            </div>
+          </motion.aside>
+        )}
+      </AnimatePresence>
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+    </>
+  );
+}`,
+
+"src/components/chat/SettingsDialog.tsx": `import { useChatStore } from '@/store/chatStore';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Sun, Moon } from 'lucide-react';
+
+interface SettingsDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
+  const { theme, setTheme } = useChatStore();
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Configurações</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-6 py-4">
+          <div>
+            <label className="text-sm font-medium text-foreground mb-3 block">Aparência</label>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setTheme('light')}
+                className={\`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border text-sm transition-colors \${
+                  theme === 'light' ? 'border-primary bg-primary/10 text-foreground' : 'border-border text-muted-foreground hover:bg-muted'
+                }\`}
+              >
+                <Sun className="h-4 w-4" /> Claro
+              </button>
+              <button
+                onClick={() => setTheme('dark')}
+                className={\`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border text-sm transition-colors \${
+                  theme === 'dark' ? 'border-primary bg-primary/10 text-foreground' : 'border-border text-muted-foreground hover:bg-muted'
+                }\`}
+              >
+                <Moon className="h-4 w-4" /> Escuro
+              </button>
+            </div>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-foreground mb-2 block">Sobre</label>
+            <p className="text-xs text-muted-foreground">
+              NexusIA — Assistente de IA avançado com agentes especializados.
+            </p>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}`,
+    }
+  },
+
+  {
+    id: "pages",
+    title: "Páginas & App Root",
+    icon: "📄",
+    color: "red",
+    desc: "Entry point da aplicação, rotas e página principal.",
+    files: {
+"src/main.tsx": `import { createRoot } from "react-dom/client";
+import App from "./App.tsx";
+import "./index.css";
+
+createRoot(document.getElementById("root")!).render(<App />);`,
+
+"src/App.tsx": `import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Index from "./pages/Index";
+import NotFound from "./pages/NotFound";
+
+const queryClient = new QueryClient();
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
+    </TooltipProvider>
+  </QueryClientProvider>
+);
+
+export default App;`,
+
+"src/pages/Index.tsx": `import { PanelLeftOpen } from 'lucide-react';
+import { Sidebar } from '@/components/chat/Sidebar';
+import { AgentSelector } from '@/components/chat/AgentSelector';
+import { ChatView } from '@/components/chat/ChatView';
+import { useChatStore } from '@/store/chatStore';
+
+const Index = () => {
+  const { activeConversationId, sidebarOpen, setSidebarOpen } = useChatStore();
+
+  return (
+    <div className="flex h-screen bg-background overflow-hidden">
+      <Sidebar />
+      <div className="flex-1 flex flex-col relative">
+        {!sidebarOpen && (
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="absolute top-3 left-3 z-10 p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <PanelLeftOpen className="h-4 w-4" />
+          </button>
+        )}
+        {activeConversationId ? <ChatView /> : <AgentSelector />}
+      </div>
+    </div>
+  );
+};
+
+export default Index;`,
+    }
+  },
+
+  {
+    id: "backend",
+    title: "Backend (Edge Functions)",
+    icon: "🔒",
+    color: "cyan",
+    desc: "Supabase Edge Functions: chat com streaming SSE e geração de imagens via IA.",
+    files: {
+"supabase/functions/chat/index.ts": `import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+};
+
+const agentSystemPrompts: Record<string, string> = {
+  research: \`Você é um assistente especializado em pesquisa.
+Suas capacidades: pesquisa de informações, reunião de dados, resumo de conteúdos, comparação de fontes e fact-checking.
+Use markdown para formatação. Seja preciso e analítico.
+IMPORTANTE: Nunca se apresente. Vá direto ao ponto.\`,
+
+  coder: \`Você é um assistente especializado em programação.
+Suas capacidades: criação de código, revisão, depuração, arquitetura de software.
+Forneça código limpo, bem comentado. Use blocos de código markdown.
+IMPORTANTE: Nunca se apresente. Vá direto ao ponto.\`,
+
+  business: \`Você é um assistente especializado em estratégia de negócios.
+Suas capacidades: análise de mercado, estratégias, planejamento de startups, monetização, pitch decks.
+Forneça análises estruturadas com dados e planos acionáveis.
+IMPORTANTE: Nunca se apresente. Vá direto ao ponto.\`,
+
+  marketing: \`Você é um assistente especializado em marketing.
+Suas capacidades: campanhas, copywriting, growth, funis de vendas.
+Seja criativo e orientado a resultados.
+IMPORTANTE: Nunca se apresente. Vá direto ao ponto.\`,
+
+  content: \`Você é um assistente especializado em criação de conteúdo.
+Suas capacidades: artigos, roteiros, posts, scripts de vídeo, copywriting.
+Seja criativo e persuasivo.
+IMPORTANTE: Nunca se apresente. Vá direto ao ponto.\`,
+
+  analyst: \`Você é um assistente especializado em análise de dados.
+Suas capacidades: interpretação de dados, relatórios, padrões e tendências.
+Forneça análises detalhadas com insights acionáveis.
+IMPORTANTE: Nunca se apresente. Vá direto ao ponto.\`,
+
+  automation: \`Você é um assistente especializado em automação.
+Suas capacidades: fluxos automáticos, APIs, automação de tarefas.
+Forneça soluções práticas com código quando necessário.
+IMPORTANTE: Nunca se apresente. Vá direto ao ponto.\`,
+};
+
+const defaultSystemPrompt = \`Você é um assistente de IA avançado da plataforma NexusIA.
+
+MODOS DE OPERAÇÃO:
+1. CONVERSACIONAL — Responda perguntas, explique conceitos
+2. EXECUÇÃO — Realize tarefas, divida em etapas
+3. ANÁLISE — Analise dados, documentos, problemas
+4. AUTOMAÇÃO — Crie fluxos automáticos
+
+RACIOCÍNIO ESTRUTURADO:
+1. Interprete o pedido
+2. Divida em subtarefas
+3. Crie um plano
+4. Execute cada etapa
+5. Verifique resultados
+6. Entregue a solução
+
+ESTILO: claro, natural, profissional. Use markdown.
+Seja proativo — sugira melhorias e alternativas.
+IMPORTANTE: Nunca se apresente. Vá direto ao ponto.\`;
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { messages, agent } = await req.json();
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+
+    const systemPrompt = agent && agentSystemPrompts[agent]
+      ? agentSystemPrompts[agent]
+      : defaultSystemPrompt;
+
+    const response = await fetch(
+      "https://ai.gateway.lovable.dev/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: \`Bearer \${LOVABLE_API_KEY}\`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: [
+            { role: "system", content: systemPrompt },
+            ...messages,
+          ],
+          stream: true,
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "Limite de requisições excedido." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ error: "Créditos insuficientes." }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      const t = await response.text();
+      console.error("AI gateway error:", response.status, t);
+      return new Response(
+        JSON.stringify({ error: "Erro no gateway de IA" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    return new Response(response.body, {
+      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+    });
+  } catch (e) {
+    console.error("chat error:", e);
+    return new Response(
+      JSON.stringify({ error: e instanceof Error ? e.message : "Erro desconhecido" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+});`,
+
+"supabase/functions/generate-image/index.ts": `import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+};
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { prompt, quality, editImageUrl } = await req.json();
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+
+    const model = quality === "hd"
+      ? "google/gemini-3-pro-image-preview"
+      : "google/gemini-2.5-flash-image";
+
+    const userContent: any[] = [];
+
+    if (editImageUrl) {
+      userContent.push(
+        { type: "text", text: prompt || "Improve this image" },
+        { type: "image_url", image_url: { url: editImageUrl } }
+      );
+    } else {
+      userContent.push({
+        type: "text",
+        text: quality === "hd"
+          ? \`Create a high quality, detailed image: \${prompt}\`
+          : prompt,
+      });
+    }
+
+    const response = await fetch(
+      "https://ai.gateway.lovable.dev/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: \`Bearer \${LOVABLE_API_KEY}\`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            {
+              role: "user",
+              content: editImageUrl ? userContent : userContent[0].text,
+            },
+          ],
+          modalities: ["image", "text"],
+        }),
+      }
+    );
+
+    if (response.status === 429) {
+      return new Response(
+        JSON.stringify({ error: "Muitas requisições. Aguarde." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    if (response.status === 402) {
+      return new Response(
+        JSON.stringify({ error: "Créditos insuficientes." }),
+        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    if (!response.ok) {
+      const t = await response.text();
+      console.error("AI gateway error:", response.status, t);
+      return new Response(
+        JSON.stringify({ error: "Erro ao gerar imagem." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const data = await response.json();
+    const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    const textResponse = data.choices?.[0]?.message?.content || "";
+
+    if (!imageUrl) {
+      return new Response(
+        JSON.stringify({ error: textResponse || "Nenhuma imagem foi gerada." }),
+        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    return new Response(
+      JSON.stringify({ imageUrl, description: textResponse, model }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (e) {
+    console.error("generate-image error:", e);
+    return new Response(
+      JSON.stringify({ error: e instanceof Error ? e.message : "Erro desconhecido" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+});`,
+    }
+  },
+];
+
+
+// ============================================================
+//  RENDER ENGINE
+// ============================================================
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function getExtClass(filename) {
+  const ext = filename.split('.').pop();
+  const map = { ts:'ext-ts', tsx:'ext-tsx', css:'ext-css', json:'ext-json', html:'ext-html', js:'ext-js' };
+  return map[ext] || 'ext-ts';
+}
+
+function getExtLabel(filename) {
+  return filename.split('.').pop().toUpperCase();
+}
+
+function render() {
+  let totalFiles = 0;
+  let totalLines = 0;
+  let tocHtml = '';
+  let sectionsHtml = '';
+
+  PROJECT.forEach((section, si) => {
+    const fileKeys = Object.keys(section.files);
+    totalFiles += fileKeys.length;
+
+    tocHtml += `<a href="#${section.id}">
+      <span class="num">${si + 1}</span>
+      ${section.title}
+      <span class="count">${fileKeys.length} arquivo${fileKeys.length > 1 ? 's' : ''}</span>
+    </a>`;
+
+    let filesHtml = '';
+    fileKeys.forEach((filename, fi) => {
+      const code = section.files[filename];
+      const lines = code.split('\n').length;
+      totalLines += lines;
+      const blockId = `file-${si}-${fi}`;
+
+      filesHtml += `
+        <div class="file-block" id="${blockId}">
+          <div class="file-header">
+            <div class="file-name">
+              <span class="ext ${getExtClass(filename)}">${getExtLabel(filename)}</span>
+              ${filename}
+            </div>
+            <div class="file-actions">
+              <span style="font-size:.7rem;color:var(--text-muted);margin-right:8px">${lines} linhas</span>
+              <button class="file-btn" onclick="copyFile('${blockId}', this)" title="Copiar código">
+                📋 Copiar
+              </button>
+            </div>
+          </div>
+          <div class="file-code" id="${blockId}-code">
+            <pre>${escapeHtml(code)}</pre>
+          </div>
+        </div>`;
+    });
+
+    sectionsHtml += `
+      <section class="section" id="${section.id}">
+        <div class="section-header">
+          <div class="section-icon ${section.color}">${section.icon}</div>
+          <h2>${section.title}</h2>
+          <span class="badge">${fileKeys.length} arquivo${fileKeys.length > 1 ? 's' : ''}</span>
+        </div>
+        <p class="section-desc">${section.desc}</p>
+        ${filesHtml}
+      </section>`;
+  });
+
+  document.getElementById('tocGrid').innerHTML = tocHtml;
+  document.getElementById('sections').innerHTML = sectionsHtml;
+  document.getElementById('totalFiles').textContent = totalFiles;
+  document.getElementById('totalLines').textContent = totalLines.toLocaleString('pt-BR');
+}
+
+// ============================================================
+//  COPY FILE
+// ============================================================
+function copyFile(blockId, btn) {
+  const pre = document.querySelector(`#${blockId}-code pre`);
+  navigator.clipboard.writeText(pre.textContent).then(() => {
+    btn.classList.add('copied');
+    btn.innerHTML = '✅ Copiado!';
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = '📋 Copiar';
+    }, 2000);
+  });
+}
+
+// ============================================================
+//  ZIP DOWNLOAD
+// ============================================================
+async function downloadZip() {
+  const overlay = document.getElementById('downloadOverlay');
+  const fill = document.getElementById('progressFill');
+  const text = document.getElementById('progressText');
+  const status = document.getElementById('downloadStatus');
+
+  overlay.classList.add('active');
+
+  const zip = new JSZip();
+  let processed = 0;
+  let total = 0;
+
+  PROJECT.forEach(s => { total += Object.keys(s.files).length; });
+
+  for (const section of PROJECT) {
+    for (const [path, content] of Object.entries(section.files)) {
+      zip.file(path, content);
+      processed++;
+      const pct = Math.round((processed / total) * 100);
+      fill.style.width = pct + '%';
+      text.textContent = `${pct}% — ${processed}/${total} arquivos`;
+      status.textContent = `Adicionando: ${path}`;
+      await new Promise(r => setTimeout(r, 30));
+    }
+  }
+
+  status.textContent = 'Comprimindo ZIP...';
+  fill.style.width = '100%';
+
+  const blob = await zip.generateAsync({
+    type: 'blob',
+    compression: 'DEFLATE',
+    compressionOptions: { level: 6 },
+  });
+
+  saveAs(blob, 'nexusia-projeto-completo.zip');
+
+  status.textContent = '✅ Download concluído!';
+  setTimeout(() => { overlay.classList.remove('active'); }, 1500);
+}
+
+// ============================================================
+//  INIT
+// ============================================================
+document.addEventListener('DOMContentLoaded', render);
+</script>
+</body>
+</html>
