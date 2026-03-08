@@ -126,12 +126,24 @@ export function Sidebar() {
 
             {/* Bottom */}
             <div className="p-3 border-t border-sidebar-border space-y-1">
+              {user && (
+                <div className="px-3 py-2 text-xs text-muted-foreground truncate">
+                  {user.email}
+                </div>
+              )}
               <button
                 onClick={() => setSettingsOpen(true)}
                 className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               >
                 <Settings className="h-4 w-4" />
                 Configurações
+              </button>
+              <button
+                onClick={signOut}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-destructive hover:bg-muted transition-colors"
+              >
+                <LogOut className="h-4 w-4" />
+                Sair
               </button>
             </div>
           </motion.aside>
