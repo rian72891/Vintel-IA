@@ -53,7 +53,9 @@ serve(async (req) => {
           messages: [
             {
               role: "user",
-              content: editImageUrl ? userContent : userContent[0].text,
+              content: editImageUrl
+                ? userContent
+                : userContent[0].text,
             },
           ],
           modalities: ["image", "text"],
