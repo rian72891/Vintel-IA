@@ -6,25 +6,41 @@ interface ChatState {
   activeConversationId: string | null;
   selectedAgent: AgentType | null;
   sidebarOpen: boolean;
+  theme: 'light' | 'dark';
 
   setSelectedAgent: (agent: AgentType | null) => void;
   setSidebarOpen: (open: boolean) => void;
+  setTheme: (theme: 'light' | 'dark') => void;
   createConversation: (agent?: AgentType) => string;
   setActiveConversation: (id: string | null) => void;
   addMessage: (conversationId: string, message: Omit<Message, 'id' | 'timestamp'>) => void;
   getActiveConversation: () => Conversation | undefined;
+  deleteConversation: (id: string) => void;
+  renameConversation: (id: string, title: string) => void;
 }
 
 const generateId = () => Math.random().toString(36).substring(2, 15);
+
+const savedTheme = (typeof window !== 'undefined' && localStorage.getItem('nexusia-theme') as 'light' | 'dark') || 'dark';
+if (typeof window !== 'undefined') {
+  document.documentElement.classList.toggle('dark', savedTheme === 'dark');
+}
 
 export const useChatStore = create<ChatState>((set, get) => ({
   conversations: [],
   activeConversationId: null,
   selectedAgent: null,
   sidebarOpen: true,
+  theme: savedTheme,
 
   setSelectedAgent: (agent) => set({ selectedAgent: agent }),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
+
+  setTheme: (theme) => {
+    localStorage.setItem('nexusia-theme', theme);
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    set({ theme });
+  },
 
   createConversation: (agent) => {
     const id = generateId();
@@ -57,6 +73,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
           : c.title;
         return { ...c, messages, title, updatedAt: new Date() };
       }),
+    }));
+  },
+
+  deleteConversation: (id) => {
+    set((state) => {
+      const filtered = state.conversations.filter((c) => c.id !== id);
+      return {
+        conversations: filtered,
+        activeConversationId: state.activeConversationId === id ? null : state.activeConversationId,
+      };
+    });
+  },
+
+  renameConversation: (id, title) => {
+    set((state) => ({
+      conversations: state.conversations.map((c) =>
+        c.id === id ? { ...c, title } : c
+      ),
     }));
   },
 

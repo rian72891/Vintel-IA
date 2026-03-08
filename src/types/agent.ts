@@ -8,12 +8,20 @@ export interface Agent {
   capabilities: string[];
 }
 
+export interface MessageAttachment {
+  type: 'image' | 'file';
+  name: string;
+  url: string;
+  mimeType?: string;
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
   agent?: AgentType;
   timestamp: Date;
+  attachments?: MessageAttachment[];
 }
 
 export interface Conversation {
