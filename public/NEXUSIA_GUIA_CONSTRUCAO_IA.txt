@@ -1,0 +1,532 @@
+================================================================================
+  GUIA COMPLETO: COMO CONSTRUIR UMA IA INTELIGENTE COMO A NEXUSIA
+  Passo a passo detalhado — Do zero ao produto final
+================================================================================
+
+Este documento explica TODOS os passos, decisões e técnicas utilizadas para
+construir a NexusIA — uma plataforma de chat com IA multi-agente, streaming
+em tempo real, geração de imagens e interface profissional.
+
+================================================================================
+ÍNDICE
+================================================================================
+1. Arquitetura Geral
+2. Engenharia de Prompts (o segredo da "inteligência")
+3. Sistema Multi-Agente
+4. Streaming em Tempo Real (SSE)
+5. Geração de Imagens por IA
+6. Interface do Chat (Frontend)
+7. Renderização de Markdown
+8. Gerenciamento de Estado
+9. Tratamento de Erros
+10. Dicas e Boas Práticas
+
+================================================================================
+1. ARQUITETURA GERAL
+================================================================================
+
+Stack:
+- Frontend: React 18 + TypeScript + Vite + Tailwind CSS
+- Estado: Zustand (leve, sem boilerplate)
+- Backend: Supabase Edge Functions (Deno/TypeScript)
+- IA: Gateway de IA compatível com OpenAI API (modelos Google Gemini e GPT)
+- Streaming: Server-Sent Events (SSE)
+
+Fluxo de dados:
+┌──────────┐    ┌──────────────────┐    ┌──────────────────┐
+│ Frontend │───>│ Edge Function    │───>│ Gateway de IA    │
+│ (React)  │<───│ (Supabase/Deno)  │<───│ (Gemini/GPT)     │
+└──────────┘    └──────────────────┘    └──────────────────┘
+
+Regra de ouro: O frontend NUNCA chama a IA diretamente. Tudo passa pelo
+backend (Edge Function) que guarda as chaves de API em segurança.
+
+================================================================================
+2. ENGENHARIA DE PROMPTS — O SEGREDO DA "INTELIGÊNCIA"
+================================================================================
+
+A "inteligência" de uma IA não vem do modelo em si, mas de COMO você instrui
+o modelo. Isso se chama Prompt Engineering. Aqui estão as técnicas usadas:
+
+--- 2.1 SYSTEM PROMPT ESTRUTURADO ---
+
+O system prompt é a instrução invisível que define o comportamento da IA.
+Ele é enviado antes de cada conversa e o usuário nunca vê.
+
+Exemplo do prompt padrão da NexusIA:
+
+"""
+Você é um assistente de inteligência artificial avançado da plataforma NexusIA.
+
+MODOS DE OPERAÇÃO:
+1. CONVERSACIONAL — Responda perguntas, explique conceitos, forneça conselhos
+2. EXECUÇÃO — Realize tarefas, divida em etapas, execute planos
+3. ANÁLISE — Analise dados, documentos, problemas e cenários
+4. AUTOMAÇÃO — Crie fluxos automáticos, sugira integrações
+
+RACIOCÍNIO ESTRUTURADO para tarefas complexas:
+1. Interprete o pedido
+2. Divida em subtarefas
+3. Crie um plano
+4. Execute cada etapa
+5. Verifique resultados
+6. Entregue a solução
+
+ESTILO: claro, natural, profissional. Use markdown para formatação.
+Seja proativo — sugira melhorias e alternativas quando relevante.
+Sempre priorize gerar valor real para o usuário.
+
+IMPORTANTE: Nunca se apresente, nunca diga quem você é, nunca faça
+introduções sobre si mesmo. Vá direto ao ponto e responda o que foi pedido.
+"""
+
+--- 2.2 TÉCNICAS APLICADAS NO PROMPT ---
+
+a) DEFINIR MODOS DE OPERAÇÃO
+   Em vez de dizer "seja útil", liste modos específicos (Conversacional,
+   Execução, Análise, Automação). Isso dá ao modelo um framework mental.
+
+b) RACIOCÍNIO EM CADEIA (Chain-of-Thought)
+   Instrua o modelo a seguir passos: interpretar → dividir → planejar →
+   executar → verificar → entregar. Isso melhora drasticamente a qualidade
+   das respostas complexas.
+
+c) DEFINIR ESTILO E FORMATAÇÃO
+   Diga explicitamente para usar markdown, listas, tabelas, blocos de código.
+   Isso torna as respostas visualmente ricas e organizadas.
+
+d) PROATIVIDADE
+   Instruir para "sugerir melhorias e alternativas" faz a IA parecer mais
+   inteligente e engajada, em vez de apenas responder passivamente.
+
+e) ELIMINAR COMPORTAMENTOS INDESEJADOS
+   A linha "Nunca se apresente..." elimina aquelas respostas genéricas como
+   "Como IA, posso ajudá-lo com..." que fazem a IA parecer burra.
+
+f) FOCO EM VALOR
+   "Sempre priorize gerar valor real" direciona o modelo a dar respostas
+   práticas em vez de teóricas.
+
+--- 2.3 ERROS COMUNS EM PROMPTS ---
+
+❌ "Seja um assistente útil" → Genérico demais
+✅ Listar modos de operação específicos + raciocínio estruturado
+
+❌ "Responda em português" → O modelo já detecta o idioma
+✅ Definir estilo, tom e formatação específicos
+
+❌ Prompts longos demais com regras contraditórias
+✅ Prompts concisos, organizados em seções claras
+
+❌ Não dizer o que NÃO fazer
+✅ Incluir restrições explícitas (ex: "Nunca se apresente")
+
+================================================================================
+3. SISTEMA MULTI-AGENTE
+================================================================================
+
+Em vez de um único prompt genérico, criamos 7 agentes especializados.
+Cada agente tem um system prompt focado em sua área de expertise.
+
+--- 3.1 LISTA DE AGENTES ---
+
+| ID         | Nome         | Especialidade                          |
+|------------|--------------|----------------------------------------|
+| research   | Pesquisador  | Pesquisa, dados, resumos, fact-checking|
+| coder      | Programador  | Código, debug, arquitetura, code review|
+| business   | Estrategista | Mercado, negócios, startups, pitch     |
+| marketing  | Marketing    | Campanhas, copy, growth, funis         |
+| content    | Criador      | Artigos, roteiros, posts, scripts      |
+| analyst    | Analista     | Dados, relatórios, padrões, métricas   |
+| automation | Automação    | Workflows, APIs, automação, integrações|
+
+--- 3.2 COMO FUNCIONA ---
+
+1. O usuário seleciona um agente (ou usa o padrão)
+2. O frontend envia o ID do agente junto com as mensagens
+3. O backend seleciona o system prompt correspondente
+4. O modelo recebe esse prompt especializado e responde com foco
+
+Código no backend:
+```typescript
+const agentSystemPrompts = {
+  research: `Você é um assistente especializado em pesquisa...
+    Suas capacidades: pesquisa, dados, resumos, fact-checking.
+    Responda de forma estruturada, cite fontes, organize em tópicos.
+    IMPORTANTE: Nunca se apresente. Vá direto ao ponto.`,
+
+  coder: `Você é um assistente especializado em programação...
+    Suas capacidades: código, debug, arquitetura, code review.
+    Forneça código limpo, bem comentado, com explicações técnicas.
+    IMPORTANTE: Nunca se apresente. Vá direto ao ponto.`,
+
+  // ... outros agentes
+};
+
+// Seleção dinâmica:
+const systemPrompt = agent && agentSystemPrompts[agent]
+  ? agentSystemPrompts[agent]
+  : defaultSystemPrompt;
+```
+
+--- 3.3 POR QUE FUNCIONA ---
+
+Prompts especializados > Prompts genéricos porque:
+- O modelo "entra no personagem" e usa vocabulário da área
+- As respostas são mais focadas e práticas
+- O usuário sente que está falando com um expert
+
+================================================================================
+4. STREAMING EM TEMPO REAL (SSE)
+================================================================================
+
+Em vez de esperar a resposta completa, mostramos token por token em tempo real.
+Isso dá a sensação de que a IA está "pensando e digitando".
+
+--- 4.1 COMO FUNCIONA ---
+
+1. Frontend faz POST para a Edge Function
+2. Edge Function chama a API de IA com stream: true
+3. A API retorna um fluxo SSE (Server-Sent Events)
+4. O backend repassa o stream diretamente para o frontend
+5. O frontend lê chunk por chunk e atualiza a UI
+
+--- 4.2 BACKEND (Edge Function) ---
+
+```typescript
+// Chamar a API com streaming
+const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${API_KEY}`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    model: "google/gemini-3-flash-preview",
+    messages: [
+      { role: "system", content: systemPrompt },
+      ...messages,
+    ],
+    stream: true, // ← ISSO ATIVA O STREAMING
+  }),
+});
+
+// Repassar o stream diretamente (sem processar no backend)
+return new Response(response.body, {
+  headers: { "Content-Type": "text/event-stream" },
+});
+```
+
+--- 4.3 FRONTEND (Parser SSE) ---
+
+O parser lê o stream linha por linha e extrai os tokens:
+
+```typescript
+async function streamChat({ messages, onDelta, onDone, onError }) {
+  const resp = await fetch(CHAT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KEY}` },
+    body: JSON.stringify({ messages, agent }),
+  });
+
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    // Processar linha por linha
+    let newlineIndex;
+    while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
+      let line = buffer.slice(0, newlineIndex);
+      buffer = buffer.slice(newlineIndex + 1);
+
+      if (!line.startsWith('data: ')) continue;
+      const jsonStr = line.slice(6).trim();
+      if (jsonStr === '[DONE]') break;
+
+      const parsed = JSON.parse(jsonStr);
+      const content = parsed.choices?.[0]?.delta?.content;
+      if (content) onDelta(content); // ← Cada token aparece na tela
+    }
+  }
+  onDone();
+}
+```
+
+--- 4.4 ARMADILHAS DO SSE ---
+
+- NÃO dividir por "\n\n" — JSON pode quebrar entre chunks
+- NÃO criar nova mensagem a cada token — atualizar a mensagem existente
+- SEMPRE tratar JSON incompleto — re-bufferizar e esperar mais dados
+- SEMPRE fazer flush do buffer final após o stream acabar
+- SEMPRE tratar [DONE], CRLF (\r\n) e linhas de comentário (:)
+
+================================================================================
+5. GERAÇÃO DE IMAGENS POR IA
+================================================================================
+
+A NexusIA gera imagens usando modelos de IA generativa.
+
+--- 5.1 DOIS NÍVEIS DE QUALIDADE ---
+
+| Comando      | Modelo                           | Velocidade |
+|-------------|----------------------------------|------------|
+| /imagine    | gemini-2.5-flash-image (rápido)  | ~5s        |
+| /imaginehd  | gemini-3-pro-image-preview (HD)  | ~15s       |
+
+--- 5.2 BACKEND ---
+
+```typescript
+const model = quality === "hd"
+  ? "google/gemini-3-pro-image-preview"
+  : "google/gemini-2.5-flash-image";
+
+const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  method: "POST",
+  headers: { Authorization: `Bearer ${API_KEY}`, "Content-Type": "application/json" },
+  body: JSON.stringify({
+    model,
+    messages: [{ role: "user", content: prompt }],
+    modalities: ["image", "text"], // ← Pedir imagem + texto
+  }),
+});
+
+const data = await response.json();
+const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+```
+
+--- 5.3 FRONTEND ---
+
+O ChatView detecta comandos /imagine e /imaginehd, chama a Edge Function
+e exibe a imagem no chat com botão de download.
+
+================================================================================
+6. INTERFACE DO CHAT (FRONTEND)
+================================================================================
+
+--- 6.1 COMPONENTES PRINCIPAIS ---
+
+ChatView.tsx — Orquestra tudo:
+  - Renderiza mensagens
+  - Gerencia streaming
+  - Detecta comandos de imagem
+  - Mostra indicadores de loading
+
+ChatMessage.tsx — Renderiza cada mensagem:
+  - Mensagens do usuário: texto simples com fundo colorido
+  - Mensagens da IA: markdown renderizado com syntax highlighting
+  - Imagens: com preview e botão de download
+  - Código: com header de linguagem e botão de copiar
+
+ChatInput.tsx — Campo de entrada:
+  - Textarea autoexpansível
+  - Envio com Enter (Shift+Enter para nova linha)
+  - Desabilitado durante streaming
+
+AgentSelector.tsx — Seleção de agentes:
+  - Grid de cards com ícone, nome e descrição
+  - Ao clicar, cria conversa com aquele agente
+
+Sidebar.tsx — Histórico de conversas:
+  - Lista de conversas anteriores
+  - Renomear e deletar conversas
+  - Botão de nova conversa
+
+--- 6.2 ANIMAÇÕES ---
+
+Usamos Framer Motion para animações suaves:
+```tsx
+<motion.div
+  initial={{ opacity: 0, y: 8 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: 0.3 }}
+>
+  {/* conteúdo da mensagem */}
+</motion.div>
+```
+
+--- 6.3 SCROLL AUTOMÁTICO ---
+
+```typescript
+const bottomRef = useRef<HTMLDivElement>(null);
+useEffect(() => {
+  bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+}, [conversation?.messages.length, streamingContent]);
+```
+
+================================================================================
+7. RENDERIZAÇÃO DE MARKDOWN
+================================================================================
+
+Usamos react-markdown com componentes customizados:
+
+```tsx
+<ReactMarkdown
+  components={{
+    // Blocos de código com header e botão copiar
+    code({ className, children }) {
+      const match = /language-(\w+)/.exec(className || '');
+      if (match) {
+        return (
+          <div className="relative group rounded-lg border">
+            <div className="flex justify-between bg-muted px-3 py-1.5">
+              <span>{match[1]}</span>
+              <button onClick={() => copyCode(code)}>Copiar</button>
+            </div>
+            <pre><code>{children}</code></pre>
+          </div>
+        );
+      }
+      return <code className="bg-muted rounded px-1">{children}</code>;
+    },
+    // Imagens com download
+    img({ src, alt }) {
+      return (
+        <div className="group relative">
+          <img src={src} alt={alt} className="rounded-lg" />
+          <button onClick={() => download(src)}>Baixar</button>
+        </div>
+      );
+    },
+  }}
+>
+  {message.content}
+</ReactMarkdown>
+```
+
+================================================================================
+8. GERENCIAMENTO DE ESTADO
+================================================================================
+
+Usamos Zustand — mais simples que Redux, sem boilerplate.
+
+```typescript
+import { create } from 'zustand';
+
+const useChatStore = create((set, get) => ({
+  conversations: [],
+  activeConversationId: null,
+  selectedAgent: null,
+  sidebarOpen: true,
+  theme: 'dark',
+
+  createConversation: (agent) => {
+    const id = generateId();
+    set((state) => ({
+      conversations: [{ id, title: 'Nova conversa', messages: [], agent }, ...state.conversations],
+      activeConversationId: id,
+    }));
+    return id;
+  },
+
+  addMessage: (conversationId, message) => {
+    set((state) => ({
+      conversations: state.conversations.map((c) => {
+        if (c.id !== conversationId) return c;
+        const messages = [...c.messages, { ...message, id: generateId(), timestamp: new Date() }];
+        // Auto-renomear com base na primeira mensagem
+        const title = c.messages.length === 0 && message.role === 'user'
+          ? message.content.slice(0, 40) + '...'
+          : c.title;
+        return { ...c, messages, title };
+      }),
+    }));
+  },
+
+  deleteConversation: (id) => { /* ... */ },
+  renameConversation: (id, title) => { /* ... */ },
+}));
+```
+
+================================================================================
+9. TRATAMENTO DE ERROS
+================================================================================
+
+--- 9.1 ERROS DE RATE LIMIT (429) ---
+```typescript
+if (response.status === 429) {
+  return new Response(
+    JSON.stringify({ error: "Muitas requisições. Aguarde alguns segundos." }),
+    { status: 429 }
+  );
+}
+```
+
+--- 9.2 ERROS DE CRÉDITOS (402) ---
+```typescript
+if (response.status === 402) {
+  return new Response(
+    JSON.stringify({ error: "Créditos insuficientes." }),
+    { status: 402 }
+  );
+}
+```
+
+--- 9.3 FRONTEND ---
+```typescript
+try {
+  await streamChat({ messages, onDelta, onDone, onError: (error) => {
+    toast.error(error); // Notificação visual
+  }});
+} catch (e) {
+  toast.error('Erro ao conectar com a IA. Tente novamente.');
+}
+```
+
+================================================================================
+10. DICAS E BOAS PRÁTICAS
+================================================================================
+
+✅ FAÇA:
+- Envie SEMPRE o histórico completo da conversa (para contexto)
+- Use system prompts específicos por agente/funcionalidade
+- Instrua o modelo a NÃO se apresentar
+- Use streaming para UX responsiva
+- Trate TODOS os erros (429, 402, 500, network)
+- Renderize markdown nas respostas da IA
+- Auto-renomeie conversas com base na primeira mensagem
+- Use tokens de design (CSS variables) em vez de cores hardcoded
+
+❌ NÃO FAÇA:
+- Nunca exponha API keys no frontend
+- Nunca chame a IA diretamente do navegador
+- Nunca crie nova mensagem a cada token (atualize a existente)
+- Nunca use prompts genéricos como "seja útil"
+- Nunca ignore erros de rate limit
+- Nunca bufferize o stream inteiro antes de mostrar
+
+================================================================================
+RESUMO: O QUE FAZ A IA PARECER "INTELIGENTE"
+================================================================================
+
+1. PROMPT ENGINEERING — O fator #1. Um bom system prompt transforma um
+   modelo mediano em algo excepcional. Defina modos de operação, raciocínio
+   estruturado, estilo e restrições claras.
+
+2. ESPECIALIZAÇÃO — Agentes com prompts focados respondem melhor do que
+   um prompt genérico tentando fazer tudo.
+
+3. STREAMING — Mostrar a resposta em tempo real dá sensação de velocidade
+   e inteligência. O usuário vê a IA "pensando".
+
+4. MARKDOWN RICO — Respostas bem formatadas com código, listas e tabelas
+   parecem mais profissionais e inteligentes.
+
+5. CONTEXTO — Enviar o histórico completo permite que a IA mantenha
+   coerência ao longo da conversa.
+
+6. UX POLIDA — Animações, scroll suave, indicadores de loading, tratamento
+   de erros — tudo isso contribui para a percepção de inteligência.
+
+7. RESTRIÇÕES — Dizer o que a IA NÃO deve fazer (não se apresentar, não
+   ser genérica) é tão importante quanto dizer o que ela deve fazer.
+
+================================================================================
+FIM DO GUIA
+================================================================================
+Criado para a plataforma NexusIA
+Para uso em replicação e aprendizado de construção de IAs conversacionais.
