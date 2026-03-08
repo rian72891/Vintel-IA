@@ -41,7 +41,7 @@ export function ChatView() {
       });
     } catch (e: any) {
       toast.error(e.message || 'Erro ao gerar imagem.');
-      addMessage(activeConversationId, {
+      await addMessage(activeConversationId, {
         role: 'assistant',
         content: `❌ Não foi possível gerar a imagem. ${e.message || 'Tente novamente.'}`,
       });
