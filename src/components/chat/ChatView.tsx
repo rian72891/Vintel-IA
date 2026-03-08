@@ -4,6 +4,7 @@ import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { agents } from '@/data/agents';
 import { streamChat } from '@/lib/streamChat';
+import { generateImage } from '@/lib/generateImage';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -20,14 +21,37 @@ export function ChatView() {
 
   const agent = conversation?.agent ? agents.find((a) => a.id === conversation.agent) : null;
 
-  const handleSend = async (content: string) => {
+  const handleSend = async (content: string, attachments?: File[]) => {
     if (!activeConversationId) return;
+
+    // Handle image generation command
+    if (content.startsWith('/imagine ')) {
+      const prompt = content.replace('/imagine ', '').trim();
+      if (!prompt) return;
+      addMessage(activeConversationId, { role: 'user', content });
+      setIsStreaming(true);
+      setStreamingContent('🎨 Gerando imagem...');
+
+      try {
+        const imageUrl = await generateImage(prompt);
+        addMessage(activeConversationId, {
+          role: 'assistant',
+          content: `Aqui está a imagem gerada:\n\n![${prompt}](${imageUrl})`,
+        });
+      } catch (e) {
+        toast.error('Erro ao gerar imagem. Tente novamente.');
+      } finally {
+        setIsStreaming(false);
+        setStreamingContent('');
+      }
+      return;
+    }
+
     addMessage(activeConversationId, { role: 'user', content });
 
     setIsStreaming(true);
     setStreamingContent('');
 
-    // Build message history for context
     const currentConv = getActiveConversation();
     const history = (currentConv?.messages || []).map((m) => ({
       role: m.role as 'user' | 'assistant' | 'system',
@@ -75,7 +99,7 @@ export function ChatView() {
       <div className="px-4 py-3 border-b border-border flex items-center gap-2">
         {agent && <span className="text-lg">{agent.icon}</span>}
         <span className="text-sm font-medium text-foreground">
-          {agent?.name || 'SYNAPSE AI'}
+          {agent?.name || 'NexusIA'}
         </span>
         {agent && (
           <span className="text-xs text-muted-foreground ml-1">
@@ -105,7 +129,7 @@ export function ChatView() {
           />
         )}
         {isStreaming && !streamingContent && (
-          <div className="flex gap-3 px-4 py-3">
+          <div className="flex gap-3 px-4 py-3 max-w-4xl mx-auto">
             <div className="h-7 w-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
               <Loader2 className="h-4 w-4 text-primary animate-spin" />
             </div>
