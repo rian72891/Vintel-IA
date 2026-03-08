@@ -16,10 +16,12 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    // quality: "fast" = nano banana, "hd" = pro
+    // quality: "fast" = nano banana (fastest), "hd" = pro (higher quality)
     const model = quality === "hd"
       ? "google/gemini-3-pro-image-preview"
       : "google/gemini-2.5-flash-image";
+
+    // Use shorter, more direct prompts for faster generation
 
     const userContent: any[] = [];
 
