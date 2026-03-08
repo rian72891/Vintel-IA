@@ -1,11 +1,27 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { PanelLeftOpen } from 'lucide-react';
+import { Sidebar } from '@/components/chat/Sidebar';
+import { AgentSelector } from '@/components/chat/AgentSelector';
+import { ChatView } from '@/components/chat/ChatView';
+import { useChatStore } from '@/store/chatStore';
 
 const Index = () => {
+  const { activeConversationId, sidebarOpen, setSidebarOpen } = useChatStore();
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
+    <div className="flex h-screen bg-background overflow-hidden">
+      <Sidebar />
+
+      <div className="flex-1 flex flex-col relative">
+        {!sidebarOpen && (
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="absolute top-3 left-3 z-10 p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <PanelLeftOpen className="h-4 w-4" />
+          </button>
+        )}
+
+        {activeConversationId ? <ChatView /> : <AgentSelector />}
       </div>
     </div>
   );
