@@ -7,7 +7,8 @@ import { streamChat } from '@/lib/streamChat';
 import { generateImage, ImageQuality } from '@/lib/generateImage';
 import { textToSpeech } from '@/lib/api/elevenlabs';
 import { firecrawlApi } from '@/lib/api/firecrawl';
-import { Loader2, ImageIcon } from 'lucide-react';
+import { generatePDF, generateHTML, generateTXT, generateZIP, downloadFile } from '@/lib/fileGeneration';
+import { Loader2, ImageIcon, FileText, Mic } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function ChatView() {
@@ -177,6 +178,127 @@ export function ChatView() {
     }
   };
 
+  const handleFileGeneration = async (type: 'pdf' | 'html' | 'txt' | 'zip', prompt: string) => {
+    if (!activeConversationId || !prompt) return;
+
+    const icons: Record<string, string> = { pdf: '📄', html: '🌐', txt: '📝', zip: '📦' };
+    const labels: Record<string, string> = { pdf: 'PDF', html: 'HTML', txt: 'TXT', zip: 'ZIP' };
+    const loadingLabels: Record<string, string> = {
+      pdf: 'Gerando documento PDF...',
+      html: 'Gerando página HTML...',
+      txt: 'Gerando arquivo de texto...',
+      zip: 'Gerando projeto ZIP...',
+    };
+
+    await addMessage(activeConversationId, { role: 'user', content: `${icons[type]} Gerar ${labels[type]}: ${prompt}` });
+    setIsStreaming(true);
+    setLoadingLabel(loadingLabels[type]);
+    setStreamingContent('');
+
+    // Build special instruction for AI based on file type
+    let instruction = '';
+    switch (type) {
+      case 'pdf':
+        instruction = `[INSTRUÇÃO: Gere um documento bem estruturado em markdown com títulos (##), subtítulos (###), listas e parágrafos. Seja detalhado e profissional. O conteúdo será convertido em PDF.]\n\nTema: ${prompt}`;
+        break;
+      case 'html':
+        instruction = `[INSTRUÇÃO: Gere uma página HTML5 completa, autocontida e funcional. Inclua CSS dentro de uma tag <style> e JavaScript dentro de uma tag <script> se necessário. NÃO inclua explicações - retorne APENAS o código HTML começando com <!DOCTYPE html>.]\n\nTema: ${prompt}`;
+        break;
+      case 'txt':
+        instruction = `[INSTRUÇÃO: Escreva um texto limpo, bem estruturado e profissional. Não use formatação markdown - apenas texto puro com quebras de linha.]\n\nTema: ${prompt}`;
+        break;
+      case 'zip':
+        instruction = `[INSTRUÇÃO: Crie os arquivos de um projeto de código. Responda APENAS com um JSON válido no formato abaixo. NÃO inclua explicações ou texto fora do JSON:
+{"projectName": "nome-do-projeto", "files": [{"name": "arquivo1.ext", "content": "conteúdo"}, {"name": "arquivo2.ext", "content": "conteúdo"}]}]\n\nProjeto: ${prompt}`;
+        break;
+    }
+
+    const currentConv = getActiveConversation();
+    const history = (currentConv?.messages || []).map((m) => ({
+      role: m.role as 'user' | 'assistant' | 'system',
+      content: m.content,
+    }));
+    history.push({ role: 'user', content: instruction });
+
+    let fullContent = '';
+
+    try {
+      await streamChat({
+        messages: history,
+        agent: conversation?.agent,
+        onDelta: (delta) => {
+          fullContent += delta;
+          setStreamingContent(fullContent);
+        },
+        onDone: async () => {
+          if (fullContent) {
+            try {
+              let fileUrl: string;
+              let fileName: string;
+              let displayContent: string;
+
+              switch (type) {
+                case 'pdf':
+                  fileUrl = await generatePDF(fullContent, prompt.slice(0, 50));
+                  fileName = `nexusia-${prompt.slice(0, 30).replace(/[^a-zA-Z0-9]/g, '-')}.pdf`;
+                  displayContent = fullContent.length > 500 ? fullContent.slice(0, 500) + '\n\n... *(conteúdo completo no PDF)*' : fullContent;
+                  break;
+                case 'html':
+                  fileUrl = generateHTML(fullContent, prompt.slice(0, 50));
+                  fileName = `nexusia-${prompt.slice(0, 30).replace(/[^a-zA-Z0-9]/g, '-')}.html`;
+                  displayContent = '✅ Página HTML gerada com sucesso!\n\nClique no botão abaixo para baixar o arquivo.';
+                  break;
+                case 'txt':
+                  fileUrl = generateTXT(fullContent);
+                  fileName = `nexusia-${prompt.slice(0, 30).replace(/[^a-zA-Z0-9]/g, '-')}.txt`;
+                  displayContent = fullContent.length > 500 ? fullContent.slice(0, 500) + '\n\n... *(conteúdo completo no arquivo)*' : fullContent;
+                  break;
+                case 'zip':
+                  fileUrl = await generateZIP(fullContent, prompt.slice(0, 30));
+                  fileName = `nexusia-${prompt.slice(0, 30).replace(/[^a-zA-Z0-9]/g, '-')}.zip`;
+                  displayContent = '✅ Projeto ZIP gerado com sucesso!\n\nClique no botão abaixo para baixar o arquivo com todos os arquivos do projeto.';
+                  break;
+                default:
+                  throw new Error('Tipo de arquivo não suportado');
+              }
+
+              await addMessage(activeConversationId, {
+                role: 'assistant',
+                content: `${icons[type]} **${labels[type]} Gerado: ${prompt}**\n\n${displayContent}`,
+                attachments: [{ type: 'file', name: fileName, url: fileUrl, mimeType: `application/${type}` }],
+              });
+
+              // Auto-download the file
+              downloadFile(fileUrl, fileName);
+              toast.success(`${labels[type]} gerado e baixado com sucesso!`);
+
+            } catch (fileError: any) {
+              console.error('File generation error:', fileError);
+              await addMessage(activeConversationId, {
+                role: 'assistant',
+                content: `❌ Erro ao criar o arquivo ${labels[type]}. ${fileError.message || 'Tente novamente.'}`,
+              });
+            }
+          }
+          setIsStreaming(false);
+          setStreamingContent('');
+          setLoadingLabel('');
+        },
+        onError: (error) => {
+          toast.error(error);
+          setIsStreaming(false);
+          setStreamingContent('');
+          setLoadingLabel('');
+        },
+      });
+    } catch (e) {
+      toast.error('Erro ao conectar com a IA. Tente novamente.');
+      setIsStreaming(false);
+      setStreamingContent('');
+      setLoadingLabel('');
+    }
+  };
+
   const handleSend = async (content: string, attachments?: File[]) => {
     if (!activeConversationId) return;
 
@@ -212,6 +334,34 @@ export function ChatView() {
     if (content.startsWith('/search ')) {
       const query = content.replace('/search ', '').trim();
       await handleWebSearch(query);
+      return;
+    }
+
+    // /pdf command — PDF generation
+    if (content.startsWith('/pdf ')) {
+      const prompt = content.replace('/pdf ', '').trim();
+      await handleFileGeneration('pdf', prompt);
+      return;
+    }
+
+    // /html command — HTML generation
+    if (content.startsWith('/html ')) {
+      const prompt = content.replace('/html ', '').trim();
+      await handleFileGeneration('html', prompt);
+      return;
+    }
+
+    // /txt command — TXT generation
+    if (content.startsWith('/txt ')) {
+      const prompt = content.replace('/txt ', '').trim();
+      await handleFileGeneration('txt', prompt);
+      return;
+    }
+
+    // /zip command — ZIP generation
+    if (content.startsWith('/zip ')) {
+      const prompt = content.replace('/zip ', '').trim();
+      await handleFileGeneration('zip', prompt);
       return;
     }
 
@@ -306,6 +456,12 @@ export function ChatView() {
               >
                 🔊 Gerar áudio
               </button>
+              <button
+                onClick={() => handleFileGeneration('pdf', 'Guia completo sobre inteligência artificial')}
+                className="px-3 py-1.5 bg-card border border-border rounded-full text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                📄 Gerar PDF
+              </button>
             </div>
           </div>
         )}
@@ -325,8 +481,12 @@ export function ChatView() {
         {isStreaming && !streamingContent && (
           <div className="flex gap-3 px-4 py-3 max-w-4xl mx-auto">
             <div className="h-7 w-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
-              {loadingLabel ? (
+              {loadingLabel.includes('imagem') ? (
                 <ImageIcon className="h-4 w-4 text-primary animate-pulse" />
+              ) : loadingLabel.includes('PDF') || loadingLabel.includes('HTML') || loadingLabel.includes('texto') || loadingLabel.includes('ZIP') ? (
+                <FileText className="h-4 w-4 text-primary animate-pulse" />
+              ) : loadingLabel.includes('áudio') ? (
+                <Mic className="h-4 w-4 text-primary animate-pulse" />
               ) : (
                 <Loader2 className="h-4 w-4 text-primary animate-spin" />
               )}

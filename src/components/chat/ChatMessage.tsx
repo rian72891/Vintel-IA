@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { Message } from '@/types/agent';
 import { cn } from '@/lib/utils';
-import { Bot, User, Download, Copy, Check, Volume2, Pause } from 'lucide-react';
+import { Bot, User, Download, Copy, Check, Volume2, Pause, FileText, Code, FileArchive, File, Mic } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { useState, useCallback, useRef } from 'react';
 
@@ -10,8 +10,23 @@ interface ChatMessageProps {
   audioUrl?: string | null;
 }
 
+const getFileIcon = (filename: string) => {
+  const ext = filename.split('.').pop()?.toLowerCase();
+  switch (ext) {
+    case 'pdf':
+      return <FileText className="h-4 w-4 text-red-500 shrink-0" />;
+    case 'html':
+      return <Code className="h-4 w-4 text-cyan-500 shrink-0" />;
+    case 'zip':
+      return <FileArchive className="h-4 w-4 text-yellow-600 shrink-0" />;
+    default:
+      return <File className="h-4 w-4 text-muted-foreground shrink-0" />;
+  }
+};
+
 export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
   const isUser = message.role === 'user';
+  const isVoiceMessage = isUser && message.content.startsWith('🎤 ');
   const [copiedBlock, setCopiedBlock] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -28,6 +43,15 @@ export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
     a.download = name || 'nexusia-image.png';
     a.target = '_blank';
     a.click();
+  };
+
+  const downloadFile = (url: string, name: string) => {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   const toggleAudio = () => {
@@ -66,6 +90,14 @@ export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
             : 'bg-card border border-border text-foreground rounded-bl-md'
         )}
       >
+        {/* Voice message indicator */}
+        {isVoiceMessage && (
+          <div className="flex items-center gap-1.5 mb-1 opacity-80">
+            <Mic className="h-3 w-3" />
+            <span className="text-[10px] font-medium">Mensagem de voz</span>
+          </div>
+        )}
+
         {/* Attachments */}
         {message.attachments?.map((att, i) => (
           <div key={i} className="mb-2">
@@ -90,10 +122,17 @@ export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
                 </button>
               </div>
             ) : (
-              <a href={att.url} download={att.name} className="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg text-xs hover:bg-muted/80 transition-colors">
-                <Download className="h-3.5 w-3.5" />
-                <span className="truncate">{att.name}</span>
-              </a>
+              <button
+                onClick={() => downloadFile(att.url, att.name)}
+                className="flex items-center gap-2 px-3 py-2.5 bg-primary/10 border border-primary/20 rounded-lg text-xs hover:bg-primary/20 transition-colors w-full"
+              >
+                {getFileIcon(att.name)}
+                <span className="truncate text-foreground font-medium flex-1 text-left">{att.name}</span>
+                <div className="flex items-center gap-1 text-muted-foreground shrink-0">
+                  <Download className="h-3.5 w-3.5" />
+                  <span>Baixar</span>
+                </div>
+              </button>
             )}
           </div>
         ))}
@@ -112,7 +151,9 @@ export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
         )}
 
         {isUser ? (
-          <p className="whitespace-pre-wrap">{message.content}</p>
+          <p className="whitespace-pre-wrap">
+            {isVoiceMessage ? message.content.replace('🎤 ', '') : message.content}
+          </p>
         ) : (
           <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1.5 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:p-0 prose-pre:bg-transparent prose-pre:border-0">
             <ReactMarkdown
