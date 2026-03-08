@@ -33,10 +33,11 @@ export function ChatView() {
 
     try {
       const result = await generateImage(prompt, quality);
-      const desc = result.description ? `\n\n${result.description}` : '';
+      const desc = result.description || `Imagem gerada: ${prompt}`;
       addMessage(activeConversationId, {
         role: 'assistant',
-        content: `![${prompt}](${result.imageUrl})${desc}`,
+        content: desc,
+        attachments: [{ type: 'image', name: prompt, url: result.imageUrl }],
       });
     } catch (e: any) {
       toast.error(e.message || 'Erro ao gerar imagem.');
