@@ -26,7 +26,7 @@ export function ChatView() {
     if (!activeConversationId || !prompt) return;
 
     const qualityLabel = quality === 'hd' ? '(HD)' : '(rápido)';
-    addMessage(activeConversationId, { role: 'user', content: `🎨 Gerar imagem ${qualityLabel}: ${prompt}` });
+    await addMessage(activeConversationId, { role: 'user', content: `🎨 Gerar imagem ${qualityLabel}: ${prompt}` });
     setIsStreaming(true);
     setLoadingLabel('Gerando imagem...');
     setStreamingContent('');
@@ -34,14 +34,14 @@ export function ChatView() {
     try {
       const result = await generateImage(prompt, quality);
       const desc = result.description || `Imagem gerada: ${prompt}`;
-      addMessage(activeConversationId, {
+      await addMessage(activeConversationId, {
         role: 'assistant',
         content: desc,
         attachments: [{ type: 'image', name: prompt, url: result.imageUrl }],
       });
     } catch (e: any) {
       toast.error(e.message || 'Erro ao gerar imagem.');
-      addMessage(activeConversationId, {
+      await addMessage(activeConversationId, {
         role: 'assistant',
         content: `❌ Não foi possível gerar a imagem. ${e.message || 'Tente novamente.'}`,
       });
@@ -69,7 +69,7 @@ export function ChatView() {
       return;
     }
 
-    addMessage(activeConversationId, { role: 'user', content });
+    await addMessage(activeConversationId, { role: 'user', content });
     setIsStreaming(true);
     setStreamingContent('');
     setLoadingLabel('');
@@ -91,9 +91,9 @@ export function ChatView() {
           fullContent += delta;
           setStreamingContent(fullContent);
         },
-        onDone: () => {
+        onDone: async () => {
           if (fullContent) {
-            addMessage(activeConversationId, {
+            await addMessage(activeConversationId, {
               role: 'assistant',
               content: fullContent,
               agent: conversation?.agent,
