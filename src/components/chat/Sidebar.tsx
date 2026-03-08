@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Plus, MessageSquare, X, Trash2, Pencil, Check, Settings, LogOut, Menu, Search } from 'lucide-react';
+import { Plus, MessageSquare, X, Trash2, Pencil, Check, Settings, LogOut, Menu, Search, Crown } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useSubscription } from '@/hooks/useSubscription';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useChatStore } from '@/store/chatStore';
 import { cn } from '@/lib/utils';
@@ -9,6 +11,8 @@ import { useAuth } from '@/hooks/useAuth';
 export function Sidebar() {
   const { conversations, activeConversationId, sidebarOpen, setSidebarOpen, setActiveConversation, setSelectedAgent, deleteConversation, renameConversation, loadConversations, loaded } = useChatStore();
   const { user, signOut } = useAuth();
+  const { plan } = useSubscription();
+  const navigate = useNavigate();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -163,6 +167,18 @@ export function Sidebar() {
                     <p className="text-[10px] text-muted-foreground truncate">{user?.email}</p>
                   </div>
                 </div>
+
+                <button
+                  onClick={() => navigate('/plans')}
+                  className={`w-full flex items-center justify-center gap-2 px-3 py-2 mt-2 rounded-xl text-xs font-medium transition-colors ${
+                    plan === 'pro'
+                      ? 'bg-primary/10 text-primary'
+                      : 'bg-accent text-accent-foreground hover:bg-accent/80'
+                  }`}
+                >
+                  <Crown className="h-3.5 w-3.5" />
+                  {plan === 'pro' ? 'Plano Pro ✓' : 'Upgrade para Pro'}
+                </button>
 
                 <div className="flex items-center gap-1 mt-2">
                   <button
