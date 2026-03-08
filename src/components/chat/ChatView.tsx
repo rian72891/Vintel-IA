@@ -5,6 +5,8 @@ import { ChatInput } from './ChatInput';
 import { agents } from '@/data/agents';
 import { streamChat } from '@/lib/streamChat';
 import { generateImage, ImageQuality } from '@/lib/generateImage';
+import { textToSpeech } from '@/lib/api/elevenlabs';
+import { firecrawlApi } from '@/lib/api/firecrawl';
 import { Loader2, ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -15,6 +17,7 @@ export function ChatView() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
   const [loadingLabel, setLoadingLabel] = useState('');
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -52,6 +55,115 @@ export function ChatView() {
     }
   };
 
+  const handleTTS = async (text: string) => {
+    if (!activeConversationId || !text) return;
+
+    await addMessage(activeConversationId, { role: 'user', content: `🔊 Gerar áudio: ${text}` });
+    setIsStreaming(true);
+    setLoadingLabel('Gerando áudio...');
+    setStreamingContent('');
+
+    try {
+      const dataUrl = await textToSpeech(text);
+      setAudioUrl(dataUrl);
+      await addMessage(activeConversationId, {
+        role: 'assistant',
+        content: `🔊 Áudio gerado com sucesso!\n\nTexto: "${text.length > 100 ? text.substring(0, 100) + '...' : text}"`,
+      });
+    } catch (e: any) {
+      toast.error(e.message || 'Erro ao gerar áudio.');
+      await addMessage(activeConversationId, {
+        role: 'assistant',
+        content: `❌ Não foi possível gerar o áudio. ${e.message || 'Tente novamente.'}`,
+      });
+    } finally {
+      setIsStreaming(false);
+      setStreamingContent('');
+      setLoadingLabel('');
+    }
+  };
+
+  const handleScrape = async (url: string) => {
+    if (!activeConversationId || !url) return;
+
+    await addMessage(activeConversationId, { role: 'user', content: `🌐 Extrair conteúdo: ${url}` });
+    setIsStreaming(true);
+    setLoadingLabel('Extraindo conteúdo do site...');
+    setStreamingContent('');
+
+    try {
+      const result = await firecrawlApi.scrape(url);
+      const markdown = result.data?.markdown || (result as any).markdown || '';
+      const metadata = result.data?.metadata || (result as any).metadata || {};
+      const title = metadata?.title || url;
+
+      if (!markdown) {
+        await addMessage(activeConversationId, {
+          role: 'assistant',
+          content: `⚠️ Não foi possível extrair conteúdo de **${url}**. O site pode estar bloqueado.`,
+        });
+      } else {
+        const truncated = markdown.length > 3000 ? markdown.substring(0, 3000) + '\n\n... *(conteúdo truncado)*' : markdown;
+        await addMessage(activeConversationId, {
+          role: 'assistant',
+          content: `## 🌐 ${title}\n\n${truncated}`,
+        });
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Erro ao extrair conteúdo.');
+      await addMessage(activeConversationId, {
+        role: 'assistant',
+        content: `❌ Erro ao extrair conteúdo. ${e.message || 'Tente novamente.'}`,
+      });
+    } finally {
+      setIsStreaming(false);
+      setStreamingContent('');
+      setLoadingLabel('');
+    }
+  };
+
+  const handleWebSearch = async (query: string) => {
+    if (!activeConversationId || !query) return;
+
+    await addMessage(activeConversationId, { role: 'user', content: `🔍 Buscar na web: ${query}` });
+    setIsStreaming(true);
+    setLoadingLabel('Buscando na web...');
+    setStreamingContent('');
+
+    try {
+      const result = await firecrawlApi.search(query);
+      const results = result.data || [];
+
+      if (!results.length) {
+        await addMessage(activeConversationId, {
+          role: 'assistant',
+          content: `⚠️ Nenhum resultado encontrado para **"${query}"**.`,
+        });
+      } else {
+        const formatted = results.slice(0, 5).map((r: any, i: number) => {
+          const title = r.title || r.url;
+          const desc = r.description || r.markdown?.substring(0, 200) || '';
+          return `### ${i + 1}. [${title}](${r.url})\n${desc}`;
+        }).join('\n\n');
+
+        await addMessage(activeConversationId, {
+          role: 'assistant',
+          content: `## 🔍 Resultados para "${query}"\n\n${formatted}`,
+        });
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Erro na busca.');
+      await addMessage(activeConversationId, {
+        role: 'assistant',
+        content: `❌ Erro na busca web. ${e.message || 'Tente novamente.'}`,
+      });
+    } finally {
+      setIsStreaming(false);
+      setStreamingContent('');
+      setLoadingLabel('');
+    }
+  };
+
   const handleSend = async (content: string, attachments?: File[]) => {
     if (!activeConversationId) return;
 
@@ -66,6 +178,27 @@ export function ChatView() {
     if (content.startsWith('/imaginehd ')) {
       const prompt = content.replace('/imaginehd ', '').trim();
       await handleImageGeneration(prompt, 'hd');
+      return;
+    }
+
+    // /voz command — TTS
+    if (content.startsWith('/voz ')) {
+      const text = content.replace('/voz ', '').trim();
+      await handleTTS(text);
+      return;
+    }
+
+    // /scrape command — web scraping
+    if (content.startsWith('/scrape ')) {
+      const url = content.replace('/scrape ', '').trim();
+      await handleScrape(url);
+      return;
+    }
+
+    // /search command — web search
+    if (content.startsWith('/search ')) {
+      const query = content.replace('/search ', '').trim();
+      await handleWebSearch(query);
       return;
     }
 
@@ -149,22 +282,22 @@ export function ChatView() {
                 🎨 Gerar uma imagem
               </button>
               <button
-                onClick={() => handleSend('Me ajude a criar um plano de negócios')}
+                onClick={() => handleSend('/search últimas notícias de tecnologia')}
                 className="px-3 py-1.5 bg-card border border-border rounded-full text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               >
-                📊 Plano de negócios
+                🔍 Buscar na web
               </button>
               <button
-                onClick={() => handleSend('Escreva um código Python para ordenar uma lista')}
+                onClick={() => handleSend('/voz Olá! Eu sou a NexusIA, sua assistente de inteligência artificial.')}
                 className="px-3 py-1.5 bg-card border border-border rounded-full text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               >
-                💻 Escrever código
+                🔊 Gerar áudio
               </button>
             </div>
           </div>
         )}
         {conversation?.messages.map((msg) => (
-          <ChatMessage key={msg.id} message={msg} />
+          <ChatMessage key={msg.id} message={msg} audioUrl={msg.content.startsWith('🔊 Áudio gerado') ? audioUrl : undefined} />
         ))}
         {isStreaming && streamingContent && (
           <ChatMessage

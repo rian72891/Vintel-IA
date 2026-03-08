@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Paperclip, Image, Sparkles, Wand2 } from 'lucide-react';
+import { Send, Paperclip, Image, Sparkles, Wand2, Volume2, Globe, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface ChatInputProps {
@@ -10,7 +10,7 @@ interface ChatInputProps {
 export function ChatInput({ onSend, disabled }: ChatInputProps) {
   const [input, setInput] = useState('');
   const [files, setFiles] = useState<File[]>([]);
-  const [showImageMenu, setShowImageMenu] = useState(false);
+  const [showToolsMenu, setShowToolsMenu] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -26,7 +26,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setShowImageMenu(false);
+        setShowToolsMenu(false);
       }
     };
     document.addEventListener('mousedown', handleClick);
@@ -60,7 +60,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
 
   const insertCommand = (cmd: string) => {
     setInput(cmd);
-    setShowImageMenu(false);
+    setShowToolsMenu(false);
     textareaRef.current?.focus();
   };
 
@@ -101,38 +101,75 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
             </button>
             <div className="relative" ref={menuRef}>
               <button
-                onClick={() => setShowImageMenu(!showImageMenu)}
+                onClick={() => setShowToolsMenu(!showToolsMenu)}
                 className="p-1.5 text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-muted"
-                title="Gerar imagem com IA"
+                title="Ferramentas IA"
               >
                 <Sparkles className="h-4 w-4" />
               </button>
               <AnimatePresence>
-                {showImageMenu && (
+                {showToolsMenu && (
                   <motion.div
                     initial={{ opacity: 0, y: 8, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 8, scale: 0.95 }}
-                    className="absolute bottom-full left-0 mb-2 w-56 bg-popover border border-border rounded-xl shadow-lg p-1.5 z-50"
+                    className="absolute bottom-full left-0 mb-2 w-60 bg-popover border border-border rounded-xl shadow-lg p-1.5 z-50"
                   >
+                    <p className="text-[10px] text-muted-foreground px-3 py-1.5 font-medium uppercase tracking-wide">Geração de Imagem</p>
                     <button
                       onClick={() => insertCommand('/imagine ')}
-                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left text-sm hover:bg-muted transition-colors"
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left text-sm hover:bg-muted transition-colors"
                     >
                       <Sparkles className="h-4 w-4 text-primary shrink-0" />
                       <div>
                         <p className="font-medium text-foreground text-xs">Rápido</p>
-                        <p className="text-[10px] text-muted-foreground">Nano Banana • Veloz</p>
+                        <p className="text-[10px] text-muted-foreground">Geração veloz</p>
                       </div>
                     </button>
                     <button
                       onClick={() => insertCommand('/imaginehd ')}
-                      className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left text-sm hover:bg-muted transition-colors"
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left text-sm hover:bg-muted transition-colors"
                     >
                       <Wand2 className="h-4 w-4 text-accent shrink-0" />
                       <div>
                         <p className="font-medium text-foreground text-xs">Alta qualidade</p>
-                        <p className="text-[10px] text-muted-foreground">Gemini Pro • Detalhado</p>
+                        <p className="text-[10px] text-muted-foreground">Detalhado e preciso</p>
+                      </div>
+                    </button>
+
+                    <div className="my-1 border-t border-border" />
+                    <p className="text-[10px] text-muted-foreground px-3 py-1.5 font-medium uppercase tracking-wide">Voz IA</p>
+                    <button
+                      onClick={() => insertCommand('/voz ')}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left text-sm hover:bg-muted transition-colors"
+                    >
+                      <Volume2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                      <div>
+                        <p className="font-medium text-foreground text-xs">Gerar áudio</p>
+                        <p className="text-[10px] text-muted-foreground">ElevenLabs • Texto → Voz</p>
+                      </div>
+                    </button>
+
+                    <div className="my-1 border-t border-border" />
+                    <p className="text-[10px] text-muted-foreground px-3 py-1.5 font-medium uppercase tracking-wide">Web</p>
+                    <button
+                      onClick={() => insertCommand('/search ')}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left text-sm hover:bg-muted transition-colors"
+                    >
+                      <Search className="h-4 w-4 text-blue-500 shrink-0" />
+                      <div>
+                        <p className="font-medium text-foreground text-xs">Buscar na web</p>
+                        <p className="text-[10px] text-muted-foreground">Firecrawl • Pesquisa</p>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => insertCommand('/scrape ')}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left text-sm hover:bg-muted transition-colors"
+                    >
+                      <Globe className="h-4 w-4 text-orange-500 shrink-0" />
+                      <div>
+                        <p className="font-medium text-foreground text-xs">Extrair site</p>
+                        <p className="text-[10px] text-muted-foreground">Firecrawl • Web Scraping</p>
                       </div>
                     </button>
                   </motion.div>

@@ -1,17 +1,20 @@
 import { motion } from 'framer-motion';
 import { Message } from '@/types/agent';
 import { cn } from '@/lib/utils';
-import { Bot, User, Download, Copy, Check } from 'lucide-react';
+import { Bot, User, Download, Copy, Check, Volume2, Pause } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 
 interface ChatMessageProps {
   message: Message;
+  audioUrl?: string | null;
 }
 
-export function ChatMessage({ message }: ChatMessageProps) {
+export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
   const isUser = message.role === 'user';
   const [copiedBlock, setCopiedBlock] = useState<number | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const copyCode = useCallback((code: string, idx: number) => {
     navigator.clipboard.writeText(code);
@@ -25,6 +28,20 @@ export function ChatMessage({ message }: ChatMessageProps) {
     a.download = name || 'nexusia-image.png';
     a.target = '_blank';
     a.click();
+  };
+
+  const toggleAudio = () => {
+    if (!audioUrl) return;
+    if (isPlaying && audioRef.current) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      const audio = new Audio(audioUrl);
+      audioRef.current = audio;
+      audio.onended = () => setIsPlaying(false);
+      audio.play();
+      setIsPlaying(true);
+    }
   };
 
   let codeBlockIdx = 0;
@@ -80,6 +97,19 @@ export function ChatMessage({ message }: ChatMessageProps) {
             )}
           </div>
         ))}
+
+        {/* Audio player */}
+        {audioUrl && !isUser && message.content.startsWith('🔊 Áudio gerado') && (
+          <div className="mb-2 flex items-center gap-2">
+            <button
+              onClick={toggleAudio}
+              className="flex items-center gap-2 px-3 py-2 bg-primary/10 border border-primary/20 rounded-lg text-xs text-primary hover:bg-primary/20 transition-colors"
+            >
+              {isPlaying ? <Pause className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+              {isPlaying ? 'Pausar' : 'Ouvir áudio'}
+            </button>
+          </div>
+        )}
 
         {isUser ? (
           <p className="whitespace-pre-wrap">{message.content}</p>
