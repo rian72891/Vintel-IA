@@ -1,9 +1,10 @@
-import { useState } from 'react';
-import { Plus, MessageSquare, PanelLeftClose, Zap, Trash2, Pencil, Check, X, Settings, FolderOpen } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, MessageSquare, PanelLeftClose, Zap, Trash2, Pencil, Check, X, Settings, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useChatStore } from '@/store/chatStore';
 import { cn } from '@/lib/utils';
 import { SettingsDialog } from './SettingsDialog';
+import { useAuth } from '@/hooks/useAuth';
 
 export function Sidebar() {
   const { conversations, activeConversationId, sidebarOpen, setSidebarOpen, setActiveConversation, setSelectedAgent, deleteConversation, renameConversation } = useChatStore();
