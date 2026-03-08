@@ -1,0 +1,666 @@
+================================================================================
+PROMPT PARA RECRIAR O PROJETO NEXUSIA (SYNAPSE AI) — PLATAFORMA DE CHAT COM IA
+================================================================================
+
+Crie uma aplicação web completa de chat com inteligência artificial chamada "NexusIA" (exibida como "SYNAPSE AI" na tela inicial). A aplicação é uma plataforma de assistente IA com 7 agentes especializados, geração de imagens por IA, streaming de respostas token-a-token, tema claro/escuro, e interface moderna tipo ChatGPT.
+
+================================================================================
+STACK TECNOLÓGICA
+================================================================================
+
+- React 18 + TypeScript + Vite
+- Tailwind CSS 3 com design system customizado (tokens HSL)
+- shadcn/ui para componentes base (Dialog, Toast, etc.)
+- Zustand para gerenciamento de estado
+- Framer Motion para animações
+- react-markdown para renderizar respostas em markdown
+- react-router-dom para rotas
+- lucide-react para ícones
+- Sonner para notificações toast
+- @tanstack/react-query
+- Fontes: Inter (display) + JetBrains Mono (código)
+
+Backend:
+- Supabase Edge Functions (Deno) para proxy da API de IA
+- API OpenAI-compatible (qualquer gateway compatível, ex: OpenAI, Gemini, etc.)
+- Streaming via SSE (Server-Sent Events)
+
+================================================================================
+ESTRUTURA DE ARQUIVOS
+================================================================================
+
+src/
+├── App.tsx                          # Router principal
+├── App.css                          # Vazio (estilos em index.css)
+├── main.tsx                         # Entry point
+├── index.css                        # Design system completo com tokens HSL
+├── vite-env.d.ts
+├── lib/
+│   ├── utils.ts                     # cn() helper (clsx + tailwind-merge)
+│   ├── streamChat.ts                # Cliente de streaming SSE
+│   └── generateImage.ts             # Cliente de geração de imagens
+├── types/
+│   └── agent.ts                     # Tipos: AgentType, Agent, Message, Conversation
+├── data/
+│   └── agents.ts                    # Definição dos 7 agentes
+├── store/
+│   └── chatStore.ts                 # Zustand store (conversas, tema, sidebar)
+├── pages/
+│   ├── Index.tsx                    # Página principal
+│   └── NotFound.tsx                 # 404
+├── components/
+│   ├── chat/
+│   │   ├── ChatView.tsx             # View principal do chat com streaming
+│   │   ├── ChatInput.tsx            # Input com anexos e menu de geração de imagem
+│   │   ├── ChatMessage.tsx          # Mensagem com markdown, blocos de código, imagens
+│   │   ├── Sidebar.tsx              # Sidebar com lista de conversas
+│   │   ├── AgentSelector.tsx        # Tela inicial com grid de agentes
+│   │   └── SettingsDialog.tsx       # Dialog de configurações (tema)
+│   └── ui/                          # Componentes shadcn/ui (button, dialog, etc.)
+├── hooks/
+│   └── use-mobile.tsx
+│   └── use-toast.ts
+
+supabase/functions/
+├── chat/index.ts                    # Edge function de chat com streaming
+└── generate-image/index.ts          # Edge function de geração de imagens
+
+================================================================================
+DESIGN SYSTEM (index.css)
+================================================================================
+
+O design usa tokens CSS HSL para temas claro e escuro. Aqui estão TODOS os tokens:
+
+```css
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 224 10% 15%;
+    --card: 0 0% 98%;
+    --card-foreground: 224 10% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 10% 15%;
+    --primary: 220 70% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 224 10% 30%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 8% 46%;
+    --accent: 262 60% 55%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 220 70% 50%;
+    --radius: 0.75rem;
+    --sidebar-background: 220 14% 97%;
+    --sidebar-foreground: 224 10% 30%;
+    --sidebar-primary: 220 70% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 14% 93%;
+    --sidebar-accent-foreground: 224 10% 15%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 220 70% 50%;
+    --font-display: 'Inter', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    --agent-research: 200 80% 50%;
+    --agent-coder: 142 70% 45%;
+    --agent-business: 35 90% 50%;
+    --agent-content: 280 60% 55%;
+    --agent-automation: 220 70% 55%;
+    --agent-marketing: 340 75% 55%;
+    --agent-analyst: 195 80% 45%;
+  }
+
+  .dark {
+    --background: 224 10% 8%;
+    --foreground: 220 20% 92%;
+    --card: 224 10% 11%;
+    --card-foreground: 220 20% 92%;
+    --popover: 224 10% 12%;
+    --popover-foreground: 220 20% 92%;
+    --primary: 220 70% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 224 10% 14%;
+    --secondary-foreground: 220 15% 75%;
+    --muted: 224 8% 16%;
+    --muted-foreground: 220 10% 50%;
+    --accent: 262 60% 60%;
+    --accent-foreground: 220 20% 95%;
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 220 20% 95%;
+    --border: 224 8% 18%;
+    --input: 224 8% 18%;
+    --ring: 220 70% 55%;
+    --sidebar-background: 224 10% 6%;
+    --sidebar-foreground: 220 15% 75%;
+    --sidebar-primary: 220 70% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 224 10% 12%;
+    --sidebar-accent-foreground: 220 20% 92%;
+    --sidebar-border: 224 8% 14%;
+    --sidebar-ring: 220 70% 55%;
+    --agent-research: 200 80% 55%;
+    --agent-coder: 142 70% 50%;
+    --agent-business: 35 90% 55%;
+    --agent-content: 280 60% 60%;
+    --agent-automation: 220 70% 60%;
+    --agent-marketing: 340 75% 60%;
+    --agent-analyst: 195 80% 50%;
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-display);
+  }
+  code, pre { font-family: var(--font-mono); }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar { width: 4px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 2px;
+  }
+}
+```
+
+================================================================================
+TIPOS TypeScript (src/types/agent.ts)
+================================================================================
+
+```typescript
+export type AgentType = 'research' | 'coder' | 'business' | 'marketing' | 'content' | 'analyst' | 'automation';
+
+export interface Agent {
+  id: AgentType;
+  name: string;
+  description: string;
+  icon: string;
+  capabilities: string[];
+}
+
+export interface MessageAttachment {
+  type: 'image' | 'file';
+  name: string;
+  url: string;
+  mimeType?: string;
+}
+
+export interface Message {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  agent?: AgentType;
+  timestamp: Date;
+  attachments?: MessageAttachment[];
+}
+
+export interface Conversation {
+  id: string;
+  title: string;
+  messages: Message[];
+  agent?: AgentType;
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+================================================================================
+OS 7 AGENTES (src/data/agents.ts)
+================================================================================
+
+```typescript
+export const agents: Agent[] = [
+  { id: 'research', name: 'Pesquisador', description: 'Pesquisa informações, reúne dados, resume conteúdos e compara fontes', icon: '🔍', capabilities: ['Pesquisa web', 'Resumo de artigos', 'Análise de dados', 'Fact-checking'] },
+  { id: 'coder', name: 'Programador', description: 'Cria, analisa, revisa e depura código em qualquer linguagem', icon: '⚡', capabilities: ['Criação de código', 'Debug', 'Arquitetura', 'Code review'] },
+  { id: 'business', name: 'Estrategista', description: 'Análise de mercado, estratégias de negócio e planejamento de startups', icon: '📊', capabilities: ['Análise de mercado', 'Planejamento', 'Monetização', 'Pitch decks'] },
+  { id: 'marketing', name: 'Marketing', description: 'Campanhas, copywriting, estratégias de crescimento e funis de vendas', icon: '🚀', capabilities: ['Campanhas', 'Copywriting', 'Growth', 'Funis de vendas'] },
+  { id: 'content', name: 'Criador', description: 'Criação de artigos, roteiros, posts, scripts de vídeo e copywriting', icon: '✍️', capabilities: ['Artigos', 'Redes sociais', 'Roteiros', 'Scripts de vídeo'] },
+  { id: 'analyst', name: 'Analista', description: 'Interpreta dados, cria relatórios, identifica padrões e tendências', icon: '📈', capabilities: ['Relatórios', 'Padrões', 'Métricas', 'Dashboards'] },
+  { id: 'automation', name: 'Automação', description: 'Cria fluxos automáticos, integra APIs e automatiza processos', icon: '🤖', capabilities: ['Workflows', 'APIs', 'Automação', 'Integrações'] },
+];
+```
+
+================================================================================
+ZUSTAND STORE (src/store/chatStore.ts)
+================================================================================
+
+O store gerencia:
+- Lista de conversas (conversations: Conversation[])
+- Conversa ativa (activeConversationId)
+- Agente selecionado (selectedAgent)
+- Estado da sidebar (sidebarOpen)
+- Tema (theme: 'light' | 'dark') — salvo em localStorage com key 'nexusia-theme'
+
+Funcionalidades:
+- createConversation(agent?) — cria nova conversa, opcionalmente com agente
+- setActiveConversation(id) — seleciona conversa
+- addMessage(conversationId, message) — adiciona mensagem; auto-renomeia conversa com os primeiros 40 chars da 1ª mensagem do usuário
+- deleteConversation(id) — remove conversa
+- renameConversation(id, title) — renomeia conversa
+- getActiveConversation() — retorna conversa ativa
+- setTheme(theme) — alterna tema e persiste em localStorage, togglea classe 'dark' no documentElement
+
+IDs são gerados com: Math.random().toString(36).substring(2, 15)
+
+```typescript
+// Código completo do store:
+import { create } from 'zustand';
+import { AgentType, Conversation, Message } from '@/types/agent';
+
+interface ChatState {
+  conversations: Conversation[];
+  activeConversationId: string | null;
+  selectedAgent: AgentType | null;
+  sidebarOpen: boolean;
+  theme: 'light' | 'dark';
+  setSelectedAgent: (agent: AgentType | null) => void;
+  setSidebarOpen: (open: boolean) => void;
+  setTheme: (theme: 'light' | 'dark') => void;
+  createConversation: (agent?: AgentType) => string;
+  setActiveConversation: (id: string | null) => void;
+  addMessage: (conversationId: string, message: Omit<Message, 'id' | 'timestamp'>) => void;
+  getActiveConversation: () => Conversation | undefined;
+  deleteConversation: (id: string) => void;
+  renameConversation: (id: string, title: string) => void;
+}
+
+const generateId = () => Math.random().toString(36).substring(2, 15);
+
+const savedTheme = (typeof window !== 'undefined' && localStorage.getItem('nexusia-theme') as 'light' | 'dark') || 'dark';
+if (typeof window !== 'undefined') {
+  document.documentElement.classList.toggle('dark', savedTheme === 'dark');
+}
+
+export const useChatStore = create<ChatState>((set, get) => ({
+  conversations: [],
+  activeConversationId: null,
+  selectedAgent: null,
+  sidebarOpen: true,
+  theme: savedTheme,
+
+  setSelectedAgent: (agent) => set({ selectedAgent: agent }),
+  setSidebarOpen: (open) => set({ sidebarOpen: open }),
+
+  setTheme: (theme) => {
+    localStorage.setItem('nexusia-theme', theme);
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    set({ theme });
+  },
+
+  createConversation: (agent) => {
+    const id = generateId();
+    const conversation: Conversation = {
+      id, title: 'Nova conversa', messages: [], agent, createdAt: new Date(), updatedAt: new Date(),
+    };
+    set((state) => ({
+      conversations: [conversation, ...state.conversations],
+      activeConversationId: id,
+      selectedAgent: agent || state.selectedAgent,
+    }));
+    return id;
+  },
+
+  setActiveConversation: (id) => set({ activeConversationId: id }),
+
+  addMessage: (conversationId, message) => {
+    const msg: Message = { ...message, id: generateId(), timestamp: new Date() };
+    set((state) => ({
+      conversations: state.conversations.map((c) => {
+        if (c.id !== conversationId) return c;
+        const messages = [...c.messages, msg];
+        const title = c.messages.length === 0 && message.role === 'user'
+          ? message.content.slice(0, 40) + (message.content.length > 40 ? '...' : '')
+          : c.title;
+        return { ...c, messages, title, updatedAt: new Date() };
+      }),
+    }));
+  },
+
+  deleteConversation: (id) => {
+    set((state) => {
+      const filtered = state.conversations.filter((c) => c.id !== id);
+      return {
+        conversations: filtered,
+        activeConversationId: state.activeConversationId === id ? null : state.activeConversationId,
+      };
+    });
+  },
+
+  renameConversation: (id, title) => {
+    set((state) => ({
+      conversations: state.conversations.map((c) => c.id === id ? { ...c, title } : c),
+    }));
+  },
+
+  getActiveConversation: () => {
+    const { conversations, activeConversationId } = get();
+    return conversations.find((c) => c.id === activeConversationId);
+  },
+}));
+```
+
+================================================================================
+STREAMING CHAT CLIENT (src/lib/streamChat.ts)
+================================================================================
+
+Faz fetch POST para a edge function de chat, lê streaming SSE linha por linha, e emite tokens via callback onDelta. Trata erros 429 (rate limit) e 402 (sem créditos).
+
+```typescript
+import { AgentType } from '@/types/agent';
+
+type Msg = { role: 'user' | 'assistant' | 'system'; content: string };
+
+// A URL deve apontar para seu backend de chat (edge function, API route, etc.)
+const CHAT_URL = `${YOUR_BACKEND_URL}/functions/v1/chat`;
+
+export async function streamChat({
+  messages, agent, onDelta, onDone, onError,
+}: {
+  messages: Msg[];
+  agent?: AgentType;
+  onDelta: (text: string) => void;
+  onDone: () => void;
+  onError: (error: string) => void;
+}) {
+  const resp = await fetch(CHAT_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${YOUR_API_KEY}`,
+    },
+    body: JSON.stringify({ messages, agent }),
+  });
+
+  if (!resp.ok) {
+    const data = await resp.json().catch(() => ({}));
+    onError(data.error || `Error ${resp.status}`);
+    return;
+  }
+
+  if (!resp.body) { onError('No response body'); return; }
+
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let streamDone = false;
+
+  while (!streamDone) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    let newlineIndex: number;
+    while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
+      let line = buffer.slice(0, newlineIndex);
+      buffer = buffer.slice(newlineIndex + 1);
+      if (line.endsWith('\r')) line = line.slice(0, -1);
+      if (line.startsWith(':') || line.trim() === '') continue;
+      if (!line.startsWith('data: ')) continue;
+      const jsonStr = line.slice(6).trim();
+      if (jsonStr === '[DONE]') { streamDone = true; break; }
+      try {
+        const parsed = JSON.parse(jsonStr);
+        const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+        if (content) onDelta(content);
+      } catch {
+        buffer = line + '\n' + buffer;
+        break;
+      }
+    }
+  }
+
+  // Flush remaining buffer
+  if (buffer.trim()) {
+    for (let raw of buffer.split('\n')) {
+      if (!raw) continue;
+      if (raw.endsWith('\r')) raw = raw.slice(0, -1);
+      if (raw.startsWith(':') || raw.trim() === '') continue;
+      if (!raw.startsWith('data: ')) continue;
+      const jsonStr = raw.slice(6).trim();
+      if (jsonStr === '[DONE]') continue;
+      try {
+        const parsed = JSON.parse(jsonStr);
+        const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+        if (content) onDelta(content);
+      } catch { /* ignore */ }
+    }
+  }
+
+  onDone();
+}
+```
+
+================================================================================
+GERAÇÃO DE IMAGENS (src/lib/generateImage.ts)
+================================================================================
+
+```typescript
+const GENERATE_URL = `${YOUR_BACKEND_URL}/functions/v1/generate-image`;
+
+export type ImageQuality = 'fast' | 'hd';
+
+interface GenerateResult {
+  imageUrl: string;
+  description?: string;
+  model?: string;
+}
+
+export async function generateImage(
+  prompt: string, quality: ImageQuality = 'fast', editImageUrl?: string
+): Promise<GenerateResult> {
+  const resp = await fetch(GENERATE_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${YOUR_API_KEY}`,
+    },
+    body: JSON.stringify({ prompt, quality, editImageUrl }),
+  });
+  if (!resp.ok) {
+    const data = await resp.json().catch(() => ({}));
+    throw new Error(data.error || `Erro ${resp.status}`);
+  }
+  return await resp.json();
+}
+```
+
+================================================================================
+COMPONENTES PRINCIPAIS
+================================================================================
+
+### 1. Index.tsx (Página principal)
+- Layout flex h-screen com Sidebar à esquerda
+- Botão para abrir sidebar quando fechada (PanelLeftOpen icon)
+- Mostra ChatView quando há conversa ativa, senão AgentSelector
+
+### 2. AgentSelector.tsx (Tela inicial)
+- Título "SYNAPSE AI" com gradiente (classe text-gradient-primary)
+- Grid responsivo de cards dos 7 agentes (1-4 colunas)
+- Cada card mostra: ícone emoji, nome, descrição, 3 capabilities como badges
+- Cada agente tem cor de borda customizada com hover glow
+- Botão "iniciar conversa sem agente específico" abaixo
+- Animações de entrada com framer-motion (stagger)
+
+### 3. ChatView.tsx (View do chat)
+- Header com nome do agente ativo
+- Área de mensagens scrollável com auto-scroll para baixo
+- Tela vazia mostra 4 botões de sugestão rápida:
+  - "O que você pode fazer?" 
+  - "Gerar uma imagem" (chama handleImageGeneration)
+  - "Plano de negócios"
+  - "Escrever código"
+- Suporta comandos: /imagine (rápido) e /imaginehd (HD)
+- Streaming: mostra conteúdo token-a-token durante resposta
+- Loading: dots animados para chat, ícone pulsante para imagem
+- Ao finalizar streaming, salva mensagem completa no store
+
+### 4. ChatMessage.tsx (Mensagem individual)
+- Mensagens do usuário: alinhadas à direita, bg-primary, texto puro
+- Mensagens do assistente: alinhadas à esquerda, bg-card com borda, ícone Bot
+- Renderiza markdown com ReactMarkdown incluindo:
+  - Blocos de código com header (linguagem + botão copiar)
+  - Botão copiar com feedback visual (Check icon por 2s)
+  - Imagens com botão de download no hover
+- Suporta attachments de imagem com download e preview em nova aba
+- Animação de entrada (opacity + translateY) com framer-motion
+
+### 5. ChatInput.tsx (Input de mensagem)
+- Textarea auto-resize (max 160px)
+- Enter envia, Shift+Enter nova linha
+- Botões de ação:
+  - Paperclip: anexar arquivo (.pdf, .doc, .txt, .csv, etc.)
+  - Image: enviar imagem
+  - Sparkles: menu dropdown com 2 opções de geração de imagem:
+    - /imagine (rápido, Nano Banana)
+    - /imaginehd (HD, Gemini Pro)
+- Preview de arquivos anexados com remoção
+- Botão Send com animação whileTap
+- Disclaimer "NexusIA pode cometer erros..."
+
+### 6. Sidebar.tsx
+- Animação de abertura/fechamento (width 0→280)
+- Header com logo (Zap icon + "NexusIA") e botão fechar
+- Botão "Nova conversa" 
+- Lista de conversas com:
+  - Clique para selecionar
+  - Hover mostra botões: renomear (Pencil) e deletar (Trash2)
+  - Modo edição inline com input
+- Botão "Configurações" no rodapé
+- Abre SettingsDialog
+
+### 7. SettingsDialog.tsx
+- Toggle tema Claro/Escuro com ícones Sun/Moon
+- Seção "Sobre" com descrição da plataforma
+
+================================================================================
+BACKEND — EDGE FUNCTIONS
+================================================================================
+
+### 1. chat/index.ts (Chat com streaming)
+
+- CORS headers obrigatórios
+- Recebe { messages, agent } no body
+- Seleciona system prompt baseado no agente (7 prompts especializados + 1 default)
+- REGRA IMPORTANTE DOS PROMPTS: Todos incluem a instrução "Nunca se apresente, nunca diga quem você é, nunca faça introduções sobre si mesmo. Vá direto ao ponto."
+- Faz fetch para API de completions com stream: true
+- Modelo: qualquer modelo compatível OpenAI (ex: gpt-4, gemini-flash, etc.)
+- Retorna o body da response como stream (text/event-stream)
+- Trata erros 429 (rate limit) e 402 (sem créditos)
+
+System prompts dos agentes (resumo):
+- research: pesquisa, dados, resumo, fact-checking
+- coder: código, debug, arquitetura, code review
+- business: mercado, estratégia, startups, monetização
+- marketing: campanhas, copywriting, growth, funis
+- content: artigos, roteiros, redes sociais, scripts
+- analyst: dados, relatórios, padrões, tendências
+- automation: fluxos, APIs, automação
+- default: assistente geral com 4 modos (conversacional, execução, análise, automação)
+
+### 2. generate-image/index.ts (Geração de imagens)
+
+- Recebe { prompt, quality, editImageUrl }
+- quality "fast" → modelo rápido (ex: gemini-flash-image / dall-e)
+- quality "hd" → modelo detalhado (ex: gemini-pro-image)
+- Se editImageUrl fornecido, envia como multimodal (text + image_url)
+- Usa modalities: ["image", "text"]
+- Retorna { imageUrl, description, model }
+- A imageUrl vem de: response.choices[0].message.images[0].image_url.url
+- Trata erros 429, 402, e quando não gera imagem (422)
+
+================================================================================
+TAILWIND CONFIG (tailwind.config.ts)
+================================================================================
+
+Extensões importantes:
+- Cores dos agentes: agent.research, agent.coder, agent.business, agent.content, agent.automation, agent.marketing, agent.analyst
+- Todas as cores shadcn padrão (primary, secondary, muted, accent, destructive, card, popover, sidebar, etc.)
+- Fontes: display (Inter) e mono (JetBrains Mono)
+- darkMode: ["class"]
+- Plugin: tailwindcss-animate
+
+================================================================================
+COMPORTAMENTOS IMPORTANTES
+================================================================================
+
+1. TEMA: Padrão é "dark". Salvo em localStorage key 'nexusia-theme'. Classe 'dark' toggleada no html element.
+
+2. STREAMING: Respostas aparecem token-a-token em tempo real. O conteúdo streaming é mostrado como mensagem temporária (id='streaming') que é substituída pela mensagem final quando onDone é chamado.
+
+3. CONVERSAS: Armazenadas apenas em memória (Zustand). Não há persistência em banco de dados. A primeira mensagem do usuário define o título da conversa (primeiros 40 chars).
+
+4. GERAÇÃO DE IMAGENS: Dois comandos — /imagine (rápido) e /imaginehd (HD). Imagens são exibidas como attachments nas mensagens do assistente com botão de download.
+
+5. SIDEBAR: Animação suave de abertura/fechamento. Quando fechada, botão flutuante no canto superior esquerdo para reabrir.
+
+6. MARKDOWN: Respostas do assistente renderizam markdown completo com syntax highlighting em blocos de código, botão copiar, e imagens.
+
+7. RESPONSIVIDADE: Grid de agentes adapta de 1 a 4 colunas. Sidebar com largura fixa de 280px.
+
+================================================================================
+DEPENDÊNCIAS NPM
+================================================================================
+
+dependencies:
+- react, react-dom (^18.3)
+- react-router-dom (^6.30)
+- zustand (^5.0)
+- framer-motion (^12.35)
+- react-markdown (^10.1)
+- lucide-react (^0.462)
+- sonner (^1.7)
+- @tanstack/react-query (^5.83)
+- class-variance-authority, clsx, tailwind-merge
+- @radix-ui/* (vários componentes shadcn)
+- @supabase/supabase-js (se usar Supabase)
+
+devDependencies:
+- vite, @vitejs/plugin-react-swc
+- typescript
+- tailwindcss, postcss, autoprefixer
+- tailwindcss-animate
+- @tailwindcss/typography
+
+================================================================================
+HTML (index.html)
+================================================================================
+
+- lang="pt-BR"
+- Title: "NexusIA — Assistente de Inteligência Artificial"
+- Meta description sobre a plataforma
+- Open Graph e Twitter Card meta tags
+- Favicon
+
+================================================================================
+NOTAS FINAIS
+================================================================================
+
+- O app NÃO tem autenticação — é aberto
+- O app NÃO persiste conversas em banco — tudo em memória
+- A interface é inspirada no ChatGPT/Claude com sidebar + chat
+- O design é minimalista e moderno com bordas sutis e cores desaturadas
+- Animações são suaves e não excessivas
+- Todo texto da interface está em português brasileiro
+- Os agentes NUNCA devem se apresentar nas respostas (regra nos system prompts)
+
+Para adaptar a outro backend de IA, basta:
+1. Substituir as URLs das edge functions (CHAT_URL e GENERATE_URL)
+2. Ajustar headers de autenticação
+3. Garantir que a API retorne formato compatível com OpenAI (SSE com data: {choices: [{delta: {content}}]})
