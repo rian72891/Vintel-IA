@@ -69,7 +69,7 @@ export function ChatView() {
       return;
     }
 
-    addMessage(activeConversationId, { role: 'user', content });
+    await addMessage(activeConversationId, { role: 'user', content });
     setIsStreaming(true);
     setStreamingContent('');
     setLoadingLabel('');
