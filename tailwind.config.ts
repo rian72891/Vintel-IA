@@ -12,8 +12,19 @@ export default {
         "2xl": "1400px",
       },
     },
+    fontFamily: {
+        display: ['Space Grotesk', 'system-ui', 'sans-serif'],
+        mono: ['JetBrains Mono', 'monospace'],
+      },
     extend: {
       colors: {
+        agent: {
+          research: "hsl(var(--agent-research))",
+          coder: "hsl(var(--agent-coder))",
+          business: "hsl(var(--agent-business))",
+          content: "hsl(var(--agent-content))",
+          automation: "hsl(var(--agent-automation))",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
