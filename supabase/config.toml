@@ -2,3 +2,15 @@ project_id = "kbldaktnuzckxarisvca"
 
 [functions.chat]
 verify_jwt = false
+
+[functions.generate-image]
+verify_jwt = false
+
+[functions.elevenlabs-tts]
+verify_jwt = false
+
+[functions.firecrawl-scrape]
+verify_jwt = false
+
+[functions.firecrawl-search]
+verify_jwt = false
