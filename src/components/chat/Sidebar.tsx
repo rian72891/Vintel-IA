@@ -11,6 +11,8 @@ import { useAuth } from '@/hooks/useAuth';
 export function Sidebar() {
   const { conversations, activeConversationId, sidebarOpen, setSidebarOpen, setActiveConversation, setSelectedAgent, deleteConversation, renameConversation, loadConversations, loaded } = useChatStore();
   const { user, signOut } = useAuth();
+  const { plan } = useSubscription();
+  const navigate = useNavigate();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
