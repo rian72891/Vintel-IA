@@ -112,6 +112,27 @@ export type Database = {
         }
         Relationships: []
       }
+      shared_artifacts: {
+        Row: {
+          artifacts: Json
+          created_at: string
+          id: string
+          title: string
+        }
+        Insert: {
+          artifacts: Json
+          created_at?: string
+          id?: string
+          title?: string
+        }
+        Update: {
+          artifacts?: Json
+          created_at?: string
+          id?: string
+          title?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
