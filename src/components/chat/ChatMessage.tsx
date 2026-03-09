@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { Bot, User, Download, Copy, Check, Volume2, Pause, FileText, Code, FileArchive, File, Mic, FileCode } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { useState, useCallback, useRef, useMemo } from 'react';
+import JSZip from 'jszip';
 
 interface ChatMessageProps {
   message: Message;
@@ -143,6 +144,26 @@ export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
+  const downloadAllArtifacts = async () => {
+    if (artifacts.length === 0) return;
+    
+    const zip = new JSZip();
+    
+    artifacts.forEach(artifact => {
+      zip.file(artifact.filename, artifact.content);
+    });
+    
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `nexusia-artifacts-${Date.now()}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   let codeBlockIdx = 0;
 
   return (
@@ -235,8 +256,19 @@ export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
         {/* Artifacts - Generated Files */}
         {artifacts.length > 0 && (
           <div className="mt-3 space-y-2">
-            <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-2">
-              📦 Arquivos Gerados ({artifacts.length})
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                📦 Arquivos Gerados ({artifacts.length})
+              </div>
+              {artifacts.length > 1 && (
+                <button
+                  onClick={downloadAllArtifacts}
+                  className="flex items-center gap-1.5 px-2.5 py-1 bg-primary text-primary-foreground rounded-md text-[10px] font-medium hover:bg-primary/90 transition-colors"
+                >
+                  <FileArchive className="h-3 w-3" />
+                  Baixar tudo (.zip)
+                </button>
+              )}
             </div>
             {artifacts.map((artifact, idx) => (
               <div
