@@ -103,13 +103,16 @@ export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
     a.click();
   };
 
-  const downloadFile = (url: string, name: string) => {
+  const downloadFile = (content: string, filename: string) => {
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = name;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const toggleAudio = () => {
