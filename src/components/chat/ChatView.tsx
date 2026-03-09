@@ -373,11 +373,13 @@ export function ChatView() {
     setLoadingLabel('');
 
     const currentConv = getActiveConversation();
-    const history = (currentConv?.messages || []).map((m) => ({
-      role: m.role as 'user' | 'assistant' | 'system',
-      content: m.content,
-    }));
-    history.push({ role: 'user', content });
+    const history = currentConv?.messages || [];
+    history.push({ 
+      id: Date.now().toString(), 
+      role: 'user', 
+      content,
+      timestamp: new Date().toISOString()
+    });
 
     let fullContent = '';
 
