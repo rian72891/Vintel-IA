@@ -219,7 +219,7 @@ export function ChatView() {
       id: Date.now().toString(), 
       role: 'user', 
       content: instruction,
-      timestamp: new Date().toISOString()
+      timestamp: new Date()
     });
 
     let fullContent = '';
