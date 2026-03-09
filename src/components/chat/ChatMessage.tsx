@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { Bot, User, Download, Copy, Check, Volume2, Pause, FileText, Code, FileArchive, File, Mic, FileCode } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { useState, useCallback, useRef, useMemo } from 'react';
+import JSZip from 'jszip';
 
 interface ChatMessageProps {
   message: Message;
