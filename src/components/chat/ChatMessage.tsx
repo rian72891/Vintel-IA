@@ -191,7 +191,14 @@ export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
               </div>
             ) : (
               <button
-                onClick={() => downloadFile(att.url, att.name)}
+                onClick={() => {
+                  const a = document.createElement('a');
+                  a.href = att.url;
+                  a.download = att.name;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                }}
                 className="flex items-center gap-2 px-3 py-2.5 bg-primary/10 border border-primary/20 rounded-lg text-xs hover:bg-primary/20 transition-colors w-full"
               >
                 {getFileIcon(att.name)}
