@@ -65,6 +65,7 @@ export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
   const isUser = message.role === 'user';
   const isVoiceMessage = isUser && message.content.startsWith('🎤 ');
   const [copiedBlock, setCopiedBlock] = useState<number | null>(null);
+  const [copiedArtifact, setCopiedArtifact] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -93,6 +94,12 @@ export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
     navigator.clipboard.writeText(code);
     setCopiedBlock(idx);
     setTimeout(() => setCopiedBlock(null), 2000);
+  }, []);
+
+  const copyArtifact = useCallback((content: string, idx: number) => {
+    navigator.clipboard.writeText(content);
+    setCopiedArtifact(idx);
+    setTimeout(() => setCopiedArtifact(null), 2000);
   }, []);
 
   const downloadImage = (src: string, name?: string) => {
@@ -252,13 +259,32 @@ export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
                       </div>
                     </div>
                   </div>
-                  <button
-                    onClick={() => downloadFile(artifact.content, artifact.filename)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground rounded-md text-xs font-medium hover:bg-primary/90 transition-colors shrink-0"
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                    Baixar
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => copyArtifact(artifact.content, idx)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-muted border border-border rounded-md text-xs font-medium hover:bg-muted/80 transition-colors shrink-0"
+                      title="Copiar conteúdo"
+                    >
+                      {copiedArtifact === idx ? (
+                        <>
+                          <Check className="h-3.5 w-3.5 text-green-500" />
+                          Copiado
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-3.5 w-3.5" />
+                          Copiar
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => downloadFile(artifact.content, artifact.filename)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground rounded-md text-xs font-medium hover:bg-primary/90 transition-colors shrink-0"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      Baixar
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
