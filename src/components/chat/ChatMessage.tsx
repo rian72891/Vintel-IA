@@ -1,7 +1,9 @@
 import { motion } from 'framer-motion';
 import { Message } from '@/types/agent';
 import { cn } from '@/lib/utils';
-import { Bot, User, Download, Copy, Check, Volume2, Pause, FileText, Code, FileArchive, File, Mic, FileCode } from 'lucide-react';
+import { Bot, User, Download, Copy, Check, Volume2, Pause, FileText, Code, FileArchive, File, Mic, FileCode, Share2, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import { useState, useCallback, useRef, useMemo } from 'react';
 import JSZip from 'jszip';
@@ -68,6 +70,7 @@ export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
   const [copiedBlock, setCopiedBlock] = useState<number | null>(null);
   const [copiedArtifact, setCopiedArtifact] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Parse artifacts from message content
@@ -151,7 +154,6 @@ export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
     if (artifacts.length === 0) return;
     
     const zip = new JSZip();
-    
     artifacts.forEach(artifact => {
       zip.file(artifact.filename, artifact.content);
     });
@@ -165,6 +167,31 @@ export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  const shareArtifacts = async () => {
+    if (artifacts.length === 0 || isSharing) return;
+    setIsSharing(true);
+    try {
+      const { data, error } = await supabase
+        .from('shared_artifacts')
+        .insert([{
+          title: `Arquivos Compartilhados (${artifacts.length})`,
+          artifacts: artifacts as any,
+        }])
+        .select()
+        .single();
+
+      if (error || !data) throw error;
+
+      const shareUrl = `${window.location.origin}/shared/${data.id}`;
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success('Link copiado para a área de transferência!');
+    } catch {
+      toast.error('Erro ao compartilhar artefatos.');
+    } finally {
+      setIsSharing(false);
+    }
   };
 
   let codeBlockIdx = 0;
@@ -263,15 +290,25 @@ export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
               <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
                 📦 Arquivos Gerados ({artifacts.length})
               </div>
-              {artifacts.length > 1 && (
+              <div className="flex items-center gap-1.5">
                 <button
-                  onClick={downloadAllArtifacts}
-                  className="flex items-center gap-1.5 px-2.5 py-1 bg-primary text-primary-foreground rounded-md text-[10px] font-medium hover:bg-primary/90 transition-colors"
+                  onClick={shareArtifacts}
+                  disabled={isSharing}
+                  className="flex items-center gap-1.5 px-2.5 py-1 bg-secondary text-secondary-foreground rounded-md text-[10px] font-medium hover:bg-secondary/80 transition-colors disabled:opacity-50"
                 >
-                  <FileArchive className="h-3 w-3" />
-                  Baixar tudo (.zip)
+                  {isSharing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Share2 className="h-3 w-3" />}
+                  Compartilhar
                 </button>
-              )}
+                {artifacts.length > 1 && (
+                  <button
+                    onClick={downloadAllArtifacts}
+                    className="flex items-center gap-1.5 px-2.5 py-1 bg-primary text-primary-foreground rounded-md text-[10px] font-medium hover:bg-primary/90 transition-colors"
+                  >
+                    <FileArchive className="h-3 w-3" />
+                    Baixar tudo (.zip)
+                  </button>
+                )}
+              </div>
             </div>
             {artifacts.map((artifact, idx) => (
               <div
