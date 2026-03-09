@@ -214,11 +214,13 @@ export function ChatView() {
     }
 
     const currentConv = getActiveConversation();
-    const history = (currentConv?.messages || []).map((m) => ({
-      role: m.role as 'user' | 'assistant' | 'system',
-      content: m.content,
-    }));
-    history.push({ role: 'user', content: instruction });
+    const history = currentConv?.messages || [];
+    history.push({ 
+      id: Date.now().toString(), 
+      role: 'user', 
+      content: instruction,
+      timestamp: new Date().toISOString()
+    });
 
     let fullContent = '';
 
