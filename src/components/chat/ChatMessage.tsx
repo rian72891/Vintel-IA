@@ -68,6 +68,27 @@ export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Parse artifacts from message content
+  const { cleanContent, artifacts } = useMemo(() => {
+    if (isUser) return { cleanContent: message.content, artifacts: [] };
+    
+    const artifactRegex = /<artifact\s+filename="([^"]+)"\s+type="([^"]+)"\s+title="([^"]+)">([\s\S]*?)<\/artifact>/g;
+    const foundArtifacts: Artifact[] = [];
+    let match;
+    
+    while ((match = artifactRegex.exec(message.content)) !== null) {
+      foundArtifacts.push({
+        filename: match[1],
+        type: match[2],
+        title: match[3],
+        content: match[4].trim()
+      });
+    }
+    
+    const cleaned = message.content.replace(artifactRegex, '').trim();
+    return { cleanContent: cleaned, artifacts: foundArtifacts };
+  }, [message.content, isUser]);
+
   const copyCode = useCallback((code: string, idx: number) => {
     navigator.clipboard.writeText(code);
     setCopiedBlock(idx);
