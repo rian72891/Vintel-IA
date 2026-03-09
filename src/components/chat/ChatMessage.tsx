@@ -144,6 +144,26 @@ export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
+  const downloadAllArtifacts = async () => {
+    if (artifacts.length === 0) return;
+    
+    const zip = new JSZip();
+    
+    artifacts.forEach(artifact => {
+      zip.file(artifact.filename, artifact.content);
+    });
+    
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `nexusia-artifacts-${Date.now()}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   let codeBlockIdx = 0;
 
   return (
