@@ -256,8 +256,19 @@ export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
         {/* Artifacts - Generated Files */}
         {artifacts.length > 0 && (
           <div className="mt-3 space-y-2">
-            <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-2">
-              📦 Arquivos Gerados ({artifacts.length})
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                📦 Arquivos Gerados ({artifacts.length})
+              </div>
+              {artifacts.length > 1 && (
+                <button
+                  onClick={downloadAllArtifacts}
+                  className="flex items-center gap-1.5 px-2.5 py-1 bg-primary text-primary-foreground rounded-md text-[10px] font-medium hover:bg-primary/90 transition-colors"
+                >
+                  <FileArchive className="h-3 w-3" />
+                  Baixar tudo (.zip)
+                </button>
+              )}
             </div>
             {artifacts.map((artifact, idx) => (
               <div
