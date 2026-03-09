@@ -368,7 +368,7 @@ export function ChatView() {
     }
 
     // Process attachments
-    let processedAttachments: { type: string; url: string; name: string }[] = [];
+    let processedAttachments: { type: 'image' | 'file'; url: string; name: string }[] = [];
     
     if (attachments && attachments.length > 0) {
       for (const file of attachments) {
