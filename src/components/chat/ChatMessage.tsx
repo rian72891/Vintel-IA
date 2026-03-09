@@ -96,6 +96,12 @@ export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
     setTimeout(() => setCopiedBlock(null), 2000);
   }, []);
 
+  const copyArtifact = useCallback((content: string, idx: number) => {
+    navigator.clipboard.writeText(content);
+    setCopiedArtifact(idx);
+    setTimeout(() => setCopiedArtifact(null), 2000);
+  }, []);
+
   const downloadImage = (src: string, name?: string) => {
     const a = document.createElement('a');
     a.href = src;
