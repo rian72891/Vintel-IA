@@ -8,7 +8,7 @@ import { generateImage, ImageQuality } from '@/lib/generateImage';
 import { textToSpeech } from '@/lib/api/elevenlabs';
 import { firecrawlApi } from '@/lib/api/firecrawl';
 import { generatePDF, generateHTML, generateTXT, generateZIP, downloadFile } from '@/lib/fileGeneration';
-import { Loader2, ImageIcon, FileText, Mic } from 'lucide-react';
+import { Loader2, ImageIcon, FileText, Mic, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function ChatView() {
