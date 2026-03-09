@@ -217,6 +217,51 @@ CHAIN OF THOUGHT (para tarefas complexas):
 5. 📊 SINTETIZAR: apresente solução clara
 
 ═══════════════════════════════════════════════
+GERAÇÃO DE ARQUIVOS (ARTEFATOS)
+═══════════════════════════════════════════════
+
+Quando criar código, documentos, scripts ou projetos completos:
+
+**FORMATO OBRIGATÓRIO:**
+<artifact filename="nome_do_arquivo.ext" type="tipo" title="Título Descritivo">
+conteúdo completo do arquivo aqui
+</artifact>
+
+**TIPOS DE ARTEFATO:**
+• code → Scripts, programas, código-fonte
+• document → Documentação, textos, markdown
+• html → Páginas web completas
+• config → Arquivos de configuração
+
+**EXEMPLOS:**
+
+<artifact filename="api_client.py" type="code" title="Cliente HTTP para API REST">
+import requests
+
+class APIClient:
+    def __init__(self, base_url):
+        self.base_url = base_url
+    
+    def get(self, endpoint):
+        return requests.get(f"{self.base_url}/{endpoint}")
+</artifact>
+
+<artifact filename="README.md" type="document" title="Documentação do Projeto">
+# Meu Projeto
+
+## Instalação
+\`\`\`bash
+npm install
+\`\`\`
+</artifact>
+
+**REGRAS:**
+• Use artefatos para código > 10 linhas ou documentos completos
+• Pode gerar múltiplos artefatos em uma resposta
+• Sempre inclua filename, type e title
+• Conteúdo deve estar pronto para uso direto
+
+═══════════════════════════════════════════════
 MODOS DE OPERAÇÃO AVANÇADOS
 ═══════════════════════════════════════════════
 
@@ -268,8 +313,8 @@ CAPACIDADES ESPECIAIS
 🔧 PRÁTICO:
    • Passo a passo executável
    • Exemplos concretos
-   • Code snippets
-   • Templates prontos
+   • Artefatos prontos para uso
+   • Templates completos
 
 ═══════════════════════════════════════════════
 FORMATO DE RESPOSTA
@@ -277,7 +322,7 @@ FORMATO DE RESPOSTA
 
 USE MARKDOWN RICO:
 • **Negrito** para conceitos-chave
-• \`código\` inline e \`\`\`blocos\`\`\`
+• \`código\` inline e \`\`\`blocos\`\`\` curtos
 • > Citações importantes
 • Tabelas para comparações
 • Emojis estratégicos (não exagere)
@@ -286,7 +331,8 @@ USE MARKDOWN RICO:
 ESTRUTURA:
 1. Resposta direta (TL;DR se complexo)
 2. Desenvolvimento detalhado
-3. Próximos passos sugeridos
+3. Artefatos (se aplicável)
+4. Próximos passos sugeridos
 
 ═══════════════════════════════════════════════
 PRINCÍPIOS FUNDAMENTAIS
@@ -356,7 +402,7 @@ serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-pro",
+          model: "google/gemini-2.5-flash",
           messages: [
             { role: "system", content: systemPrompt },
             ...processedMessages,

@@ -1,24 +1,61 @@
 import { motion } from 'framer-motion';
 import { Message } from '@/types/agent';
 import { cn } from '@/lib/utils';
-import { Bot, User, Download, Copy, Check, Volume2, Pause, FileText, Code, FileArchive, File, Mic } from 'lucide-react';
+import { Bot, User, Download, Copy, Check, Volume2, Pause, FileText, Code, FileArchive, File, Mic, FileCode } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 
 interface ChatMessageProps {
   message: Message;
   audioUrl?: string | null;
 }
 
+interface Artifact {
+  filename: string;
+  type: string;
+  title: string;
+  content: string;
+}
+
 const getFileIcon = (filename: string) => {
   const ext = filename.split('.').pop()?.toLowerCase();
   switch (ext) {
     case 'pdf':
-      return <FileText className="h-4 w-4 text-red-500 shrink-0" />;
+      return <FileText className="h-4 w-4 text-destructive shrink-0" />;
     case 'html':
-      return <Code className="h-4 w-4 text-cyan-500 shrink-0" />;
+    case 'htm':
+      return <Code className="h-4 w-4 text-primary shrink-0" />;
     case 'zip':
+    case 'rar':
+    case 'tar':
+    case 'gz':
       return <FileArchive className="h-4 w-4 text-yellow-600 shrink-0" />;
+    case 'js':
+    case 'ts':
+    case 'jsx':
+    case 'tsx':
+    case 'py':
+    case 'java':
+    case 'cpp':
+    case 'c':
+    case 'go':
+    case 'rs':
+    case 'php':
+    case 'rb':
+      return <FileCode className="h-4 w-4 text-primary shrink-0" />;
+    case 'json':
+    case 'yaml':
+    case 'yml':
+    case 'xml':
+    case 'toml':
+    case 'ini':
+    case 'env':
+      return <FileText className="h-4 w-4 text-secondary shrink-0" />;
+    case 'md':
+    case 'txt':
+    case 'doc':
+    case 'docx':
+      return <FileText className="h-4 w-4 text-muted-foreground shrink-0" />;
     default:
       return <File className="h-4 w-4 text-muted-foreground shrink-0" />;
   }
@@ -30,6 +67,27 @@ export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
   const [copiedBlock, setCopiedBlock] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Parse artifacts from message content
+  const { cleanContent, artifacts } = useMemo(() => {
+    if (isUser) return { cleanContent: message.content, artifacts: [] };
+    
+    const artifactRegex = /<artifact\s+filename="([^"]+)"\s+type="([^"]+)"\s+title="([^"]+)">([\s\S]*?)<\/artifact>/g;
+    const foundArtifacts: Artifact[] = [];
+    let match;
+    
+    while ((match = artifactRegex.exec(message.content)) !== null) {
+      foundArtifacts.push({
+        filename: match[1],
+        type: match[2],
+        title: match[3],
+        content: match[4].trim()
+      });
+    }
+    
+    const cleaned = message.content.replace(artifactRegex, '').trim();
+    return { cleanContent: cleaned, artifacts: foundArtifacts };
+  }, [message.content, isUser]);
 
   const copyCode = useCallback((code: string, idx: number) => {
     navigator.clipboard.writeText(code);
@@ -45,13 +103,16 @@ export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
     a.click();
   };
 
-  const downloadFile = (url: string, name: string) => {
+  const downloadFile = (content: string, filename: string) => {
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = name;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const toggleAudio = () => {
@@ -66,6 +127,13 @@ export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
       audio.play();
       setIsPlaying(true);
     }
+  };
+
+  const formatFileSize = (content: string) => {
+    const bytes = new Blob([content]).size;
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
   let codeBlockIdx = 0;
@@ -123,7 +191,14 @@ export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
               </div>
             ) : (
               <button
-                onClick={() => downloadFile(att.url, att.name)}
+                onClick={() => {
+                  const a = document.createElement('a');
+                  a.href = att.url;
+                  a.download = att.name;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                }}
                 className="flex items-center gap-2 px-3 py-2.5 bg-primary/10 border border-primary/20 rounded-lg text-xs hover:bg-primary/20 transition-colors w-full"
               >
                 {getFileIcon(att.name)}
@@ -150,11 +225,51 @@ export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
           </div>
         )}
 
+        {/* Artifacts - Generated Files */}
+        {artifacts.length > 0 && (
+          <div className="mt-3 space-y-2">
+            <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-2">
+              📦 Arquivos Gerados ({artifacts.length})
+            </div>
+            {artifacts.map((artifact, idx) => (
+              <div
+                key={idx}
+                className="group bg-muted/50 border border-border rounded-lg overflow-hidden hover:border-primary/50 transition-colors"
+              >
+                <div className="flex items-center justify-between p-3">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    {getFileIcon(artifact.filename)}
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium text-foreground truncate">
+                        {artifact.title}
+                      </div>
+                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                        <span className="truncate">{artifact.filename}</span>
+                        <span>•</span>
+                        <span>{artifact.type}</span>
+                        <span>•</span>
+                        <span>{formatFileSize(artifact.content)}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => downloadFile(artifact.content, artifact.filename)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground rounded-md text-xs font-medium hover:bg-primary/90 transition-colors shrink-0"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    Baixar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {isUser ? (
           <p className="whitespace-pre-wrap">
             {isVoiceMessage ? message.content.replace('🎤 ', '') : message.content}
           </p>
-        ) : (
+        ) : cleanContent ? (
           <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1.5 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:p-0 prose-pre:bg-transparent prose-pre:border-0">
             <ReactMarkdown
               components={{
@@ -217,10 +332,10 @@ export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
                 },
               }}
             >
-              {message.content}
+              {cleanContent}
             </ReactMarkdown>
           </div>
-        )}
+        ) : null}
       </div>
       {isUser && (
         <div className="h-7 w-7 rounded-lg bg-muted flex items-center justify-center shrink-0 mt-0.5">
