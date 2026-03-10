@@ -26,7 +26,7 @@ const Index = () => {
               </button>
               <div className="flex items-center gap-2">
                 <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50" />
-                <span className="text-sm font-semibold text-foreground tracking-tight">Nexusia</span>
+                <span className="text-sm font-semibold text-foreground tracking-tight">Ventel IA</span>
               </div>
             </div>
             <button

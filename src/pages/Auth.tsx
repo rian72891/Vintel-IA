@@ -59,7 +59,7 @@ export default function Auth() {
           <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
             <Zap className="h-6 w-6 text-primary-foreground" />
           </div>
-          <span className="text-2xl font-bold text-foreground tracking-tight">NexusIA</span>
+          <span className="text-2xl font-bold text-foreground tracking-tight">Ventel IA</span>
         </div>
 
         <div className="bg-card border border-border rounded-2xl p-6">
@@ -67,7 +67,7 @@ export default function Auth() {
             {isLogin ? 'Entrar na sua conta' : 'Criar nova conta'}
           </h1>
           <p className="text-sm text-muted-foreground text-center mb-6">
-            {isLogin ? 'Acesse seus chats e histórico' : 'Comece a usar o NexusIA gratuitamente'}
+            {isLogin ? 'Acesse seus chats e histórico' : 'Comece a usar o Ventel IA gratuitamente'}
           </p>
 
           {/* Google */}

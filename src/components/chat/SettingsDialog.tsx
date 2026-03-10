@@ -46,7 +46,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           <div>
             <label className="text-sm font-medium text-foreground mb-2 block">Sobre</label>
             <p className="text-xs text-muted-foreground">
-              NexusIA — Assistente de Inteligência Artificial avançado com agentes especializados para pesquisa, programação, negócios, marketing, conteúdo e automação.
+              Ventel IA — Assistente de Inteligência Artificial avançado com agentes especializados para pesquisa, programação, negócios, marketing, conteúdo e automação.
             </p>
           </div>
         </div>

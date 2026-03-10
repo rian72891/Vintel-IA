@@ -244,22 +244,22 @@ export function ChatView() {
               switch (type) {
                 case 'pdf':
                   fileUrl = await generatePDF(fullContent, prompt.slice(0, 50));
-                  fileName = `nexusia-${prompt.slice(0, 30).replace(/[^a-zA-Z0-9]/g, '-')}.pdf`;
+                  fileName = `ventel-${prompt.slice(0, 30).replace(/[^a-zA-Z0-9]/g, '-')}.pdf`;
                   displayContent = fullContent.length > 500 ? fullContent.slice(0, 500) + '\n\n... *(conteúdo completo no PDF)*' : fullContent;
                   break;
                 case 'html':
                   fileUrl = generateHTML(fullContent, prompt.slice(0, 50));
-                  fileName = `nexusia-${prompt.slice(0, 30).replace(/[^a-zA-Z0-9]/g, '-')}.html`;
+                  fileName = `ventel-${prompt.slice(0, 30).replace(/[^a-zA-Z0-9]/g, '-')}.html`;
                   displayContent = '✅ Página HTML gerada com sucesso!\n\nClique no botão abaixo para baixar o arquivo.';
                   break;
                 case 'txt':
                   fileUrl = generateTXT(fullContent);
-                  fileName = `nexusia-${prompt.slice(0, 30).replace(/[^a-zA-Z0-9]/g, '-')}.txt`;
+                  fileName = `ventel-${prompt.slice(0, 30).replace(/[^a-zA-Z0-9]/g, '-')}.txt`;
                   displayContent = fullContent.length > 500 ? fullContent.slice(0, 500) + '\n\n... *(conteúdo completo no arquivo)*' : fullContent;
                   break;
                 case 'zip':
                   fileUrl = await generateZIP(fullContent, prompt.slice(0, 30));
-                  fileName = `nexusia-${prompt.slice(0, 30).replace(/[^a-zA-Z0-9]/g, '-')}.zip`;
+                  fileName = `ventel-${prompt.slice(0, 30).replace(/[^a-zA-Z0-9]/g, '-')}.zip`;
                   displayContent = '✅ Projeto ZIP gerado com sucesso!\n\nClique no botão abaixo para baixar o arquivo com todos os arquivos do projeto.';
                   break;
                 default:
@@ -445,7 +445,7 @@ export function ChatView() {
         )}
         <div className="flex flex-col">
           <span className="text-sm font-semibold text-foreground tracking-tight">
-            {agent?.name || 'Nexusia'}
+            {agent?.name || 'Ventel IA'}
           </span>
           {agent && (
             <span className="text-[11px] text-muted-foreground leading-tight">
@@ -471,7 +471,7 @@ export function ChatView() {
                 { label: '💬 O que você pode fazer?', action: () => handleSend('Olá! O que você pode fazer?') },
                 { label: '🎨 Gerar uma imagem', action: () => handleImageGeneration('um gato astronauta flutuando no espaço', 'fast') },
                 { label: '🔍 Buscar na web', action: () => handleSend('/search últimas notícias de tecnologia') },
-                { label: '🔊 Gerar áudio', action: () => handleSend('/voz Olá! Eu sou a Nexusia.') },
+                { label: '🔊 Gerar áudio', action: () => handleSend('/voz Olá! Eu sou a Ventel IA.') },
                 { label: '📄 Gerar PDF', action: () => handleFileGeneration('pdf', 'Guia sobre inteligência artificial') },
               ].map((item) => (
                 <button
