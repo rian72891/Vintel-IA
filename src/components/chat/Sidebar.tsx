@@ -1,17 +1,18 @@
 import { useState, useEffect } from 'react';
 import { Plus, MessageSquare, X, Trash2, Pencil, Check, Settings, LogOut, Menu, Search, Crown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useSubscription } from '@/hooks/useSubscription';
+import { useUsage } from '@/hooks/useUsage';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useChatStore } from '@/store/chatStore';
 import { cn } from '@/lib/utils';
 import { SettingsDialog } from './SettingsDialog';
 import { useAuth } from '@/hooks/useAuth';
+import { PlanBadge } from '@/components/subscription/PlanBadge';
 
 export function Sidebar() {
   const { conversations, activeConversationId, sidebarOpen, setSidebarOpen, setActiveConversation, setSelectedAgent, deleteConversation, renameConversation, loadConversations, loaded } = useChatStore();
   const { user, signOut } = useAuth();
-  const { plan } = useSubscription();
+  const { plan } = useUsage();
   const navigate = useNavigate();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
@@ -53,7 +54,6 @@ export function Sidebar() {
       <AnimatePresence>
         {sidebarOpen && (
           <>
-            {/* Backdrop for mobile */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -71,18 +71,10 @@ export function Sidebar() {
             >
               {/* Header */}
               <div className="px-4 pt-4 pb-2 flex items-center justify-between">
-                <button
-                  onClick={() => setSidebarOpen(false)}
-                  className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                >
+                <button onClick={() => setSidebarOpen(false)} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
                   <Menu className="h-5 w-5" />
                 </button>
-
-                <button
-                  onClick={handleNewChat}
-                  className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                  title="Nova conversa"
-                >
+                <button onClick={handleNewChat} className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors" title="Nova conversa">
                   <Plus className="h-5 w-5" />
                 </button>
               </div>
@@ -169,15 +161,11 @@ export function Sidebar() {
                 </div>
 
                 <button
-                  onClick={() => navigate('/plans')}
-                  className={`w-full flex items-center justify-center gap-2 px-3 py-2 mt-2 rounded-xl text-xs font-medium transition-colors ${
-                    plan === 'pro'
-                      ? 'bg-primary/10 text-primary'
-                      : 'bg-accent text-accent-foreground hover:bg-accent/80'
-                  }`}
+                  onClick={() => navigate('/precos')}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 mt-2 rounded-xl text-xs font-medium transition-colors bg-accent/50 text-accent-foreground hover:bg-accent/80"
                 >
-                  <Crown className="h-3.5 w-3.5" />
-                  {plan === 'pro' ? 'Plano Pro ✓' : 'Upgrade para Pro'}
+                  <PlanBadge plan={plan} className="text-[10px]" />
+                  {plan === 'free' && <span className="text-primary text-[10px]">Upgrade</span>}
                 </button>
 
                 <div className="flex items-center gap-1 mt-2">
