@@ -109,7 +109,7 @@ export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
   const downloadImage = (src: string, name?: string) => {
     const a = document.createElement('a');
     a.href = src;
-    a.download = name || 'nexusia-image.png';
+    a.download = name || 'ventel-image.png';
     a.target = '_blank';
     a.click();
   };
