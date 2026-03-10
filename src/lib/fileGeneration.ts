@@ -222,7 +222,7 @@ export async function generateZIP(filesJson: string, projectName = 'projeto-vent
 
     // Add a README if not present
     if (!files.some(f => f.name.toLowerCase() === 'readme.md')) {
-      zip.file('README.md', `# ${projectName}\n\nProjeto gerado por NexusIA\n\n## Arquivos\n\n${files.map(f => `- ${f.name}`).join('\n')}`);
+      zip.file('README.md', `# ${projectName}\n\nProjeto gerado por Ventel IA\n\n## Arquivos\n\n${files.map(f => `- ${f.name}`).join('\n')}`);
     }
 
     const blob = await zip.generateAsync({ type: 'blob' });

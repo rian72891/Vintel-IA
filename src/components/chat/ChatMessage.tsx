@@ -162,7 +162,7 @@ export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `nexusia-artifacts-${Date.now()}.zip`;
+    a.download = `ventel-artifacts-${Date.now()}.zip`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
