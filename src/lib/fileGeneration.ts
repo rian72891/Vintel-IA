@@ -136,7 +136,7 @@ export function generateHTML(content: string, title = 'Documento Ventel IA'): st
 <body>
   <h1>${title}</h1>
   ${markdownToHTML(content)}
-  <div class="footer">Gerado por NexusIA</div>
+  <div class="footer">Gerado por Ventel IA</div>
 </body>
 </html>`;
 
