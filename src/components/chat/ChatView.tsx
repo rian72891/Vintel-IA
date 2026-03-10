@@ -249,7 +249,7 @@ export function ChatView() {
                   break;
                 case 'html':
                   fileUrl = generateHTML(fullContent, prompt.slice(0, 50));
-                  fileName = `nexusia-${prompt.slice(0, 30).replace(/[^a-zA-Z0-9]/g, '-')}.html`;
+                  fileName = `ventel-${prompt.slice(0, 30).replace(/[^a-zA-Z0-9]/g, '-')}.html`;
                   displayContent = '✅ Página HTML gerada com sucesso!\n\nClique no botão abaixo para baixar o arquivo.';
                   break;
                 case 'txt':
