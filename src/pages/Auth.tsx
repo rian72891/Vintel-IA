@@ -59,7 +59,7 @@ export default function Auth() {
           <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
             <Zap className="h-6 w-6 text-primary-foreground" />
           </div>
-          <span className="text-2xl font-bold text-foreground tracking-tight">NexusIA</span>
+          <span className="text-2xl font-bold text-foreground tracking-tight">Ventel IA</span>
         </div>
 
         <div className="bg-card border border-border rounded-2xl p-6">
