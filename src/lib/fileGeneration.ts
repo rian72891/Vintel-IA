@@ -95,7 +95,7 @@ export async function generatePDF(content: string, title = 'Documento Ventel IA'
   return URL.createObjectURL(blob);
 }
 
-export function generateHTML(content: string, title = 'Documento NexusIA'): string {
+export function generateHTML(content: string, title = 'Documento Ventel IA'): string {
   // Check if content is already complete HTML
   if (content.trim().toLowerCase().startsWith('<!doctype') || content.trim().toLowerCase().startsWith('<html')) {
     const blob = new Blob([content], { type: 'text/html;charset=utf-8' });
