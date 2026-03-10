@@ -244,7 +244,7 @@ export function ChatView() {
               switch (type) {
                 case 'pdf':
                   fileUrl = await generatePDF(fullContent, prompt.slice(0, 50));
-                  fileName = `nexusia-${prompt.slice(0, 30).replace(/[^a-zA-Z0-9]/g, '-')}.pdf`;
+                  fileName = `ventel-${prompt.slice(0, 30).replace(/[^a-zA-Z0-9]/g, '-')}.pdf`;
                   displayContent = fullContent.length > 500 ? fullContent.slice(0, 500) + '\n\n... *(conteúdo completo no PDF)*' : fullContent;
                   break;
                 case 'html':
