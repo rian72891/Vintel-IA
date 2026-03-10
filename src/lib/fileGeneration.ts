@@ -1,7 +1,7 @@
 import jsPDF from 'jspdf';
 import JSZip from 'jszip';
 
-export async function generatePDF(content: string, title = 'Documento NexusIA'): Promise<string> {
+export async function generatePDF(content: string, title = 'Documento Ventel IA'): Promise<string> {
   const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
   const pageWidth = pdf.internal.pageSize.width;
   const pageHeight = pdf.internal.pageSize.height;
