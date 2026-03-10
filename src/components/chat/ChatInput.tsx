@@ -278,7 +278,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={isRecording ? 'Gravando áudio...' : 'Pergunte qualquer coisa ao Ventel IA...'}
+              placeholder={isRecording ? 'Gravando áudio...' : 'Pergunte qualquer coisa ao Nexusia...'}
               rows={1}
               disabled={isRecording || isTranscribing}
               className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none max-h-40 scrollbar-thin disabled:opacity-50 py-1.5"
@@ -296,7 +296,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
         </div>
 
         <p className="text-[10px] text-muted-foreground text-center mt-2.5 opacity-70">
-          Ventel IA pode cometer erros. Verifique informações importantes.
+          Nexusia pode cometer erros. Verifique informações importantes.
         </p>
 
         <input ref={fileInputRef} type="file" className="hidden" multiple onChange={handleFileSelect} accept=".pdf,.doc,.docx,.txt,.csv,.json,.xml,.xlsx" />

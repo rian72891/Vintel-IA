@@ -1,7 +1,7 @@
 import jsPDF from 'jspdf';
 import JSZip from 'jszip';
 
-export async function generatePDF(content: string, title = 'Documento Ventel IA'): Promise<string> {
+export async function generatePDF(content: string, title = 'Documento NexusIA'): Promise<string> {
   const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
   const pageWidth = pdf.internal.pageSize.width;
   const pageHeight = pdf.internal.pageSize.height;
@@ -87,7 +87,7 @@ export async function generatePDF(content: string, title = 'Documento Ventel IA'
     pdf.setFontSize(8);
     pdf.setFont('helvetica', 'normal');
     pdf.setTextColor(150, 150, 150);
-    pdf.text(`Gerado por Ventel IA • Página ${i} de ${pageCount}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+    pdf.text(`Gerado por NexusIA • Página ${i} de ${pageCount}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
     pdf.setTextColor(0, 0, 0);
   }
 
@@ -95,7 +95,7 @@ export async function generatePDF(content: string, title = 'Documento Ventel IA'
   return URL.createObjectURL(blob);
 }
 
-export function generateHTML(content: string, title = 'Documento Ventel IA'): string {
+export function generateHTML(content: string, title = 'Documento NexusIA'): string {
   // Check if content is already complete HTML
   if (content.trim().toLowerCase().startsWith('<!doctype') || content.trim().toLowerCase().startsWith('<html')) {
     const blob = new Blob([content], { type: 'text/html;charset=utf-8' });
@@ -136,7 +136,7 @@ export function generateHTML(content: string, title = 'Documento Ventel IA'): st
 <body>
   <h1>${title}</h1>
   ${markdownToHTML(content)}
-  <div class="footer">Gerado por Ventel IA</div>
+  <div class="footer">Gerado por NexusIA</div>
 </body>
 </html>`;
 
@@ -197,7 +197,7 @@ export interface ZipFile {
   content: string;
 }
 
-export async function generateZIP(filesJson: string, projectName = 'projeto-ventel'): Promise<string> {
+export async function generateZIP(filesJson: string, projectName = 'projeto-nexusia'): Promise<string> {
   const zip = new JSZip();
 
   try {
@@ -222,7 +222,7 @@ export async function generateZIP(filesJson: string, projectName = 'projeto-vent
 
     // Add a README if not present
     if (!files.some(f => f.name.toLowerCase() === 'readme.md')) {
-      zip.file('README.md', `# ${projectName}\n\nProjeto gerado por Ventel IA\n\n## Arquivos\n\n${files.map(f => `- ${f.name}`).join('\n')}`);
+      zip.file('README.md', `# ${projectName}\n\nProjeto gerado por NexusIA\n\n## Arquivos\n\n${files.map(f => `- ${f.name}`).join('\n')}`);
     }
 
     const blob = await zip.generateAsync({ type: 'blob' });

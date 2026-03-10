@@ -23,7 +23,7 @@ interface ChatState {
   loadMessages: (conversationId: string) => Promise<void>;
 }
 
-const savedTheme = (typeof window !== 'undefined' && localStorage.getItem('ventel-theme') as 'light' | 'dark') || 'dark';
+const savedTheme = (typeof window !== 'undefined' && localStorage.getItem('nexusia-theme') as 'light' | 'dark') || 'dark';
 if (typeof window !== 'undefined') {
   document.documentElement.classList.toggle('dark', savedTheme === 'dark');
 }
@@ -40,7 +40,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
 
   setTheme: (theme) => {
-    localStorage.setItem('ventel-theme', theme);
+    localStorage.setItem('nexusia-theme', theme);
     document.documentElement.classList.toggle('dark', theme === 'dark');
     set({ theme });
   },

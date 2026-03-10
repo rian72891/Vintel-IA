@@ -109,7 +109,7 @@ export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
   const downloadImage = (src: string, name?: string) => {
     const a = document.createElement('a');
     a.href = src;
-    a.download = name || 'ventel-image.png';
+    a.download = name || 'nexusia-image.png';
     a.target = '_blank';
     a.click();
   };
@@ -162,7 +162,7 @@ export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `ventel-artifacts-${Date.now()}.zip`;
+    a.download = `nexusia-artifacts-${Date.now()}.zip`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
