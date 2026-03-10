@@ -278,7 +278,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={isRecording ? 'Gravando áudio...' : 'Pergunte qualquer coisa ao Nexusia...'}
+              placeholder={isRecording ? 'Gravando áudio...' : 'Pergunte qualquer coisa ao Ventel IA...'}
               rows={1}
               disabled={isRecording || isTranscribing}
               className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none max-h-40 scrollbar-thin disabled:opacity-50 py-1.5"
