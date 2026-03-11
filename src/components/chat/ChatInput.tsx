@@ -167,7 +167,6 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
   return (
     <div className="px-4 pb-4 pt-2">
       <div className="max-w-3xl mx-auto">
-        {/* File previews */}
         <AnimatePresence>
           {files.length > 0 && (
             <motion.div
@@ -189,7 +188,6 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
           )}
         </AnimatePresence>
 
-        {/* Recording / Transcribing indicators */}
         <AnimatePresence>
           {isRecording && (
             <motion.div
@@ -215,10 +213,8 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
           )}
         </AnimatePresence>
 
-        {/* Main input container */}
         <div className="relative bg-card border border-border rounded-2xl shadow-[var(--shadow-elevated)] focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-ring/10 transition-all duration-200">
           <div className="flex items-end gap-1 px-3 py-3">
-            {/* Action buttons */}
             <div className="flex items-center gap-0.5 shrink-0 mb-0.5">
               <ActionButton icon={Paperclip} title="Anexar arquivo" disabled={disabled || isRecording} onClick={() => fileInputRef.current?.click()} />
               <ActionButton icon={Image} title="Enviar imagem" disabled={disabled || isRecording} onClick={() => imageInputRef.current?.click()} />
@@ -278,7 +274,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={isRecording ? 'Gravando áudio...' : 'Pergunte qualquer coisa ao Nexusia...'}
+              placeholder={isRecording ? 'Gravando áudio...' : 'Pergunte qualquer coisa ao Vintel IA...'}
               rows={1}
               disabled={isRecording || isTranscribing}
               className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none max-h-40 scrollbar-thin disabled:opacity-50 py-1.5"
@@ -296,7 +292,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
         </div>
 
         <p className="text-[10px] text-muted-foreground text-center mt-2.5 opacity-70">
-          Nexusia pode cometer erros. Verifique informações importantes.
+          Vintel IA pode cometer erros. Verifique informações importantes.
         </p>
 
         <input ref={fileInputRef} type="file" className="hidden" multiple onChange={handleFileSelect} accept=".pdf,.doc,.docx,.txt,.csv,.json,.xml,.xlsx" />

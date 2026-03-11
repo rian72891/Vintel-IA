@@ -14,7 +14,6 @@ const Index = () => {
       <Sidebar />
 
       <div className="flex-1 flex flex-col relative min-w-0">
-        {/* Top bar */}
         {!sidebarOpen && (
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-background/80 backdrop-blur-sm">
             <div className="flex items-center gap-3">
@@ -26,7 +25,7 @@ const Index = () => {
               </button>
               <div className="flex items-center gap-2">
                 <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50" />
-                <span className="text-sm font-semibold text-foreground tracking-tight">Nexusia</span>
+                <span className="text-sm font-semibold text-foreground tracking-tight">Vintel IA</span>
               </div>
             </div>
             <button

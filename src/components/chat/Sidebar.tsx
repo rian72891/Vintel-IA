@@ -1,17 +1,17 @@
 import { useState, useEffect } from 'react';
-import { Plus, MessageSquare, X, Trash2, Pencil, Check, Settings, LogOut, Menu, Search, Crown } from 'lucide-react';
+import { Plus, MessageSquare, X, Trash2, Pencil, Check, Settings, LogOut, Menu, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useSubscription } from '@/hooks/useSubscription';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useChatStore } from '@/store/chatStore';
 import { cn } from '@/lib/utils';
 import { SettingsDialog } from './SettingsDialog';
 import { useAuth } from '@/hooks/useAuth';
+import { PlanBadge } from '@/components/PlanBadge';
+import { UsageBar } from '@/components/UsageBar';
 
 export function Sidebar() {
   const { conversations, activeConversationId, sidebarOpen, setSidebarOpen, setActiveConversation, setSelectedAgent, deleteConversation, renameConversation, loadConversations, loaded } = useChatStore();
   const { user, signOut } = useAuth();
-  const { plan } = useSubscription();
   const navigate = useNavigate();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
@@ -53,7 +53,6 @@ export function Sidebar() {
       <AnimatePresence>
         {sidebarOpen && (
           <>
-            {/* Backdrop for mobile */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -69,7 +68,6 @@ export function Sidebar() {
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
               className="fixed md:relative z-50 h-screen w-[280px] flex flex-col bg-sidebar overflow-hidden"
             >
-              {/* Header */}
               <div className="px-4 pt-4 pb-2 flex items-center justify-between">
                 <button
                   onClick={() => setSidebarOpen(false)}
@@ -77,7 +75,6 @@ export function Sidebar() {
                 >
                   <Menu className="h-5 w-5" />
                 </button>
-
                 <button
                   onClick={handleNewChat}
                   className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
@@ -87,7 +84,6 @@ export function Sidebar() {
                 </button>
               </div>
 
-              {/* Search */}
               <div className="px-3 pb-2">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -101,7 +97,6 @@ export function Sidebar() {
                 </div>
               </div>
 
-              {/* Conversations list */}
               <div className="flex-1 overflow-y-auto scrollbar-thin px-2 py-1 space-y-0.5">
                 {filteredConversations.length === 0 && (
                   <div className="flex flex-col items-center justify-center py-12 px-4">
@@ -157,7 +152,13 @@ export function Sidebar() {
               </div>
 
               {/* Bottom user section */}
-              <div className="p-3 border-t border-sidebar-border">
+              <div className="p-3 border-t border-sidebar-border space-y-2">
+                {/* Usage bars */}
+                <div className="space-y-1.5 px-1">
+                  <UsageBar type="messages" label="Mensagens hoje" />
+                  <UsageBar type="images" label="Imagens/mês" />
+                </div>
+
                 <div className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-muted/40 transition-colors cursor-default">
                   <div className="h-8 w-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0">
                     <span className="text-xs font-semibold text-primary">{userInitial}</span>
@@ -168,19 +169,9 @@ export function Sidebar() {
                   </div>
                 </div>
 
-                <button
-                  onClick={() => navigate('/plans')}
-                  className={`w-full flex items-center justify-center gap-2 px-3 py-2 mt-2 rounded-xl text-xs font-medium transition-colors ${
-                    plan === 'pro'
-                      ? 'bg-primary/10 text-primary'
-                      : 'bg-accent text-accent-foreground hover:bg-accent/80'
-                  }`}
-                >
-                  <Crown className="h-3.5 w-3.5" />
-                  {plan === 'pro' ? 'Plano Pro ✓' : 'Upgrade para Pro'}
-                </button>
+                <PlanBadge />
 
-                <div className="flex items-center gap-1 mt-2">
+                <div className="flex items-center gap-1">
                   <button
                     onClick={() => setSettingsOpen(true)}
                     className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"

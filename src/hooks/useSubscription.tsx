@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, createContext, useContext, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { getPlanByProductId, PlanKey } from '@/lib/stripe';
+import { PlanKey } from '@/lib/stripe';
 
 interface SubscriptionContextType {
   plan: PlanKey;
@@ -20,14 +20,14 @@ const SubscriptionContext = createContext<SubscriptionContextType>({
 });
 
 export function SubscriptionProvider({ children }: { children: ReactNode }) {
-  const { session } = useAuth();
+  const { session, user } = useAuth();
   const [plan, setPlan] = useState<PlanKey>('free');
   const [subscribed, setSubscribed] = useState(false);
   const [subscriptionEnd, setSubscriptionEnd] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const checkSubscription = useCallback(async () => {
-    if (!session?.access_token) {
+    if (!user) {
       setPlan('free');
       setSubscribed(false);
       setSubscriptionEnd(null);
@@ -36,14 +36,25 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const { data, error } = await supabase.functions.invoke('check-subscription', {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
+      // Check subscription from the subscriptions table directly
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .maybeSingle();
+
       if (error) throw error;
 
-      setSubscribed(data.subscribed ?? false);
-      setPlan(getPlanByProductId(data.product_id));
-      setSubscriptionEnd(data.subscription_end ?? null);
+      if (data) {
+        setSubscribed(true);
+        setPlan(data.plan as PlanKey);
+        setSubscriptionEnd(data.updated_at);
+      } else {
+        setSubscribed(false);
+        setPlan('free');
+        setSubscriptionEnd(null);
+      }
     } catch (e) {
       console.error('Error checking subscription:', e);
       setPlan('free');
@@ -51,18 +62,17 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [session?.access_token]);
+  }, [user]);
 
   useEffect(() => {
     checkSubscription();
   }, [checkSubscription]);
 
-  // Auto-refresh every 60s
   useEffect(() => {
-    if (!session) return;
+    if (!user) return;
     const interval = setInterval(checkSubscription, 60000);
     return () => clearInterval(interval);
-  }, [session, checkSubscription]);
+  }, [user, checkSubscription]);
 
   return (
     <SubscriptionContext.Provider value={{ plan, subscribed, subscriptionEnd, loading, checkSubscription }}>

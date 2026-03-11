@@ -17,7 +17,6 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           <DialogTitle>Configurações</DialogTitle>
         </DialogHeader>
         <div className="space-y-6 py-4">
-          {/* Theme */}
           <div>
             <label className="text-sm font-medium text-foreground mb-3 block">Aparência</label>
             <div className="flex gap-2">
@@ -42,11 +41,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             </div>
           </div>
 
-          {/* Info */}
           <div>
             <label className="text-sm font-medium text-foreground mb-2 block">Sobre</label>
             <p className="text-xs text-muted-foreground">
-              NexusIA — Assistente de Inteligência Artificial avançado com agentes especializados para pesquisa, programação, negócios, marketing, conteúdo e automação.
+              Vintel IA — Assistente de Inteligência Artificial multimodal. Gera textos, cria imagens, analisa documentos, grava áudio e muito mais. Tudo em uma conversa só.
             </p>
           </div>
         </div>

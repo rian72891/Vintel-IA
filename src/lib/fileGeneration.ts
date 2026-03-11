@@ -1,7 +1,7 @@
 import jsPDF from 'jspdf';
 import JSZip from 'jszip';
 
-export async function generatePDF(content: string, title = 'Documento NexusIA'): Promise<string> {
+export async function generatePDF(content: string, title = 'Documento Vintel IA'): Promise<string> {
   const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
   const pageWidth = pdf.internal.pageSize.width;
   const pageHeight = pdf.internal.pageSize.height;
@@ -9,14 +9,12 @@ export async function generatePDF(content: string, title = 'Documento NexusIA'):
   const contentWidth = pageWidth - 2 * margin;
   let y = 25;
 
-  // Add title
   pdf.setFontSize(20);
   pdf.setFont('helvetica', 'bold');
   const titleWrapped = pdf.splitTextToSize(title, contentWidth);
   pdf.text(titleWrapped, margin, y);
   y += titleWrapped.length * 10 + 5;
 
-  // Add separator line
   pdf.setDrawColor(200, 200, 200);
   pdf.line(margin, y, pageWidth - margin, y);
   y += 10;
@@ -29,7 +27,6 @@ export async function generatePDF(content: string, title = 'Documento NexusIA'):
       y = 25;
     }
 
-    // Headings
     if (line.startsWith('# ')) {
       pdf.setFontSize(18);
       pdf.setFont('helvetica', 'bold');
@@ -80,14 +77,13 @@ export async function generatePDF(content: string, title = 'Documento NexusIA'):
     }
   }
 
-  // Add footer
   const pageCount = pdf.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     pdf.setPage(i);
     pdf.setFontSize(8);
     pdf.setFont('helvetica', 'normal');
     pdf.setTextColor(150, 150, 150);
-    pdf.text(`Gerado por NexusIA • Página ${i} de ${pageCount}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+    pdf.text(`Gerado por Vintel IA • Página ${i} de ${pageCount}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
     pdf.setTextColor(0, 0, 0);
   }
 
@@ -95,14 +91,12 @@ export async function generatePDF(content: string, title = 'Documento NexusIA'):
   return URL.createObjectURL(blob);
 }
 
-export function generateHTML(content: string, title = 'Documento NexusIA'): string {
-  // Check if content is already complete HTML
+export function generateHTML(content: string, title = 'Documento Vintel IA'): string {
   if (content.trim().toLowerCase().startsWith('<!doctype') || content.trim().toLowerCase().startsWith('<html')) {
     const blob = new Blob([content], { type: 'text/html;charset=utf-8' });
     return URL.createObjectURL(blob);
   }
 
-  // Wrap content in a styled HTML template
   const html = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -136,7 +130,7 @@ export function generateHTML(content: string, title = 'Documento NexusIA'): stri
 <body>
   <h1>${title}</h1>
   ${markdownToHTML(content)}
-  <div class="footer">Gerado por NexusIA</div>
+  <div class="footer">Gerado por Vintel IA</div>
 </body>
 </html>`;
 
@@ -146,24 +140,16 @@ export function generateHTML(content: string, title = 'Documento NexusIA'): stri
 
 function markdownToHTML(markdown: string): string {
   let html = markdown
-    // Headers
     .replace(/^### (.+)$/gm, '<h3>$1</h3>')
     .replace(/^## (.+)$/gm, '<h2>$1</h2>')
     .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-    // Bold and italic
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    // Code blocks
     .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code class="language-$1">$2</code></pre>')
-    // Inline code
     .replace(/`([^`]+)`/g, '<code>$1</code>')
-    // Links
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
-    // Unordered lists
     .replace(/^[-*] (.+)$/gm, '<li>$1</li>')
-    // Ordered lists
     .replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
-    // Paragraphs (lines that don't start with HTML tags)
     .split('\n')
     .map(line => {
       const trimmed = line.trim();
@@ -173,14 +159,12 @@ function markdownToHTML(markdown: string): string {
     })
     .join('\n');
 
-  // Wrap consecutive <li> elements in <ul>
   html = html.replace(/(<li>[\s\S]*?<\/li>)+/g, '<ul>$&</ul>');
 
   return html;
 }
 
 export function generateTXT(content: string): string {
-  // Remove markdown formatting for clean text
   const cleanText = content
     .replace(/^#{1,6}\s/gm, '')
     .replace(/\*\*/g, '')
@@ -197,11 +181,10 @@ export interface ZipFile {
   content: string;
 }
 
-export async function generateZIP(filesJson: string, projectName = 'projeto-nexusia'): Promise<string> {
+export async function generateZIP(filesJson: string, projectName = 'projeto-vintel'): Promise<string> {
   const zip = new JSZip();
 
   try {
-    // Try to find JSON in the content
     const jsonMatch = filesJson.match(/\{[\s\S]*"files"[\s\S]*\}/);
     if (!jsonMatch) {
       throw new Error('JSON de arquivos não encontrado na resposta');
@@ -220,9 +203,8 @@ export async function generateZIP(filesJson: string, projectName = 'projeto-nexu
       }
     }
 
-    // Add a README if not present
     if (!files.some(f => f.name.toLowerCase() === 'readme.md')) {
-      zip.file('README.md', `# ${projectName}\n\nProjeto gerado por NexusIA\n\n## Arquivos\n\n${files.map(f => `- ${f.name}`).join('\n')}`);
+      zip.file('README.md', `# ${projectName}\n\nProjeto gerado por Vintel IA\n\n## Arquivos\n\n${files.map(f => `- ${f.name}`).join('\n')}`);
     }
 
     const blob = await zip.generateAsync({ type: 'blob' });

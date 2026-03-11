@@ -10,6 +10,8 @@ import { firecrawlApi } from '@/lib/api/firecrawl';
 import { generatePDF, generateHTML, generateTXT, generateZIP, downloadFile } from '@/lib/fileGeneration';
 import { Loader2, ImageIcon, FileText, Mic, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
+import { useUsage } from '@/hooks/useUsage';
+import { UpgradeModal } from '@/components/UpgradeModal';
 
 export function ChatView() {
   const { activeConversationId, getActiveConversation, addMessage } = useChatStore();
@@ -19,6 +21,9 @@ export function ChatView() {
   const [streamingContent, setStreamingContent] = useState('');
   const [loadingLabel, setLoadingLabel] = useState('');
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const { checkUsage, incrementUsage } = useUsage();
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [upgradeFeature, setUpgradeFeature] = useState('');
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -26,8 +31,14 @@ export function ChatView() {
 
   const agent = conversation?.agent ? agents.find((a) => a.id === conversation.agent) : null;
 
+  const showUpgrade = (feature: string) => {
+    setUpgradeFeature(feature);
+    setUpgradeOpen(true);
+  };
+
   const handleImageGeneration = async (prompt: string, quality: ImageQuality) => {
     if (!activeConversationId || !prompt) return;
+    if (!checkUsage('images')) { showUpgrade('imagens'); return; }
 
     const qualityLabel = quality === 'hd' ? '(HD)' : '(rápido)';
     await addMessage(activeConversationId, { role: 'user', content: `🎨 Gerar imagem ${qualityLabel}: ${prompt}` });
@@ -43,6 +54,7 @@ export function ChatView() {
         content: desc,
         attachments: [{ type: 'image', name: prompt, url: result.imageUrl }],
       });
+      await incrementUsage('images');
     } catch (e: any) {
       toast.error(e.message || 'Erro ao gerar imagem.');
       await addMessage(activeConversationId, {
@@ -58,6 +70,7 @@ export function ChatView() {
 
   const handleTTS = async (text: string) => {
     if (!activeConversationId || !text) return;
+    if (!checkUsage('audio')) { showUpgrade('áudio'); return; }
 
     await addMessage(activeConversationId, { role: 'user', content: `🔊 Gerar áudio: ${text}` });
     setIsStreaming(true);
@@ -71,6 +84,7 @@ export function ChatView() {
         role: 'assistant',
         content: `🔊 Áudio gerado com sucesso!\n\nTexto: "${text.length > 100 ? text.substring(0, 100) + '...' : text}"`,
       });
+      await incrementUsage('audio');
     } catch (e: any) {
       toast.error(e.message || 'Erro ao gerar áudio.');
       await addMessage(activeConversationId, {
@@ -87,7 +101,6 @@ export function ChatView() {
   const handleScrape = async (url: string) => {
     if (!activeConversationId || !url) return;
 
-    // Validate URL format
     let formattedUrl = url.trim();
     if (!formattedUrl.startsWith('http://') && !formattedUrl.startsWith('https://')) {
       formattedUrl = `https://${formattedUrl}`;
@@ -96,7 +109,7 @@ export function ChatView() {
       new URL(formattedUrl);
     } catch {
       await addMessage(activeConversationId, { role: 'user', content: `🌐 Extrair conteúdo: ${url}` });
-      await addMessage(activeConversationId, { role: 'assistant', content: `⚠️ **"${url}"** não é uma URL válida. Use o formato: \`/scrape https://exemplo.com\`` });
+      await addMessage(activeConversationId, { role: 'assistant', content: `⚠️ **"${url}"** não é uma URL válida.` });
       return;
     }
 
@@ -114,7 +127,7 @@ export function ChatView() {
       if (!markdown) {
         await addMessage(activeConversationId, {
           role: 'assistant',
-          content: `⚠️ Não foi possível extrair conteúdo de **${url}**. O site pode estar bloqueado.`,
+          content: `⚠️ Não foi possível extrair conteúdo de **${url}**.`,
         });
       } else {
         const truncated = markdown.length > 3000 ? markdown.substring(0, 3000) + '\n\n... *(conteúdo truncado)*' : markdown;
@@ -180,6 +193,7 @@ export function ChatView() {
 
   const handleFileGeneration = async (type: 'pdf' | 'html' | 'txt' | 'zip', prompt: string) => {
     if (!activeConversationId || !prompt) return;
+    if (!checkUsage('files')) { showUpgrade('arquivos'); return; }
 
     const icons: Record<string, string> = { pdf: '📄', html: '🌐', txt: '📝', zip: '📦' };
     const labels: Record<string, string> = { pdf: 'PDF', html: 'HTML', txt: 'TXT', zip: 'ZIP' };
@@ -195,7 +209,6 @@ export function ChatView() {
     setLoadingLabel(loadingLabels[type]);
     setStreamingContent('');
 
-    // Build special instruction for AI based on file type
     let instruction = '';
     switch (type) {
       case 'pdf':
@@ -244,22 +257,22 @@ export function ChatView() {
               switch (type) {
                 case 'pdf':
                   fileUrl = await generatePDF(fullContent, prompt.slice(0, 50));
-                  fileName = `nexusia-${prompt.slice(0, 30).replace(/[^a-zA-Z0-9]/g, '-')}.pdf`;
+                  fileName = `vintel-${prompt.slice(0, 30).replace(/[^a-zA-Z0-9]/g, '-')}.pdf`;
                   displayContent = fullContent.length > 500 ? fullContent.slice(0, 500) + '\n\n... *(conteúdo completo no PDF)*' : fullContent;
                   break;
                 case 'html':
                   fileUrl = generateHTML(fullContent, prompt.slice(0, 50));
-                  fileName = `nexusia-${prompt.slice(0, 30).replace(/[^a-zA-Z0-9]/g, '-')}.html`;
+                  fileName = `vintel-${prompt.slice(0, 30).replace(/[^a-zA-Z0-9]/g, '-')}.html`;
                   displayContent = '✅ Página HTML gerada com sucesso!\n\nClique no botão abaixo para baixar o arquivo.';
                   break;
                 case 'txt':
                   fileUrl = generateTXT(fullContent);
-                  fileName = `nexusia-${prompt.slice(0, 30).replace(/[^a-zA-Z0-9]/g, '-')}.txt`;
+                  fileName = `vintel-${prompt.slice(0, 30).replace(/[^a-zA-Z0-9]/g, '-')}.txt`;
                   displayContent = fullContent.length > 500 ? fullContent.slice(0, 500) + '\n\n... *(conteúdo completo no arquivo)*' : fullContent;
                   break;
                 case 'zip':
                   fileUrl = await generateZIP(fullContent, prompt.slice(0, 30));
-                  fileName = `nexusia-${prompt.slice(0, 30).replace(/[^a-zA-Z0-9]/g, '-')}.zip`;
+                  fileName = `vintel-${prompt.slice(0, 30).replace(/[^a-zA-Z0-9]/g, '-')}.zip`;
                   displayContent = '✅ Projeto ZIP gerado com sucesso!\n\nClique no botão abaixo para baixar o arquivo com todos os arquivos do projeto.';
                   break;
                 default:
@@ -272,9 +285,9 @@ export function ChatView() {
                 attachments: [{ type: 'file', name: fileName, url: fileUrl, mimeType: `application/${type}` }],
               });
 
-              // Auto-download the file
               downloadFile(fileUrl, fileName);
               toast.success(`${labels[type]} gerado e baixado com sucesso!`);
+              await incrementUsage('files');
 
             } catch (fileError: any) {
               console.error('File generation error:', fileError);
@@ -306,70 +319,55 @@ export function ChatView() {
   const handleSend = async (content: string, attachments?: File[]) => {
     if (!activeConversationId) return;
 
-    // /imagine command — fast quality
     if (content.startsWith('/imagine ')) {
       const prompt = content.replace('/imagine ', '').trim();
       await handleImageGeneration(prompt, 'fast');
       return;
     }
-
-    // /imaginehd command — HD quality
     if (content.startsWith('/imaginehd ')) {
       const prompt = content.replace('/imaginehd ', '').trim();
       await handleImageGeneration(prompt, 'hd');
       return;
     }
-
-    // /voz command — TTS
     if (content.startsWith('/voz ')) {
       const text = content.replace('/voz ', '').trim();
       await handleTTS(text);
       return;
     }
-
-    // /scrape command — web scraping
     if (content.startsWith('/scrape ')) {
       const url = content.replace('/scrape ', '').trim();
       await handleScrape(url);
       return;
     }
-
-    // /search command — web search
     if (content.startsWith('/search ')) {
       const query = content.replace('/search ', '').trim();
       await handleWebSearch(query);
       return;
     }
-
-    // /pdf command — PDF generation
     if (content.startsWith('/pdf ')) {
       const prompt = content.replace('/pdf ', '').trim();
       await handleFileGeneration('pdf', prompt);
       return;
     }
-
-    // /html command — HTML generation
     if (content.startsWith('/html ')) {
       const prompt = content.replace('/html ', '').trim();
       await handleFileGeneration('html', prompt);
       return;
     }
-
-    // /txt command — TXT generation
     if (content.startsWith('/txt ')) {
       const prompt = content.replace('/txt ', '').trim();
       await handleFileGeneration('txt', prompt);
       return;
     }
-
-    // /zip command — ZIP generation
     if (content.startsWith('/zip ')) {
       const prompt = content.replace('/zip ', '').trim();
       await handleFileGeneration('zip', prompt);
       return;
     }
 
-    // Process attachments
+    // Check message usage
+    if (!checkUsage('messages')) { showUpgrade('mensagens'); return; }
+
     let processedAttachments: { type: 'image' | 'file'; url: string; name: string }[] = [];
     
     if (attachments && attachments.length > 0) {
@@ -386,6 +384,11 @@ export function ChatView() {
           name: file.name,
         });
       }
+    }
+
+    // Check if sending image for analysis
+    if (processedAttachments.some(a => a.type === 'image')) {
+      if (!checkUsage('image_analyses')) { showUpgrade('análises de imagem'); return; }
     }
 
     await addMessage(activeConversationId, { 
@@ -420,6 +423,10 @@ export function ChatView() {
           }
           setIsStreaming(false);
           setStreamingContent('');
+          await incrementUsage('messages');
+          if (processedAttachments.some(a => a.type === 'image')) {
+            await incrementUsage('image_analyses');
+          }
         },
         onError: (error) => {
           toast.error(error);
@@ -436,7 +443,6 @@ export function ChatView() {
 
   return (
     <div className="flex-1 flex flex-col h-screen">
-      {/* Header */}
       <div className="px-4 py-3 border-b border-border bg-background/80 backdrop-blur-sm flex items-center gap-3">
         {agent && (
           <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -445,7 +451,7 @@ export function ChatView() {
         )}
         <div className="flex flex-col">
           <span className="text-sm font-semibold text-foreground tracking-tight">
-            {agent?.name || 'Nexusia'}
+            {agent?.name || 'Vintel IA'}
           </span>
           {agent && (
             <span className="text-[11px] text-muted-foreground leading-tight">
@@ -455,7 +461,6 @@ export function ChatView() {
         </div>
       </div>
 
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto scrollbar-thin py-6">
         {conversation?.messages.length === 0 && !isStreaming && (
           <div className="flex flex-col items-center justify-center h-full gap-5 text-center px-4">
@@ -471,7 +476,7 @@ export function ChatView() {
                 { label: '💬 O que você pode fazer?', action: () => handleSend('Olá! O que você pode fazer?') },
                 { label: '🎨 Gerar uma imagem', action: () => handleImageGeneration('um gato astronauta flutuando no espaço', 'fast') },
                 { label: '🔍 Buscar na web', action: () => handleSend('/search últimas notícias de tecnologia') },
-                { label: '🔊 Gerar áudio', action: () => handleSend('/voz Olá! Eu sou a Nexusia.') },
+                { label: '🔊 Gerar áudio', action: () => handleSend('/voz Olá! Eu sou o Vintel IA.') },
                 { label: '📄 Gerar PDF', action: () => handleFileGeneration('pdf', 'Guia sobre inteligência artificial') },
               ].map((item) => (
                 <button
@@ -527,8 +532,8 @@ export function ChatView() {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
       <ChatInput onSend={handleSend} disabled={isStreaming} />
+      <UpgradeModal open={upgradeOpen} onOpenChange={setUpgradeOpen} feature={upgradeFeature} />
     </div>
   );
 }

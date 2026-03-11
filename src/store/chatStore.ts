@@ -23,7 +23,7 @@ interface ChatState {
   loadMessages: (conversationId: string) => Promise<void>;
 }
 
-const savedTheme = (typeof window !== 'undefined' && localStorage.getItem('nexusia-theme') as 'light' | 'dark') || 'dark';
+const savedTheme = (typeof window !== 'undefined' && localStorage.getItem('vintel-theme') as 'light' | 'dark') || 'dark';
 if (typeof window !== 'undefined') {
   document.documentElement.classList.toggle('dark', savedTheme === 'dark');
 }
@@ -40,7 +40,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
 
   setTheme: (theme) => {
-    localStorage.setItem('nexusia-theme', theme);
+    localStorage.setItem('vintel-theme', theme);
     document.documentElement.classList.toggle('dark', theme === 'dark');
     set({ theme });
   },
@@ -163,7 +163,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
       attachments: data.attachments as any || [],
     };
 
-    // Update title on first user message
     const conv = get().conversations.find((c) => c.id === conversationId);
     if (conv && conv.messages.length === 0 && message.role === 'user') {
       const newTitle = message.content.slice(0, 40) + (message.content.length > 40 ? '...' : '');
