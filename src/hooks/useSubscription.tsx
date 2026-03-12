@@ -70,8 +70,30 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!user) return;
-    const interval = setInterval(checkSubscription, 60000);
+    const interval = setInterval(checkSubscription, 15000);
     return () => clearInterval(interval);
+  }, [user, checkSubscription]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const handleFocusSync = () => {
+      checkSubscription();
+    };
+
+    const handleVisibilitySync = () => {
+      if (document.visibilityState === 'visible') {
+        checkSubscription();
+      }
+    };
+
+    window.addEventListener('focus', handleFocusSync);
+    document.addEventListener('visibilitychange', handleVisibilitySync);
+
+    return () => {
+      window.removeEventListener('focus', handleFocusSync);
+      document.removeEventListener('visibilitychange', handleVisibilitySync);
+    };
   }, [user, checkSubscription]);
 
   return (

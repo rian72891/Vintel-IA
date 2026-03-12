@@ -162,6 +162,7 @@ export default function Precos() {
                 {!isCurrent && gumroadUrl && (
                   <GumroadCheckout
                     productUrl={gumroadUrl}
+                    expectedPlan={key}
                     buttonText={`Assinar ${plan.name}`}
                     variant={isPro ? 'default' : 'outline'}
                     className={cn('w-full mt-2', isPro && 'bg-gradient-to-r from-primary to-accent hover:opacity-90')}

@@ -1,26 +1,82 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
+import { supabase } from '@/integrations/supabase/client';
+import { PlanKey } from '@/lib/stripe';
 
 interface GumroadCheckoutProps {
   productUrl: string;
   buttonText: string;
   className?: string;
   variant?: 'default' | 'outline';
+  expectedPlan?: PlanKey;
 }
 
-export function GumroadCheckout({ productUrl, buttonText, className, variant = 'default' }: GumroadCheckoutProps) {
+export function GumroadCheckout({
+  productUrl,
+  buttonText,
+  className,
+  variant = 'default',
+  expectedPlan,
+}: GumroadCheckoutProps) {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
   const { checkSubscription } = useSubscription();
+  const pollRef = useRef<number | null>(null);
+  const timeoutRef = useRef<number | null>(null);
+
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      window.clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+    if (timeoutRef.current) {
+      window.clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  }, []);
+
+  const syncAndRedirect = useCallback(async () => {
+    await checkSubscription();
+    stopPolling();
+    navigate('/obrigado');
+  }, [checkSubscription, navigate, stopPolling]);
+
+  const startActivationPolling = useCallback(() => {
+    if (!user) return;
+
+    stopPolling();
+
+    pollRef.current = window.setInterval(async () => {
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .select('plan, status')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .maybeSingle();
+
+      if (error) {
+        console.error('[GUMROAD] Polling error:', error);
+        return;
+      }
+
+      if (!data) return;
+      if (expectedPlan && data.plan !== expectedPlan) return;
+
+      console.log('[GUMROAD] Assinatura ativa detectada:', data.plan);
+      await syncAndRedirect();
+    }, 3000);
+
+    timeoutRef.current = window.setTimeout(() => {
+      stopPolling();
+    }, 180000);
+  }, [expectedPlan, stopPolling, syncAndRedirect, user]);
 
   useEffect(() => {
-    // Load Gumroad overlay script
     if (!document.getElementById('gumroad-script')) {
       const script = document.createElement('script');
       script.id = 'gumroad-script';
@@ -30,80 +86,74 @@ export function GumroadCheckout({ productUrl, buttonText, className, variant = '
     }
   }, []);
 
-  // Listen for Gumroad purchase success
   useEffect(() => {
-    const handleMessage = async (event: MessageEvent) => {
-      // Gumroad sends a message when purchase completes
-      if (event.data && typeof event.data === 'string') {
+    const handleMessage = (event: MessageEvent) => {
+      if (!event.origin.includes('gumroad.com')) return;
+
+      let payload: any = event.data;
+      if (typeof payload === 'string') {
         try {
-          const data = JSON.parse(event.data);
-          if (data.post_message_name === 'sale' || data.success) {
-            console.log('[GUMROAD] Purchase completed!');
-            // Wait a moment for webhook to process
-            setTimeout(async () => {
-              await checkSubscription();
-              navigate('/obrigado');
-            }, 3000);
-          }
+          payload = JSON.parse(payload);
         } catch {
-          // Not a JSON message, ignore
+          payload = { raw: payload };
         }
+      }
+
+      const eventName = payload?.post_message_name || payload?.event || payload?.type || payload?.name;
+      const completed =
+        payload?.success === true ||
+        eventName === 'sale' ||
+        eventName === 'purchase' ||
+        String(payload?.raw ?? '').toLowerCase().includes('sale');
+
+      if (completed) {
+        console.log('[GUMROAD] Compra concluída, iniciando sincronização...');
+        startActivationPolling();
       }
     };
 
     window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, [checkSubscription, navigate]);
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      stopPolling();
+    };
+  }, [startActivationPolling, stopPolling]);
 
   const handleClick = useCallback(() => {
     setLoading(true);
-    
-    // Append user email to Gumroad URL for pre-fill
+
     const url = new URL(productUrl);
     if (user?.email) {
       url.searchParams.set('email', user.email);
     }
 
-    // Try Gumroad overlay first, fallback to new tab
+    startActivationPolling();
+
     const gumroadOverlay = (window as any).GumroadOverlay;
     if (gumroadOverlay) {
       gumroadOverlay.show({ url: url.toString() });
     } else {
-      // Open in new tab and poll for completion
-      const popup = window.open(url.toString(), '_blank');
-      
-      // Poll to check if subscription was activated
-      const pollInterval = setInterval(async () => {
-        await checkSubscription();
-        // The subscription check will update the context
-      }, 5000);
-
-      // Stop polling after 10 minutes
-      setTimeout(() => {
-        clearInterval(pollInterval);
-      }, 600000);
+      window.open(url.toString(), '_blank');
     }
 
-    setTimeout(() => setLoading(false), 2000);
-  }, [productUrl, user?.email, checkSubscription]);
+    window.setTimeout(() => setLoading(false), 2000);
+  }, [productUrl, startActivationPolling, user?.email]);
+
+  const href = productUrl + (user?.email ? `?email=${encodeURIComponent(user.email)}` : '');
 
   return (
     <a
-      href={productUrl + (user?.email ? `?email=${encodeURIComponent(user.email)}` : '')}
+      href={href}
       className="gumroad-button"
       onClick={(e) => {
         e.preventDefault();
         handleClick();
       }}
     >
-      <Button
-        disabled={loading}
-        variant={variant}
-        className={className}
-        asChild={false}
-      >
+      <Button disabled={loading} variant={variant} className={className} asChild={false}>
         {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : buttonText}
       </Button>
     </a>
   );
 }
+
