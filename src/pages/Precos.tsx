@@ -159,13 +159,12 @@ export default function Precos() {
                 </ul>
 
                 {!isCurrent && gumroadUrl && (
-                  <Button
-                    onClick={() => window.open(gumroadUrl, '_blank')}
+                  <GumroadCheckout
+                    productUrl={gumroadUrl}
+                    buttonText={`Assinar ${plan.name}`}
                     variant={isPro ? 'default' : 'outline'}
                     className={cn('w-full mt-2', isPro && 'bg-gradient-to-r from-primary to-accent hover:opacity-90')}
-                  >
-                    Assinar {plan.name}
-                  </Button>
+                  />
                 )}
 
                 {isCurrent && (
