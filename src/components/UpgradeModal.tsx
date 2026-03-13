@@ -27,6 +27,24 @@ export function UpgradeModal({ open, onOpenChange, feature }: UpgradeModalProps)
 
     setSyncing(true);
     try {
+      // First try the sync-subscription edge function
+      const { data: syncData, error: syncError } = await supabase.functions.invoke('sync-subscription', {
+        body: { user_id: user.id, email: user.email },
+      });
+
+      if (syncError) {
+        console.error('Sync function error:', syncError);
+      }
+
+      if (syncData?.success && syncData?.plan && syncData.plan !== 'free') {
+        await checkSubscription();
+        await refreshUsage();
+        toast.success(`Plano ${syncData.plan} ativado! Acesso liberado.`);
+        onOpenChange(false);
+        return;
+      }
+
+      // Fallback: direct DB check
       await checkSubscription();
       await refreshUsage();
 
@@ -40,12 +58,10 @@ export function UpgradeModal({ open, onOpenChange, feature }: UpgradeModalProps)
       if (error) throw error;
 
       if (data) {
-        await checkSubscription();
-        await refreshUsage();
         toast.success('Pagamento confirmado. Acesso liberado!');
         onOpenChange(false);
       } else {
-        toast.info('Pagamento ainda está processando. Tente novamente em alguns segundos.');
+        toast.info('Pagamento ainda não foi processado. Aguarde até 2 minutos e tente novamente.');
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Erro ao sincronizar assinatura';

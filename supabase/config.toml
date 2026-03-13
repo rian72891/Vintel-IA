@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.gumroad-webhook]
 verify_jwt = false
+
+[functions.sync-subscription]
+verify_jwt = false

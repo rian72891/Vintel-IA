@@ -11,6 +11,7 @@ import { generatePDF, generateHTML, generateTXT, generateZIP, downloadFile } fro
 import { Loader2, ImageIcon, FileText, Mic, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUsage } from '@/hooks/useUsage';
+import { useSubscription } from '@/hooks/useSubscription';
 import { UpgradeModal } from '@/components/UpgradeModal';
 
 export function ChatView() {
@@ -22,6 +23,7 @@ export function ChatView() {
   const [loadingLabel, setLoadingLabel] = useState('');
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const { checkUsage, incrementUsage } = useUsage();
+  const { plan } = useSubscription();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeFeature, setUpgradeFeature] = useState('');
 
@@ -243,6 +245,7 @@ export function ChatView() {
       await streamChat({
         messages: history,
         agent: conversation?.agent,
+        plan,
         onDelta: (delta) => {
           fullContent += delta;
           setStreamingContent(fullContent);
@@ -409,6 +412,7 @@ export function ChatView() {
       await streamChat({
         messages: history,
         agent: conversation?.agent,
+        plan,
         onDelta: (delta) => {
           fullContent += delta;
           setStreamingContent(fullContent);

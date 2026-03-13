@@ -365,7 +365,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, agent } = await req.json();
+    const { messages, agent, plan } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
@@ -373,13 +373,28 @@ serve(async (req) => {
       ? agentSystemPrompts[agent]
       : defaultSystemPrompt;
 
+    // Model selection based on plan
+    const modelMap: Record<string, string> = {
+      free: "google/gemini-2.5-flash-lite",
+      starter: "google/gemini-2.5-flash",
+      pro: "google/gemini-2.5-pro",
+      agency: "openai/gpt-5",
+    };
+    const maxTokensMap: Record<string, number> = {
+      free: 2000,
+      starter: 4000,
+      pro: 8000,
+      agency: 16000,
+    };
+    const model = modelMap[plan || "free"] || "google/gemini-2.5-flash-lite";
+    const maxTokens = maxTokensMap[plan || "free"] || 2000;
+
     // Process messages to handle image attachments
     const processedMessages = messages.map((msg: any) => {
       if (msg.attachments && msg.attachments.length > 0) {
         const imageAttachments = msg.attachments.filter((att: any) => att.type === 'image');
         
         if (imageAttachments.length > 0) {
-          // Convert message to multimodal format with images
           const content = [
             { type: "text", text: msg.content },
             ...imageAttachments.map((img: any) => ({
@@ -393,6 +408,8 @@ serve(async (req) => {
       return { role: msg.role, content: msg.content };
     });
 
+    console.log(`[CHAT] Using model: ${model}, maxTokens: ${maxTokens}, plan: ${plan || "free"}`);
+
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
       {
@@ -402,14 +419,14 @@ serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+          model,
           messages: [
             { role: "system", content: systemPrompt },
             ...processedMessages,
           ],
           stream: true,
           temperature: 0.7,
-          max_tokens: 4000,
+          max_tokens: maxTokens,
         }),
       }
     );

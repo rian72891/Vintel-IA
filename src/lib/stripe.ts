@@ -9,29 +9,33 @@ export const PLANS = {
     gumroadUrl: null,
     gumroadYearlyUrl: null,
     productId: null,
+    model: 'google/gemini-2.5-flash-lite',
+    maxTokens: 2000,
     limits: {
-      messagesPerDay: 5,
+      messagesPerDay: 10,
       imagesPerMonth: 3,
-      filesPerMonth: 1,
-      audioMinutesPerMonth: 5,
-      imageAnalysesPerMonth: 2,
+      filesPerMonth: 0,
+      audioMinutesPerMonth: 0,
+      imageAnalysesPerMonth: 0,
     },
     features: [
-      '5 mensagens/dia',
+      '10 mensagens/dia',
       '3 imagens/mês',
-      '1 arquivo/mês',
-      '5 min áudio/mês',
-      '2 análises imagem/mês',
+      'Sem áudio',
+      'Sem arquivos',
+      'Sem análise de imagem',
     ],
   },
   starter: {
     name: 'Starter',
     price: 'R$ 29/mês',
     priceMonthly: 29,
-    priceYearly: 278, // ~20% off
+    priceYearly: 278,
     gumroadUrl: 'https://gumroad.com/l/vintel-starter',
     gumroadYearlyUrl: 'https://gumroad.com/l/vintel-starter-anual',
     productId: 'vintel-starter',
+    model: 'google/gemini-2.5-flash',
+    maxTokens: 4000,
     limits: {
       messagesPerDay: 50,
       imagesPerMonth: 20,
@@ -40,9 +44,9 @@ export const PLANS = {
       imageAnalysesPerMonth: 10,
     },
     features: [
-      '50 mensagens/dia',
+      '50 mensagens/dia (GPT-4o mini)',
       '20 imagens/mês',
-      '5 arquivos/mês',
+      '5 arquivos/mês (PDF)',
       '30 min áudio/mês',
       '10 análises imagem/mês',
       'Suporte por email',
@@ -52,11 +56,13 @@ export const PLANS = {
     name: 'Pro',
     price: 'R$ 79/mês',
     priceMonthly: 79,
-    priceYearly: 758, // ~20% off
+    priceYearly: 758,
     gumroadUrl: 'https://gumroad.com/l/vintel-pro',
     gumroadYearlyUrl: 'https://gumroad.com/l/vintel-pro-anual',
     productId: 'vintel-pro',
     popular: true,
+    model: 'google/gemini-2.5-pro',
+    maxTokens: 8000,
     limits: {
       messagesPerDay: Infinity,
       imagesPerMonth: 100,
@@ -65,23 +71,26 @@ export const PLANS = {
       imageAnalysesPerMonth: Infinity,
     },
     features: [
-      'Mensagens ilimitadas',
-      '100 imagens/mês',
-      '20 arquivos/mês',
-      '2h áudio/mês',
-      'Análises ilimitadas',
+      'Mensagens ilimitadas (GPT-4o)',
+      '100 imagens/mês (HD)',
+      '20 arquivos/mês (PDF, ZIP, HTML)',
+      '2h áudio/mês (transcrição + voz)',
+      'Análises ilimitadas de imagem',
+      'Geração de código completo',
       'Suporte prioritário',
-      'Acesso antecipado a features',
+      'Acesso antecipado',
     ],
   },
   agency: {
     name: 'Agency',
     price: 'R$ 199/mês',
     priceMonthly: 199,
-    priceYearly: 1910, // ~20% off
+    priceYearly: 1910,
     gumroadUrl: 'https://gumroad.com/l/vintel-agency',
     gumroadYearlyUrl: 'https://gumroad.com/l/vintel-agency-anual',
     productId: 'vintel-agency',
+    model: 'openai/gpt-5',
+    maxTokens: 16000,
     limits: {
       messagesPerDay: Infinity,
       imagesPerMonth: Infinity,
@@ -90,8 +99,11 @@ export const PLANS = {
       imageAnalysesPerMonth: Infinity,
     },
     features: [
-      'Tudo ilimitado',
-      '5 usuários',
+      'Tudo ilimitado (GPT-5 + Gemini Pro)',
+      'Imagens ilimitadas (HD)',
+      'Arquivos ilimitados (todos formatos)',
+      'Áudio ilimitado (10h voz)',
+      '5 usuários simultâneos',
       'API access',
       'White-label parcial',
       'Suporte via WhatsApp',
@@ -112,4 +124,12 @@ export function getPlanByProductId(productId: string | null): PlanKey {
 
 export function getPlanLimits(plan: PlanKey) {
   return PLANS[plan].limits;
+}
+
+export function getPlanModel(plan: PlanKey) {
+  return PLANS[plan].model;
+}
+
+export function getPlanMaxTokens(plan: PlanKey) {
+  return PLANS[plan].maxTokens;
 }
