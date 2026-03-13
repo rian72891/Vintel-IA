@@ -11,6 +11,7 @@ import { generatePDF, generateHTML, generateTXT, generateZIP, downloadFile } fro
 import { Loader2, ImageIcon, FileText, Mic, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { useUsage } from '@/hooks/useUsage';
+import { useSubscription } from '@/hooks/useSubscription';
 import { UpgradeModal } from '@/components/UpgradeModal';
 
 export function ChatView() {
