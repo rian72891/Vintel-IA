@@ -41,10 +41,18 @@ export default function Auth() {
   };
 
   const handleGoogle = async () => {
-    const { error } = await lovable.auth.signInWithOAuth('google', {
-      redirect_uri: window.location.origin,
-    });
-    if (error) toast.error('Erro ao conectar com Google');
+    try {
+      const { error } = await lovable.auth.signInWithOAuth('google', {
+        redirect_uri: window.location.origin,
+      });
+      if (error) {
+        console.error('Google OAuth error:', error);
+        toast.error('Login com Google indisponível neste domínio. Use email e senha.');
+      }
+    } catch (e) {
+      console.error('Google OAuth exception:', e);
+      toast.error('Login com Google indisponível. Use email e senha para entrar.');
+    }
   };
 
   return (

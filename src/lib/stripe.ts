@@ -85,10 +85,12 @@ export const PLANS = {
     name: 'Agency',
     price: 'R$ 199/mês',
     priceMonthly: 199,
-    priceYearly: 1910, // ~20% off
+    priceYearly: 1910,
     gumroadUrl: 'https://gumroad.com/l/vintel-agency',
     gumroadYearlyUrl: 'https://gumroad.com/l/vintel-agency-anual',
     productId: 'vintel-agency',
+    model: 'openai/gpt-5',
+    maxTokens: 16000,
     limits: {
       messagesPerDay: Infinity,
       imagesPerMonth: Infinity,
@@ -97,8 +99,11 @@ export const PLANS = {
       imageAnalysesPerMonth: Infinity,
     },
     features: [
-      'Tudo ilimitado',
-      '5 usuários',
+      'Tudo ilimitado (GPT-5 + Gemini Pro)',
+      'Imagens ilimitadas (HD)',
+      'Arquivos ilimitados (todos formatos)',
+      'Áudio ilimitado (10h voz)',
+      '5 usuários simultâneos',
       'API access',
       'White-label parcial',
       'Suporte via WhatsApp',
