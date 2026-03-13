@@ -125,3 +125,11 @@ export function getPlanByProductId(productId: string | null): PlanKey {
 export function getPlanLimits(plan: PlanKey) {
   return PLANS[plan].limits;
 }
+
+export function getPlanModel(plan: PlanKey) {
+  return PLANS[plan].model;
+}
+
+export function getPlanMaxTokens(plan: PlanKey) {
+  return PLANS[plan].maxTokens;
+}
