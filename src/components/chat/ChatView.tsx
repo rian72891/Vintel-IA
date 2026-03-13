@@ -23,6 +23,7 @@ export function ChatView() {
   const [loadingLabel, setLoadingLabel] = useState('');
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const { checkUsage, incrementUsage } = useUsage();
+  const { plan } = useSubscription();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeFeature, setUpgradeFeature] = useState('');
 
