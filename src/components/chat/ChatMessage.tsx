@@ -155,33 +155,33 @@ export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className={cn('flex gap-3 px-4 py-3 max-w-4xl mx-auto', isUser ? 'justify-end' : 'justify-start')}
+      className={cn('flex gap-3 px-4 py-4 max-w-4xl mx-auto w-full', isUser ? 'justify-end' : 'justify-start')}
     >
       {!isUser && (
-        <div className="h-7 w-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 mt-0.5">
+        <div className="h-8 w-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 mt-1">
           <Bot className="h-4 w-4 text-primary" />
         </div>
       )}
       <div
         className={cn(
-          'max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed',
+          'max-w-[80%] rounded-2xl',
           isUser
-            ? 'bg-primary text-primary-foreground rounded-br-md'
-            : 'bg-card border border-border text-foreground rounded-bl-md'
+            ? 'bg-primary text-primary-foreground rounded-br-md px-4 py-3'
+            : 'text-foreground'
         )}
       >
         {isVoiceMessage && (
-          <div className="flex items-center gap-1.5 mb-1 opacity-80">
+          <div className="flex items-center gap-1.5 mb-1.5 opacity-80">
             <Mic className="h-3 w-3" />
             <span className="text-[10px] font-medium">Mensagem de voz</span>
           </div>
         )}
 
         {message.attachments?.map((att, i) => (
-          <div key={i} className="mb-2">
+          <div key={i} className="mb-3">
             {att.type === 'image' ? (
               <div className="group relative inline-block">
-                <img src={att.url} alt={att.name} className="rounded-lg max-h-64 object-contain cursor-pointer hover:opacity-95 transition-opacity" onClick={() => window.open(att.url, '_blank')} />
+                <img src={att.url} alt={att.name} className="rounded-xl max-h-72 object-contain cursor-pointer hover:opacity-95 transition-opacity" onClick={() => window.open(att.url, '_blank')} />
                 <button onClick={(e) => { e.stopPropagation(); downloadImage(att.url, att.name || undefined); }} className="absolute bottom-2 right-2 p-2 bg-background/80 backdrop-blur-sm border border-border rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background flex items-center gap-1.5" title="Baixar imagem">
                   <Download className="h-4 w-4 text-foreground" />
                   <span className="text-xs text-foreground font-medium">Baixar</span>
@@ -201,7 +201,7 @@ export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
         ))}
 
         {audioUrl && !isUser && message.content.startsWith('🔊 Áudio gerado') && (
-          <div className="mb-2 flex items-center gap-2">
+          <div className="mb-3 flex items-center gap-2">
             <button onClick={toggleAudio} className="flex items-center gap-2 px-3 py-2 bg-primary/10 border border-primary/20 rounded-lg text-xs text-primary hover:bg-primary/20 transition-colors">
               {isPlaying ? <Pause className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
               {isPlaying ? 'Pausar' : 'Ouvir áudio'}
@@ -258,9 +258,19 @@ export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
         )}
 
         {isUser ? (
-          <p className="whitespace-pre-wrap">{isVoiceMessage ? message.content.replace('🎤 ', '') : message.content}</p>
+          <p className="whitespace-pre-wrap text-[15px] leading-[1.7]">{isVoiceMessage ? message.content.replace('🎤 ', '') : message.content}</p>
         ) : cleanContent ? (
-          <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1.5 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:p-0 prose-pre:bg-transparent prose-pre:border-0">
+          <div className="prose prose-base dark:prose-invert max-w-none
+            prose-p:text-[15px] prose-p:leading-[1.75] prose-p:my-2.5 prose-p:text-foreground
+            prose-headings:text-foreground prose-headings:font-bold prose-headings:my-4
+            prose-h1:text-xl prose-h2:text-lg prose-h3:text-base
+            prose-ul:my-2.5 prose-ol:my-2.5 prose-li:my-1 prose-li:text-[15px] prose-li:leading-[1.7]
+            prose-strong:text-foreground prose-strong:font-semibold
+            prose-a:text-primary prose-a:no-underline hover:prose-a:underline
+            prose-blockquote:border-primary/30 prose-blockquote:text-muted-foreground prose-blockquote:not-italic
+            prose-pre:p-0 prose-pre:bg-transparent prose-pre:border-0
+            [&>*:first-child]:mt-0 [&>*:last-child]:mb-0
+          ">
             <ReactMarkdown
               components={{
                 code({ className, children, ...props }) {
@@ -270,25 +280,25 @@ export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
                     const currentIdx = codeBlockIdx++;
                     const codeStr = String(children).replace(/\n$/, '');
                     return (
-                      <div className="relative group my-2 rounded-lg overflow-hidden border border-border">
-                        <div className="flex items-center justify-between bg-muted px-3 py-1.5 text-[11px] text-muted-foreground">
-                          <span>{match?.[1] || 'code'}</span>
-                          <button onClick={() => copyCode(codeStr, currentIdx)} className="flex items-center gap-1 text-[10px] hover:text-foreground transition-colors">
-                            {copiedBlock === currentIdx ? (<><Check className="h-3 w-3" /> Copiado</>) : (<><Copy className="h-3 w-3" /> Copiar</>)}
+                      <div className="relative group my-3 rounded-xl overflow-hidden border border-border">
+                        <div className="flex items-center justify-between bg-muted px-4 py-2 text-xs text-muted-foreground">
+                          <span className="font-medium">{match?.[1] || 'code'}</span>
+                          <button onClick={() => copyCode(codeStr, currentIdx)} className="flex items-center gap-1.5 text-xs hover:text-foreground transition-colors">
+                            {copiedBlock === currentIdx ? (<><Check className="h-3.5 w-3.5" /> Copiado</>) : (<><Copy className="h-3.5 w-3.5" /> Copiar</>)}
                           </button>
                         </div>
-                        <pre className="p-3 overflow-x-auto bg-background text-xs leading-relaxed">
+                        <pre className="p-4 overflow-x-auto bg-background text-[13px] leading-relaxed">
                           <code className={className} {...props}>{children}</code>
                         </pre>
                       </div>
                     );
                   }
-                  return <code className="px-1.5 py-0.5 bg-muted rounded text-xs text-foreground" {...props}>{children}</code>;
+                  return <code className="px-1.5 py-0.5 bg-muted rounded-md text-[13px] text-foreground font-mono" {...props}>{children}</code>;
                 },
                 img({ src, alt }) {
                   return (
-                    <div className="my-2 group relative inline-block">
-                      <img src={src} alt={alt || ''} className="rounded-lg max-h-96 object-contain cursor-pointer hover:opacity-95 transition-opacity" onClick={() => src && window.open(src, '_blank')} />
+                    <div className="my-3 group relative inline-block">
+                      <img src={src} alt={alt || ''} className="rounded-xl max-h-96 object-contain cursor-pointer hover:opacity-95 transition-opacity" onClick={() => src && window.open(src, '_blank')} />
                       <button onClick={(e) => { e.stopPropagation(); if (src) downloadImage(src, alt || undefined); }} className="absolute bottom-2 right-2 p-1.5 bg-background/80 backdrop-blur-sm border border-border rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background" title="Baixar imagem">
                         <Download className="h-3.5 w-3.5 text-foreground" />
                       </button>
@@ -303,8 +313,8 @@ export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
         ) : null}
       </div>
       {isUser && (
-        <div className="h-7 w-7 rounded-lg bg-muted flex items-center justify-center shrink-0 mt-0.5">
-          <User className="h-4 w-4 text-muted-foreground" />
+        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-1">
+          <User className="h-4 w-4 text-primary" />
         </div>
       )}
     </motion.div>

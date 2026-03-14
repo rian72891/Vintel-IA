@@ -1,12 +1,13 @@
-import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useChatStore } from '@/store/chatStore';
 import { agents } from '@/data/agents';
 import type { AgentType } from '@/types/agent';
 import {
   Lightbulb, PenLine, Code2, BookOpen, Sparkles,
-  ArrowRight, Brain, MessageCircle, ImageIcon, FileText
+  ArrowRight, Brain, MessageCircle, ImageIcon, FileText,
+  Search, BarChart3, Megaphone, PenTool, TrendingUp, Cpu
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const suggestions = [
   { icon: Lightbulb, label: 'Explique computação quântica', color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
@@ -18,9 +19,29 @@ const suggestions = [
 const capabilities = [
   { icon: MessageCircle, title: 'Conversas inteligentes', desc: 'Respostas contextuais e precisas' },
   { icon: Code2, title: 'Programação', desc: 'Código em qualquer linguagem' },
-  { icon: ImageIcon, title: 'Geração de imagens', desc: 'Crie imagens com IA' },
+  { icon: ImageIcon, title: 'Geração de imagens', desc: 'Crie e edite imagens com IA' },
   { icon: FileText, title: 'Documentos', desc: 'PDF, HTML, TXT e ZIP' },
 ];
+
+const agentIconMap: Record<string, React.ComponentType<any>> = {
+  'search': Search,
+  'code-2': Code2,
+  'bar-chart-3': BarChart3,
+  'megaphone': Megaphone,
+  'pen-tool': PenTool,
+  'trending-up': TrendingUp,
+  'cpu': Cpu,
+};
+
+const agentColorMap: Record<string, { bg: string; text: string; border: string }> = {
+  'research': { bg: 'bg-sky-500/10', text: 'text-sky-500', border: 'hover:border-sky-500/30' },
+  'coder': { bg: 'bg-emerald-500/10', text: 'text-emerald-500', border: 'hover:border-emerald-500/30' },
+  'business': { bg: 'bg-amber-500/10', text: 'text-amber-500', border: 'hover:border-amber-500/30' },
+  'marketing': { bg: 'bg-rose-500/10', text: 'text-rose-500', border: 'hover:border-rose-500/30' },
+  'content': { bg: 'bg-violet-500/10', text: 'text-violet-500', border: 'hover:border-violet-500/30' },
+  'analyst': { bg: 'bg-cyan-500/10', text: 'text-cyan-500', border: 'hover:border-cyan-500/30' },
+  'automation': { bg: 'bg-indigo-500/10', text: 'text-indigo-500', border: 'hover:border-indigo-500/30' },
+};
 
 export function AgentSelector() {
   const { createConversation, setSelectedAgent } = useChatStore();
@@ -55,7 +76,7 @@ export function AgentSelector() {
           </h1>
 
           <p className="text-base md:text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-            Vintel IA é um agente de IA capaz de responder perguntas, gerar textos, criar imagens, analisar documentos e auxiliar em diversas tarefas do dia a dia. Tudo em uma conversa só.
+            Vintel IA é um agente de IA capaz de responder perguntas, gerar textos, criar imagens, analisar documentos e auxiliar em diversas tarefas do dia a dia.
           </p>
         </motion.div>
       </div>
@@ -110,31 +131,50 @@ export function AgentSelector() {
         </div>
       </motion.div>
 
-      {/* Agents */}
+      {/* Agents - Professional redesign */}
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.35 }}
         className="w-full max-w-4xl mx-auto px-6 pb-12"
       >
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-2 mb-4">
           <Brain className="h-4 w-4 text-accent" />
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Agentes Especializados</p>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
-          {agents.map((agent) => (
-            <button
-              key={agent.id}
-              onClick={() => handleSelectAgent(agent.id)}
-              className="group flex flex-col gap-2 p-4 rounded-xl bg-card border border-border hover:border-accent/30 hover:shadow-[var(--shadow-elevated)] transition-all duration-200 text-left"
-            >
-              <span className="text-xl">{agent.icon}</span>
-              <div>
-                <p className="text-sm font-semibold text-foreground">{agent.name}</p>
-                <p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">{agent.description}</p>
-              </div>
-            </button>
-          ))}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {agents.map((agent) => {
+            const IconComp = agentIconMap[agent.icon] || Brain;
+            const colors = agentColorMap[agent.id] || { bg: 'bg-primary/10', text: 'text-primary', border: 'hover:border-primary/30' };
+            
+            return (
+              <button
+                key={agent.id}
+                onClick={() => handleSelectAgent(agent.id)}
+                className={cn(
+                  'group flex items-start gap-3.5 p-4 rounded-2xl bg-card border border-border transition-all duration-200 text-left',
+                  'hover:shadow-[var(--shadow-elevated)]',
+                  colors.border
+                )}
+              >
+                <div className={cn('h-10 w-10 rounded-xl flex items-center justify-center shrink-0', colors.bg)}>
+                  <IconComp className={cn('h-5 w-5', colors.text)} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground mb-0.5">{agent.name}</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{agent.description}</p>
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {agent.capabilities.slice(0, 3).map((cap, i) => (
+                      <span key={i} className="text-[10px] px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground font-medium">
+                        {cap}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 shrink-0 mt-1 transition-opacity" />
+              </button>
+            );
+          })}
         </div>
       </motion.div>
     </div>
