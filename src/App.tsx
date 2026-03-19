@@ -15,6 +15,7 @@ import Upgrade from "./pages/Upgrade";
 import SharedArtifacts from "./pages/SharedArtifacts";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
+import { Analytics } from "@vercel/analytics/react";
 
 const queryClient = new QueryClient();
 
@@ -65,6 +66,7 @@ const App = () => (
         <BrowserRouter>
           <AppRoutes />
         </BrowserRouter>
+        <Analytics />
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
