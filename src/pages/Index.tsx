@@ -37,7 +37,11 @@ const Index = () => {
           </div>
         )}
 
-        {activeConversationId ? <ChatView /> : <AgentSelector />}
+        {activeConversationId ? <ChatView /> : (
+          <div className="flex-1 flex flex-col">
+            <AgentSelector />
+          </div>
+        )}
       </div>
     </div>
   );
