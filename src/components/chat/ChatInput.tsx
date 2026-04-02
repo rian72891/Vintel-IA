@@ -9,6 +9,58 @@ interface ChatInputProps {
   disabled?: boolean;
 }
 
+function AudioWaveform({ analyser }: { analyser: AnalyserNode | null }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animFrameRef = useRef<number>();
+
+  useEffect(() => {
+    if (!analyser || !canvasRef.current) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    analyser.fftSize = 64;
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+
+    const draw = () => {
+      animFrameRef.current = requestAnimationFrame(draw);
+      analyser.getByteFrequencyData(dataArray);
+
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = canvas.offsetWidth * dpr;
+      canvas.height = canvas.offsetHeight * dpr;
+      ctx.scale(dpr, dpr);
+
+      const w = canvas.offsetWidth;
+      const h = canvas.offsetHeight;
+      ctx.clearRect(0, 0, w, h);
+
+      const barCount = 24;
+      const gap = 2;
+      const barWidth = (w - (barCount - 1) * gap) / barCount;
+      const step = Math.floor(bufferLength / barCount);
+
+      for (let i = 0; i < barCount; i++) {
+        const val = dataArray[i * step] / 255;
+        const barH = Math.max(2, val * h * 0.85);
+        const x = i * (barWidth + gap);
+        const y = (h - barH) / 2;
+
+        ctx.beginPath();
+        ctx.roundRect(x, y, barWidth, barH, 1);
+        ctx.fillStyle = `hsl(222, 75%, ${55 + val * 20}%)`;
+        ctx.fill();
+      }
+    };
+
+    draw();
+    return () => { if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current); };
+  }, [analyser]);
+
+  return <canvas ref={canvasRef} className="w-full h-8" style={{ display: 'block' }} />;
+}
+
 export function ChatInput({ onSend, disabled }: ChatInputProps) {
   const [input, setInput] = useState('');
   const [files, setFiles] = useState<File[]>([]);
@@ -16,6 +68,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -24,6 +77,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingIntervalRef = useRef<number | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -46,6 +100,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
     return () => {
       if (recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
       if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') mediaRecorderRef.current.stop();
+      if (audioContextRef.current) audioContextRef.current.close();
     };
   }, []);
 
@@ -79,6 +134,15 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
   const startRecording = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      // Setup Web Audio API analyser for waveform
+      const audioCtx = new AudioContext();
+      audioContextRef.current = audioCtx;
+      const source = audioCtx.createMediaStreamSource(stream);
+      const analyser = audioCtx.createAnalyser();
+      source.connect(analyser);
+      setAnalyserNode(analyser);
+
       const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
         ? 'audio/webm;codecs=opus'
         : MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg';
@@ -93,6 +157,8 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
 
       mediaRecorder.onstop = async () => {
         stream.getTracks().forEach(track => track.stop());
+        if (audioContextRef.current) { audioContextRef.current.close(); audioContextRef.current = null; }
+        setAnalyserNode(null);
         if (audioChunksRef.current.length === 0) { toast.error('Nenhum áudio gravado'); return; }
         const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
         if (audioBlob.size < 1000) { toast.error('Gravação muito curta.'); return; }
@@ -143,7 +209,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
     {
       title: 'Voz IA',
       items: [
-        { icon: Volume2, color: 'text-emerald-500', cmd: '/voz ', name: 'Gerar áudio', desc: 'Texto → Voz' },
+        { icon: Volume2, color: 'text-primary', cmd: '/voz ', name: 'Gerar áudio', desc: 'Texto → Voz' },
       ]
     },
     {
@@ -176,7 +242,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
               className="flex gap-2 mb-2 flex-wrap"
             >
               {files.map((f, i) => (
-                <div key={i} className="flex items-center gap-1.5 px-2.5 py-1.5 bg-muted rounded-lg text-xs text-foreground border border-border">
+                <div key={i} className="flex items-center gap-1.5 px-2.5 py-1.5 bg-muted/60 rounded-lg text-xs text-foreground border border-border/50">
                   {f.type.startsWith('image/') && (
                     <img src={URL.createObjectURL(f)} alt="" className="h-6 w-6 rounded object-cover" />
                   )}
@@ -194,10 +260,13 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 8 }}
-              className="flex items-center gap-2 mb-2 px-4 py-2.5 bg-destructive/10 border border-destructive/20 rounded-xl"
+              className="flex items-center gap-3 mb-2 px-4 py-2.5 bg-destructive/5 border border-destructive/15 rounded-xl"
             >
-              <span className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
-              <span className="text-xs text-destructive font-medium">Gravando... {formatTime(recordingTime)}</span>
+              <span className="h-2 w-2 rounded-full bg-destructive animate-pulse shrink-0" />
+              <div className="flex-1">
+                <AudioWaveform analyser={analyserNode} />
+              </div>
+              <span className="text-xs text-destructive font-medium tabular-nums shrink-0">{formatTime(recordingTime)}</span>
             </motion.div>
           )}
           {isTranscribing && (
@@ -205,7 +274,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 8 }}
-              className="flex items-center gap-2 mb-2 px-4 py-2.5 bg-primary/10 border border-primary/20 rounded-xl"
+              className="flex items-center gap-2 mb-2 px-4 py-2.5 bg-primary/5 border border-primary/15 rounded-xl"
             >
               <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
               <span className="text-xs text-primary font-medium">Transcrevendo áudio...</span>
@@ -213,8 +282,8 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
           )}
         </AnimatePresence>
 
-        <div className="relative bg-card border border-border rounded-2xl shadow-[var(--shadow-elevated)] focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-ring/10 transition-all duration-200">
-          <div className="flex items-end gap-1 px-3 py-3">
+        <div className="relative bg-card border border-border/60 rounded-2xl shadow-[var(--shadow-elevated)] focus-within:border-primary/30 focus-within:ring-1 focus-within:ring-ring/10 transition-all duration-200">
+          <div className="flex items-end gap-1 px-3 py-2.5">
             <div className="flex items-center gap-0.5 shrink-0 mb-0.5">
               <ActionButton icon={Paperclip} title="Anexar arquivo" disabled={disabled || isRecording} onClick={() => fileInputRef.current?.click()} />
               <ActionButton icon={Image} title="Enviar imagem" disabled={disabled || isRecording} onClick={() => imageInputRef.current?.click()} />
@@ -242,11 +311,11 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 8, scale: 0.96 }}
                       transition={{ duration: 0.15 }}
-                      className="absolute bottom-full left-0 mb-2 w-60 bg-popover border border-border rounded-xl shadow-[var(--shadow-elevated)] p-1.5 z-50 max-h-[70vh] overflow-y-auto scrollbar-thin"
+                      className="absolute bottom-full left-0 mb-2 w-60 bg-popover border border-border/60 rounded-xl shadow-[var(--shadow-elevated)] p-1.5 z-50 max-h-[70vh] overflow-y-auto scrollbar-thin"
                     >
                       {toolSections.map((section, si) => (
                         <div key={si}>
-                          {si > 0 && <div className="my-1 border-t border-border" />}
+                          {si > 0 && <div className="my-1 border-t border-border/30" />}
                           <p className="text-[10px] text-muted-foreground px-3 py-1.5 font-semibold uppercase tracking-wider">{section.title}</p>
                           {section.items.map((item, ii) => (
                             <button
@@ -277,21 +346,21 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
               placeholder={isRecording ? 'Gravando áudio...' : 'Pergunte qualquer coisa ao Vintel IA...'}
               rows={1}
               disabled={isRecording || isTranscribing}
-              className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none max-h-40 scrollbar-thin disabled:opacity-50 py-1.5"
+              className="flex-1 bg-transparent text-[15px] text-foreground placeholder:text-muted-foreground/60 resize-none focus:outline-none max-h-40 scrollbar-thin disabled:opacity-50 py-1.5 leading-relaxed"
             />
 
             <motion.button
               whileTap={{ scale: 0.9 }}
               onClick={handleSubmit}
               disabled={(!input.trim() && files.length === 0) || disabled || isRecording || isTranscribing}
-              className="p-2.5 rounded-xl bg-primary text-primary-foreground disabled:opacity-30 disabled:cursor-not-allowed hover:opacity-90 transition-all shrink-0 mb-0.5 shadow-sm"
+              className="p-2.5 rounded-xl bg-primary text-primary-foreground disabled:opacity-20 disabled:cursor-not-allowed hover:opacity-90 transition-all shrink-0 mb-0.5"
             >
               <Send className="h-4 w-4" />
             </motion.button>
           </div>
         </div>
 
-        <p className="text-[10px] text-muted-foreground text-center mt-2.5 opacity-70">
+        <p className="text-[10px] text-muted-foreground/50 text-center mt-2 tracking-wide">
           Vintel IA pode cometer erros. Verifique informações importantes.
         </p>
 
@@ -306,7 +375,7 @@ function ActionButton({ icon: Icon, title, disabled, onClick }: { icon: any; tit
   return (
     <button
       onClick={onClick}
-      className="p-2 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-muted disabled:opacity-40"
+      className="p-2 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-muted/60 disabled:opacity-40"
       title={title}
       disabled={disabled}
     >
