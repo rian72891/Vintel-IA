@@ -1,30 +1,26 @@
-import { motion } from 'framer-motion';
+import { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useChatStore } from '@/store/chatStore';
 import { agents } from '@/data/agents';
 import type { AgentType } from '@/types/agent';
 import {
-  Lightbulb, PenLine, Code2, BookOpen, Sparkles,
-  ArrowRight, Brain, MessageCircle, ImageIcon, FileText,
-  Search, BarChart3, Megaphone, PenTool, TrendingUp, Cpu
+  Send, Paperclip, Image, Sparkles, Wand2, Volume2, Globe, Search,
+  Mic, Square, FileText, Code, FileArchive, File,
+  ArrowRight, Brain, SearchIcon, Code2, BarChart3, Megaphone, PenTool, TrendingUp, Cpu
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { speechToText } from '@/lib/api/elevenlabs-stt';
+import { toast } from 'sonner';
 
-const suggestions = [
-  { icon: Lightbulb, label: 'Explique computação quântica', color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
-  { icon: PenLine, label: 'Escreva um poema criativo', color: 'text-pink-500', bg: 'bg-pink-500/10' },
-  { icon: Code2, label: 'Ajude com código Python', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
-  { icon: BookOpen, label: 'Resuma um artigo para mim', color: 'text-primary', bg: 'bg-primary/10' },
-];
-
-const capabilities = [
-  { icon: MessageCircle, title: 'Conversas inteligentes', desc: 'Respostas contextuais e precisas' },
-  { icon: Code2, title: 'Programação', desc: 'Código em qualquer linguagem' },
-  { icon: ImageIcon, title: 'Geração de imagens', desc: 'Crie e edite imagens com IA' },
-  { icon: FileText, title: 'Documentos', desc: 'PDF, HTML, TXT e ZIP' },
+const quickActions = [
+  { icon: SearchIcon, label: 'Pesquisar na web', agent: 'research' as AgentType },
+  { icon: Code2, label: 'Programação', agent: 'coder' as AgentType },
+  { icon: BarChart3, label: 'Análise de negócio', agent: 'business' as AgentType },
+  { icon: PenTool, label: 'Criar conteúdo', agent: 'content' as AgentType },
 ];
 
 const agentIconMap: Record<string, React.ComponentType<any>> = {
-  'search': Search,
+  'search': SearchIcon,
   'code-2': Code2,
   'bar-chart-3': BarChart3,
   'megaphone': Megaphone,
@@ -33,21 +29,65 @@ const agentIconMap: Record<string, React.ComponentType<any>> = {
   'cpu': Cpu,
 };
 
-const agentColorMap: Record<string, { bg: string; text: string; border: string }> = {
-  'research': { bg: 'bg-sky-500/10', text: 'text-sky-500', border: 'hover:border-sky-500/30' },
-  'coder': { bg: 'bg-emerald-500/10', text: 'text-emerald-500', border: 'hover:border-emerald-500/30' },
-  'business': { bg: 'bg-amber-500/10', text: 'text-amber-500', border: 'hover:border-amber-500/30' },
-  'marketing': { bg: 'bg-rose-500/10', text: 'text-rose-500', border: 'hover:border-rose-500/30' },
-  'content': { bg: 'bg-violet-500/10', text: 'text-violet-500', border: 'hover:border-violet-500/30' },
-  'analyst': { bg: 'bg-cyan-500/10', text: 'text-cyan-500', border: 'hover:border-cyan-500/30' },
-  'automation': { bg: 'bg-indigo-500/10', text: 'text-indigo-500', border: 'hover:border-indigo-500/30' },
-};
-
 export function AgentSelector() {
   const { createConversation, setSelectedAgent } = useChatStore();
+  const [input, setInput] = useState('');
+  const [files, setFiles] = useState<File[]>([]);
+  const [showTools, setShowTools] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  const handleSuggestion = async (text: string) => {
-    await createConversation();
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 120) + 'px';
+    }
+  }, [input]);
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setShowTools(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const handleSend = async () => {
+    if (!input.trim() && files.length === 0) return;
+    const convId = await createConversation();
+    if (!convId) return;
+    // The ChatView will handle the actual message sending
+    // We store the pending message in a temp approach
+    const { addMessage } = useChatStore.getState();
+
+    const attachments = files.length > 0 ? await Promise.all(files.map(async (f) => {
+      const url = URL.createObjectURL(f);
+      return {
+        type: f.type.startsWith('image/') ? 'image' as const : 'file' as const,
+        name: f.name,
+        url,
+        mimeType: f.type,
+      };
+    })) : undefined;
+
+    await addMessage(convId, {
+      role: 'user',
+      content: input.trim(),
+      attachments,
+    });
+
+    setInput('');
+    setFiles([]);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
   };
 
   const handleSelectAgent = async (agentId: AgentType) => {
@@ -55,128 +95,184 @@ export function AgentSelector() {
     await createConversation(agentId);
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) setFiles(prev => [...prev, ...Array.from(e.target.files!)]);
+    e.target.value = '';
+  };
+
+  const insertCommand = (cmd: string) => {
+    setInput(cmd);
+    setShowTools(false);
+    textareaRef.current?.focus();
+  };
+
+  const toolItems = [
+    { icon: Sparkles, color: 'text-primary', cmd: '/imagine ', name: 'Imagem rápida' },
+    { icon: Wand2, color: 'text-accent', cmd: '/imaginehd ', name: 'Imagem HD' },
+    { icon: Volume2, color: 'text-primary', cmd: '/voz ', name: 'Gerar áudio' },
+    { icon: Search, color: 'text-primary', cmd: '/search ', name: 'Buscar na web' },
+    { icon: Globe, color: 'text-accent', cmd: '/scrape ', name: 'Extrair site' },
+    { icon: FileText, color: 'text-destructive', cmd: '/pdf ', name: 'Gerar PDF' },
+    { icon: Code, color: 'text-primary', cmd: '/html ', name: 'Gerar HTML' },
+    { icon: FileArchive, color: 'text-accent', cmd: '/zip ', name: 'Gerar ZIP' },
+  ];
+
   return (
-    <div className="flex-1 flex flex-col items-center overflow-y-auto scrollbar-thin">
-      {/* Hero Section */}
-      <div className="w-full max-w-4xl mx-auto px-6 pt-12 pb-8 md:pt-20 md:pb-12">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="text-center"
-        >
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 mb-6">
-            <Sparkles className="h-3.5 w-3.5 text-primary" />
-            <span className="text-xs font-medium text-primary">Assistente de IA Multimodal</span>
-          </div>
-
-          <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-foreground leading-tight mb-4">
-            Vintel IA — seu agente de{' '}
-            <span className="gradient-text">inteligência artificial</span>
-          </h1>
-
-          <p className="text-base md:text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-            Vintel IA é um agente de IA capaz de responder perguntas, gerar textos, criar imagens, analisar documentos e auxiliar em diversas tarefas do dia a dia.
-          </p>
-        </motion.div>
-      </div>
-
-      {/* Capabilities */}
+    <div className="flex-1 flex flex-col items-center justify-center px-4">
+      {/* Centered hero */}
       <motion.div
-        initial={{ opacity: 0, y: 16 }}
+        initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.15 }}
-        className="w-full max-w-4xl mx-auto px-6 pb-8"
+        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        className="w-full max-w-2xl mx-auto text-center mb-6"
       >
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {capabilities.map((cap, i) => (
-            <div
-              key={i}
-              className="flex flex-col items-center gap-2.5 p-4 rounded-2xl bg-card border border-border shadow-[var(--shadow-card)] text-center"
+        <h1 className="text-2xl md:text-4xl font-semibold text-foreground tracking-tight">
+          O que você gostaria de fazer?
+        </h1>
+      </motion.div>
+
+      {/* Embedded input */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.1 }}
+        className="w-full max-w-2xl mx-auto mb-8"
+      >
+        {/* File previews */}
+        <AnimatePresence>
+          {files.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="flex gap-2 mb-2 flex-wrap"
             >
-              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                <cap.icon className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground">{cap.title}</p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">{cap.desc}</p>
+              {files.map((f, i) => (
+                <div key={i} className="flex items-center gap-1.5 px-2.5 py-1.5 bg-muted/60 rounded-lg text-xs text-foreground border border-border/50">
+                  {f.type.startsWith('image/') && (
+                    <img src={URL.createObjectURL(f)} alt="" className="h-6 w-6 rounded object-cover" />
+                  )}
+                  <span className="truncate max-w-[120px]">{f.name}</span>
+                  <button onClick={() => setFiles(prev => prev.filter((_, idx) => idx !== i))} className="text-muted-foreground hover:text-foreground ml-1 font-bold">×</button>
+                </div>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="relative bg-card border border-border/60 rounded-2xl shadow-[var(--shadow-elevated)] focus-within:border-primary/30 focus-within:ring-1 focus-within:ring-ring/10 transition-all duration-200">
+          <div className="flex items-end gap-1 px-3 py-2.5">
+            <div className="flex items-center gap-0.5 shrink-0 mb-0.5">
+              <InputBtn icon={Paperclip} title="Anexar arquivo" onClick={() => fileInputRef.current?.click()} />
+              <InputBtn icon={Image} title="Enviar imagem" onClick={() => imageInputRef.current?.click()} />
+
+              <div className="relative" ref={menuRef}>
+                <InputBtn icon={Sparkles} title="Ferramentas IA" onClick={() => setShowTools(!showTools)} />
+                <AnimatePresence>
+                  {showTools && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute bottom-full left-0 mb-2 w-52 bg-popover border border-border/60 rounded-xl shadow-[var(--shadow-elevated)] p-1 z-50"
+                    >
+                      {toolItems.map((item, i) => (
+                        <button
+                          key={i}
+                          onClick={() => insertCommand(item.cmd)}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left hover:bg-muted transition-colors"
+                        >
+                          <item.icon className={cn('h-4 w-4 shrink-0', item.color)} />
+                          <span className="text-sm text-foreground font-medium">{item.name}</span>
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
-          ))}
-        </div>
-      </motion.div>
 
-      {/* Quick Start Suggestions */}
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.25 }}
-        className="w-full max-w-4xl mx-auto px-6 pb-8"
-      >
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Comece agora</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-          {suggestions.map((s, i) => (
-            <button
-              key={i}
-              onClick={() => handleSuggestion(s.label)}
-              className="group flex items-center gap-3 p-4 rounded-xl bg-card border border-border hover:border-primary/30 hover:shadow-[var(--shadow-elevated)] transition-all duration-200 text-left"
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Pergunte qualquer coisa..."
+              rows={1}
+              className="flex-1 bg-transparent text-[15px] text-foreground placeholder:text-muted-foreground/50 resize-none focus:outline-none max-h-[120px] scrollbar-thin py-1.5 leading-relaxed"
+            />
+
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={handleSend}
+              disabled={!input.trim() && files.length === 0}
+              className="p-2.5 rounded-xl bg-primary text-primary-foreground disabled:opacity-20 disabled:cursor-not-allowed hover:opacity-90 transition-all shrink-0 mb-0.5"
             >
-              <div className={`h-9 w-9 rounded-lg ${s.bg} flex items-center justify-center shrink-0`}>
-                <s.icon className={`h-4.5 w-4.5 ${s.color}`} />
-              </div>
-              <span className="text-sm text-foreground font-medium flex-1">{s.label}</span>
-              <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
-            </button>
-          ))}
+              <Send className="h-4 w-4" />
+            </motion.button>
+          </div>
         </div>
+
+        <input ref={fileInputRef} type="file" className="hidden" multiple onChange={handleFileSelect} accept=".pdf,.doc,.docx,.txt,.csv,.json,.xml,.xlsx" />
+        <input ref={imageInputRef} type="file" className="hidden" multiple onChange={handleFileSelect} accept="image/*" />
       </motion.div>
 
-      {/* Agents - Professional redesign */}
+      {/* Quick action chips */}
       <motion.div
-        initial={{ opacity: 0, y: 16 }}
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.35 }}
-        className="w-full max-w-4xl mx-auto px-6 pb-12"
+        transition={{ duration: 0.4, delay: 0.2 }}
+        className="flex flex-wrap justify-center gap-2 max-w-2xl mx-auto mb-10"
       >
-        <div className="flex items-center gap-2 mb-4">
-          <Brain className="h-4 w-4 text-accent" />
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Agentes Especializados</p>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {quickActions.map((action, i) => (
+          <button
+            key={i}
+            onClick={() => handleSelectAgent(action.agent)}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-card border border-border/60 text-sm text-muted-foreground hover:text-foreground hover:border-primary/30 transition-all duration-200"
+          >
+            <action.icon className="h-3.5 w-3.5" />
+            <span>{action.label}</span>
+          </button>
+        ))}
+      </motion.div>
+
+      {/* Agents grid - compact */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5, delay: 0.3 }}
+        className="w-full max-w-3xl mx-auto pb-8"
+      >
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
           {agents.map((agent) => {
             const IconComp = agentIconMap[agent.icon] || Brain;
-            const colors = agentColorMap[agent.id] || { bg: 'bg-primary/10', text: 'text-primary', border: 'hover:border-primary/30' };
-            
             return (
               <button
                 key={agent.id}
                 onClick={() => handleSelectAgent(agent.id)}
-                className={cn(
-                  'group flex items-start gap-3.5 p-4 rounded-2xl bg-card border border-border transition-all duration-200 text-left',
-                  'hover:shadow-[var(--shadow-elevated)]',
-                  colors.border
-                )}
+                className="group flex flex-col items-center gap-2 p-3 rounded-xl bg-card/50 border border-border/40 hover:border-primary/30 hover:bg-card transition-all duration-200 text-center"
               >
-                <div className={cn('h-10 w-10 rounded-xl flex items-center justify-center shrink-0', colors.bg)}>
-                  <IconComp className={cn('h-5 w-5', colors.text)} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-foreground mb-0.5">{agent.name}</p>
-                  <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{agent.description}</p>
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {agent.capabilities.slice(0, 3).map((cap, i) => (
-                      <span key={i} className="text-[10px] px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground font-medium">
-                        {cap}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 shrink-0 mt-1 transition-opacity" />
+                <IconComp className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                <span className="text-xs font-medium text-foreground">{agent.name}</span>
               </button>
             );
           })}
         </div>
       </motion.div>
     </div>
+  );
+}
+
+function InputBtn({ icon: Icon, title, onClick, disabled }: { icon: any; title: string; onClick: () => void; disabled?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      className="p-2 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-muted/60 disabled:opacity-40"
+      title={title}
+      disabled={disabled}
+    >
+      <Icon className="h-4 w-4" />
+    </button>
   );
 }
