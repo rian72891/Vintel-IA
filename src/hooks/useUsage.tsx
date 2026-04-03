@@ -60,73 +60,26 @@ export function UsageProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const { data, error } = await supabase
-        .from('usage_limits')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      const { data: fnData, error: fnError } = await supabase.functions.invoke('update-usage', {
+        body: { action: 'reset_check', plan },
+      });
 
-      if (error) throw error;
+      if (fnError) throw fnError;
 
-      if (data) {
-        // Check if messages need daily reset
-        const now = new Date();
-        const messagesResetDate = new Date(data.messages_reset_date);
-        const needsMessageReset = now.toDateString() !== messagesResetDate.toDateString();
-
-        // Check if monthly counters need reset
-        const resetDate = new Date(data.reset_date);
-        const needsMonthlyReset = now.getTime() - resetDate.getTime() > 30 * 24 * 60 * 60 * 1000;
-
-        if (needsMessageReset || needsMonthlyReset) {
-          const updates: any = { plan };
-          if (needsMessageReset) {
-            updates.messages_used = 0;
-            updates.messages_reset_date = now.toISOString();
-          }
-          if (needsMonthlyReset) {
-            updates.images_used = 0;
-            updates.files_used = 0;
-            updates.audio_minutes_used = 0;
-            updates.image_analyses_used = 0;
-            updates.reset_date = now.toISOString();
-          }
-
-          await supabase
-            .from('usage_limits')
-            .update(updates)
-            .eq('user_id', user.id);
-
-          setUsage({
-            ...data,
-            ...updates,
-          });
-        } else {
-          setUsage(data);
-        }
-      } else {
-        // Create usage record
-        const now = new Date().toISOString();
-        const { data: newData } = await supabase
-          .from('usage_limits')
-          .insert({
-            user_id: user.id,
-            plan,
-            messages_used: 0,
-            images_used: 0,
-            files_used: 0,
-            audio_minutes_used: 0,
-            image_analyses_used: 0,
-            messages_reset_date: now,
-            reset_date: now,
-          })
-          .select()
-          .single();
-
-        if (newData) setUsage(newData);
+      if (fnData?.data) {
+        setUsage(fnData.data);
       }
     } catch (e) {
       console.error('Error loading usage:', e);
+      // Fallback: read-only fetch
+      try {
+        const { data } = await supabase
+          .from('usage_limits')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (data) setUsage(data);
+      } catch (_) { /* ignore */ }
     } finally {
       setLoading(false);
     }
@@ -165,12 +118,18 @@ export function UsageProvider({ children }: { children: ReactNode }) {
     const currentVal = (usage as any)[field] || 0;
     const newVal = currentVal + amount;
 
-    await supabase
-      .from('usage_limits')
-      .update({ [field]: newVal })
-      .eq('user_id', user.id);
-
+    // Optimistic update
     setUsage(prev => prev ? { ...prev, [field]: newVal } : prev);
+
+    try {
+      await supabase.functions.invoke('update-usage', {
+        body: { action: 'increment', type: field, amount },
+      });
+    } catch (e) {
+      console.error('Error incrementing usage:', e);
+      // Revert optimistic update
+      setUsage(prev => prev ? { ...prev, [field]: currentVal } : prev);
+    }
   }, [user, usage]);
 
   const getUsagePercent = useCallback((type: UsageType): number => {
