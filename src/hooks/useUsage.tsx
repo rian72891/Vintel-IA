@@ -118,12 +118,18 @@ export function UsageProvider({ children }: { children: ReactNode }) {
     const currentVal = (usage as any)[field] || 0;
     const newVal = currentVal + amount;
 
-    await supabase
-      .from('usage_limits')
-      .update({ [field]: newVal })
-      .eq('user_id', user.id);
-
+    // Optimistic update
     setUsage(prev => prev ? { ...prev, [field]: newVal } : prev);
+
+    try {
+      await supabase.functions.invoke('update-usage', {
+        body: { action: 'increment', type: field, amount },
+      });
+    } catch (e) {
+      console.error('Error incrementing usage:', e);
+      // Revert optimistic update
+      setUsage(prev => prev ? { ...prev, [field]: currentVal } : prev);
+    }
   }, [user, usage]);
 
   const getUsagePercent = useCallback((type: UsageType): number => {
