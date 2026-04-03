@@ -1,20 +1,31 @@
+import { useState } from 'react';
 import { Menu, Plus } from 'lucide-react';
 import { Sidebar } from '@/components/chat/Sidebar';
 import { AgentSelector } from '@/components/chat/AgentSelector';
 import { ChatView } from '@/components/chat/ChatView';
+import { AuthModal } from '@/components/AuthModal';
 import { useChatStore } from '@/store/chatStore';
 import { useAuth } from '@/hooks/useAuth';
 
 const Index = () => {
   const { activeConversationId, sidebarOpen, setSidebarOpen, createConversation } = useChatStore();
   const { user } = useAuth();
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+
+  const requireAuth = (callback: () => void) => {
+    if (!user) {
+      setAuthModalOpen(true);
+      return;
+    }
+    callback();
+  };
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
-      <Sidebar />
+      {user && <Sidebar />}
 
       <div className="flex-1 flex flex-col relative min-w-0">
-        {!sidebarOpen && (
+        {user && !sidebarOpen && (
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-background/80 backdrop-blur-sm">
             <div className="flex items-center gap-3">
               <button
@@ -37,12 +48,16 @@ const Index = () => {
           </div>
         )}
 
-        {activeConversationId ? <ChatView /> : (
+        {activeConversationId && user ? (
+          <ChatView />
+        ) : (
           <div className="flex-1 flex flex-col">
-            <AgentSelector />
+            <AgentSelector onRequireAuth={() => setAuthModalOpen(true)} />
           </div>
         )}
       </div>
+
+      <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />
     </div>
   );
 };
