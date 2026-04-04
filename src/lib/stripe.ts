@@ -85,9 +85,10 @@ export const PLANS = {
   },
   agency: {
     name: 'Agency',
-    price: 'R$ 199/mês',
-    priceMonthly: 199,
-    priceYearly: 1910,
+    badge: 'Premium',
+    price: 'R$ 97/mês',
+    priceMonthly: 97,
+    priceYearly: 931,
     gumroadUrl: 'https://gumroad.com/l/vintel-agency',
     gumroadYearlyUrl: 'https://gumroad.com/l/vintel-agency-anual',
     productId: 'vintel-agency',
