@@ -42,7 +42,7 @@ const Index = () => {
               <div className="h-8 w-8 rounded-full bg-primary/15 border border-primary/20 flex items-center justify-center">
                 <span className="text-xs font-semibold text-primary">{userInitial}</span>
               </div>
-              <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-background" />
+              <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-primary border-2 border-background" />
             </div>
           </header>
         )}
