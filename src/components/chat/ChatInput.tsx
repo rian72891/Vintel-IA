@@ -282,7 +282,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
           )}
         </AnimatePresence>
 
-        <div className="relative bg-card border border-border/60 rounded-2xl shadow-[var(--shadow-elevated)] focus-within:border-primary/30 focus-within:ring-1 focus-within:ring-ring/10 transition-all duration-200">
+        <div className="relative bg-card border border-border/60 rounded-2xl shadow-[var(--shadow-elevated)] focus-within:border-primary/30 focus-within:ring-1 focus-within:ring-ring/10 transition-colors">
           <div className="flex items-end gap-1 px-3 py-2.5">
             <div className="flex items-center gap-0.5 shrink-0 mb-0.5">
               <ActionButton icon={Paperclip} title="Anexar arquivo" disabled={disabled || isRecording} onClick={() => fileInputRef.current?.click()} />
