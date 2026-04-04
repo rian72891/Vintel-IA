@@ -115,11 +115,10 @@ export function AgentSelector({ onRequireAuth }: AgentSelectorProps) {
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center relative overflow-hidden">
-      {/* Mesh gradient background */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-primary/[0.07] blur-[120px] animate-pulse" style={{ animationDuration: '6s' }} />
-        <div className="absolute top-1/3 left-1/3 w-[400px] h-[400px] rounded-full bg-accent/[0.05] blur-[100px] animate-pulse" style={{ animationDuration: '8s', animationDelay: '2s' }} />
-        <div className="absolute bottom-1/3 right-1/3 w-[350px] h-[350px] rounded-full bg-primary/[0.04] blur-[90px] animate-pulse" style={{ animationDuration: '7s', animationDelay: '1s' }} />
+      {/* Static mesh gradient - GPU optimized */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none gpu-layer">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-primary/[0.06] blur-[100px]" />
+        <div className="absolute top-1/3 left-1/3 w-[400px] h-[400px] rounded-full bg-accent/[0.04] blur-[80px]" />
       </div>
 
       <div className="relative z-10 w-full px-4">
