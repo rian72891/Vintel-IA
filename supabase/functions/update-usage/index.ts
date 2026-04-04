@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
       const { data: current } = await supabase
         .from("usage_limits")
         .select(type)
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .single();
 
       if (!current) {
@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
       await supabase
         .from("usage_limits")
         .update({ [type]: newVal })
-        .eq("user_id", user.id);
+        .eq("user_id", userId);
 
       return new Response(JSON.stringify({ success: true, [type]: newVal }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -90,7 +90,7 @@ Deno.serve(async (req) => {
       const { data } = await supabase
         .from("usage_limits")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .maybeSingle();
 
       if (!data) {
@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
         const { data: newData } = await supabase
           .from("usage_limits")
           .insert({
-            user_id: user.id,
+            user_id: userId,
             plan: plan || "free",
             messages_used: 0,
             images_used: 0,
@@ -140,7 +140,7 @@ Deno.serve(async (req) => {
         await supabase
           .from("usage_limits")
           .update(updates)
-          .eq("user_id", user.id);
+          .eq("user_id", userId);
 
         return new Response(JSON.stringify({ success: true, data: { ...data, ...updates } }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
