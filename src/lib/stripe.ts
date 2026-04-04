@@ -55,9 +55,10 @@ export const PLANS = {
   },
   pro: {
     name: 'Pro',
-    price: 'R$ 79/mês',
-    priceMonthly: 79,
-    priceYearly: 758,
+    badge: 'MELHOR CUSTO-BENEFÍCIO',
+    price: 'R$ 39,90/mês',
+    priceMonthly: 39.90,
+    priceYearly: 383,
     gumroadUrl: 'https://gumroad.com/l/vintel-pro',
     gumroadYearlyUrl: 'https://gumroad.com/l/vintel-pro-anual',
     productId: 'vintel-pro',
