@@ -233,7 +233,7 @@ export function AgentSelector({ onRequireAuth }: AgentSelectorProps) {
             <button
               key={i}
               onClick={() => handleSelectAgent(action.agent)}
-              className="flex items-center gap-2 px-4 py-2 rounded-full bg-card/40 backdrop-blur-sm border border-border/30 text-sm text-muted-foreground hover:text-foreground hover:border-primary/30 hover:bg-card/60 transition-all duration-200"
+              className="flex items-center gap-2 px-4 py-2 rounded-full bg-card/60 border border-border/30 text-sm text-muted-foreground hover:text-foreground hover:border-primary/30 hover:bg-card/80 transition-colors touch-feedback"
             >
               <action.icon className="h-3.5 w-3.5" />
               <span>{action.label}</span>
