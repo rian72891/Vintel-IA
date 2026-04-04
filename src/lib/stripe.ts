@@ -28,9 +28,10 @@ export const PLANS = {
   },
   starter: {
     name: 'Starter',
-    price: 'R$ 29/mês',
-    priceMonthly: 29,
-    priceYearly: 278,
+    badge: 'Econômico',
+    price: 'R$ 19,90/mês',
+    priceMonthly: 19.90,
+    priceYearly: 191,
     gumroadUrl: 'https://gumroad.com/l/vintel-starter',
     gumroadYearlyUrl: 'https://gumroad.com/l/vintel-starter-anual',
     productId: 'vintel-starter',
