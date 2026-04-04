@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, X, Crown, Zap, Building2, ArrowLeft, Shield, CreditCard, RotateCcw, ChevronDown } from 'lucide-react';
+import { Check, Crown, Zap, Building2, ArrowLeft, Shield, CreditCard, RotateCcw, ChevronDown, Star, Sparkles } from 'lucide-react';
 import { useSubscription } from '@/hooks/useSubscription';
 import { PLANS, PlanKey } from '@/lib/stripe';
 import { Button } from '@/components/ui/button';
@@ -40,6 +40,12 @@ export default function Precos() {
     agency: Building2,
   };
 
+  const badgeStyles: Record<string, string> = {
+    starter: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+    pro: 'bg-primary/20 text-primary border-primary/30 animate-pulse',
+    agency: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
+  };
+
   const comparisonFeatures = [
     { label: 'Modelo IA', starter: 'Gemini Flash', pro: 'Gemini Pro', agency: 'GPT-5' },
     { label: 'Mensagens/dia', starter: '50', pro: 'Ilimitado', agency: 'Ilimitado' },
@@ -68,12 +74,16 @@ export default function Precos() {
       {/* Hero */}
       <div className="text-center px-4 pt-12 pb-8 max-w-3xl mx-auto">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-medium mb-4">
+            <Sparkles className="h-3.5 w-3.5" />
+            Oferta por tempo limitado
+          </div>
           <h1 className="text-3xl md:text-4xl font-extrabold text-foreground tracking-tight mb-3">
-            Escolha seu plano e comece a{' '}
-            <span className="gradient-text">criar 10x mais rápido</span>
+            Acesso VIP à Inteligência Artificial{' '}
+            <span className="gradient-text">mais rápida do Brasil</span>
           </h1>
           <p className="text-base text-muted-foreground max-w-xl mx-auto">
-            Do roteiro ao arquivo final, tudo em uma conversa só
+            Milhares de brasileiros já usam. Escolha seu plano e comece agora.
           </p>
         </motion.div>
 
@@ -99,17 +109,18 @@ export default function Precos() {
       </div>
 
       {/* Plan Cards */}
-      <div className="max-w-5xl mx-auto px-4 pb-12">
+      <div className="max-w-5xl mx-auto px-4 pb-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {planOrder.map((key, i) => {
             const plan = PLANS[key];
             const isCurrent = key === currentPlan;
             const isPro = key === 'pro';
             const Icon = planIcons[key];
-            const price = isYearly
-              ? `R$ ${Math.round(plan.priceYearly / 12)}`
-              : `R$ ${plan.priceMonthly}`;
+            const monthlyPrice = isYearly
+              ? (plan.priceYearly / 12).toFixed(2).replace('.', ',')
+              : String(plan.priceMonthly).replace('.', ',');
             const gumroadUrl = isYearly ? plan.gumroadYearlyUrl : plan.gumroadUrl;
+            const badge = (plan as any).badge as string | undefined;
 
             return (
               <motion.div
@@ -120,16 +131,22 @@ export default function Precos() {
                 className={cn(
                   'relative rounded-2xl border p-6 flex flex-col gap-4 transition-all',
                   isPro
-                    ? 'border-transparent bg-gradient-to-b from-primary/5 to-accent/5 shadow-lg ring-1 ring-primary/30'
+                    ? 'border-primary/40 bg-gradient-to-b from-primary/8 to-accent/5 shadow-[0_0_30px_-5px_hsl(var(--primary)/0.3)] ring-1 ring-primary/30 scale-[1.02] md:scale-105'
                     : 'border-border bg-card',
                   isCurrent ? 'ring-2 ring-primary' : ''
                 )}
               >
-                {isPro && (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-primary to-accent text-white text-xs font-bold rounded-full shadow-md">
-                    MAIS POPULAR
+                {/* Badge */}
+                {badge && (
+                  <span className={cn(
+                    'absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 text-[11px] font-bold rounded-full border whitespace-nowrap flex items-center gap-1.5',
+                    badgeStyles[key]
+                  )}>
+                    {isPro && <Star className="h-3 w-3 fill-current" />}
+                    {badge}
                   </span>
                 )}
+
                 {isCurrent && (
                   <span className="absolute -top-3 right-4 px-3 py-0.5 bg-primary text-primary-foreground text-xs font-medium rounded-full">
                     Seu plano
@@ -137,16 +154,19 @@ export default function Precos() {
                 )}
 
                 <div className="flex items-center gap-2 pt-1">
-                  <Icon className={cn('h-5 w-5', isPro ? 'text-primary' : key === 'agency' ? 'text-yellow-500' : 'text-muted-foreground')} />
+                  <Icon className={cn('h-5 w-5', isPro ? 'text-primary' : key === 'agency' ? 'text-yellow-500' : 'text-emerald-500')} />
                   <h2 className="text-xl font-bold text-foreground">{plan.name}</h2>
                 </div>
 
                 <div>
-                  <span className="text-3xl font-extrabold text-foreground">{price}</span>
-                  <span className="text-sm text-muted-foreground">/mês</span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-sm text-muted-foreground">R$</span>
+                    <span className={cn('text-4xl font-extrabold', isPro ? 'text-primary' : 'text-foreground')}>{monthlyPrice}</span>
+                    <span className="text-sm text-muted-foreground">/mês</span>
+                  </div>
                   {isYearly && (
                     <p className="text-xs text-primary mt-1">
-                      R$ {plan.priceYearly}/ano (economia de R$ {plan.priceMonthly * 12 - plan.priceYearly})
+                      R$ {plan.priceYearly}/ano (economia de R$ {Math.round(plan.priceMonthly * 12 - plan.priceYearly)})
                     </p>
                   )}
                 </div>
@@ -154,7 +174,7 @@ export default function Precos() {
                 <ul className="space-y-2.5 flex-1">
                   {plan.features.map((feature) => (
                     <li key={feature} className="flex items-start gap-2 text-sm text-muted-foreground">
-                      <Check className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+                      <Check className={cn('h-4 w-4 shrink-0 mt-0.5', isPro ? 'text-primary' : 'text-emerald-500')} />
                       {feature}
                     </li>
                   ))}
@@ -164,9 +184,12 @@ export default function Precos() {
                   <GumroadCheckout
                     productUrl={gumroadUrl}
                     expectedPlan={key}
-                    buttonText={`Assinar ${plan.name}`}
+                    buttonText={isPro ? '🔥 Assinar Pro agora' : `Assinar ${plan.name}`}
                     variant={isPro ? 'default' : 'outline'}
-                    className={cn('w-full mt-2', isPro && 'bg-gradient-to-r from-primary to-accent hover:opacity-90')}
+                    className={cn(
+                      'w-full mt-2 font-semibold',
+                      isPro && 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25 text-base py-6'
+                    )}
                   />
                 )}
 
@@ -177,6 +200,26 @@ export default function Precos() {
             );
           })}
         </div>
+      </div>
+
+      {/* Guarantee Section */}
+      <div className="max-w-2xl mx-auto px-4 py-8">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="flex items-center gap-4 p-5 rounded-2xl border border-emerald-500/20 bg-emerald-500/5"
+        >
+          <div className="shrink-0 w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center">
+            <Shield className="h-6 w-6 text-emerald-400" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-foreground">Garantia incondicional de 7 dias</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Se não gostar, devolvemos 100% do seu dinheiro. Sem perguntas, sem burocracia.
+            </p>
+          </div>
+        </motion.div>
       </div>
 
       {/* Trust Badges */}
@@ -205,7 +248,7 @@ export default function Precos() {
               <tr className="border-b border-border">
                 <th className="text-left py-3 px-4 text-muted-foreground font-medium">Recurso</th>
                 <th className="text-center py-3 px-4 text-foreground font-semibold">Starter</th>
-                <th className="text-center py-3 px-4 text-primary font-semibold">Pro</th>
+                <th className="text-center py-3 px-4 text-primary font-semibold">Pro ⭐</th>
                 <th className="text-center py-3 px-4 text-yellow-500 font-semibold">Agency</th>
               </tr>
             </thead>
@@ -214,7 +257,7 @@ export default function Precos() {
                 <tr key={f.label} className="border-b border-border/50">
                   <td className="py-3 px-4 text-muted-foreground">{f.label}</td>
                   <td className="py-3 px-4 text-center text-foreground">{f.starter}</td>
-                  <td className="py-3 px-4 text-center text-foreground font-medium">{f.pro}</td>
+                  <td className="py-3 px-4 text-center text-foreground font-medium bg-primary/5">{f.pro}</td>
                   <td className="py-3 px-4 text-center text-foreground">{f.agency}</td>
                 </tr>
               ))}
