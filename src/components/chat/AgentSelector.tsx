@@ -165,7 +165,7 @@ export function AgentSelector({ onRequireAuth }: AgentSelectorProps) {
             )}
           </AnimatePresence>
 
-          <div className="relative bg-card/60 backdrop-blur-xl border border-border/30 rounded-full shadow-[0_8px_32px_-8px_hsl(var(--primary)/0.12)] focus-within:border-primary/40 focus-within:shadow-[0_8px_32px_-8px_hsl(var(--primary)/0.2)] transition-all duration-300">
+          <div className="relative bg-card/80 border border-border/30 rounded-full shadow-[var(--shadow-elevated)] focus-within:border-primary/40 transition-all duration-200">
             <div className="flex items-center gap-1 px-4 py-3">
               <div className="flex items-center gap-0.5 shrink-0">
                 <PillBtn icon={Paperclip} title="Anexar" onClick={() => { if (!user) { onRequireAuth(); return; } fileInputRef.current?.click(); }} />
