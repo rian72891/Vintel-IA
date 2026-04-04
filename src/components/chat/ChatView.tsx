@@ -496,7 +496,7 @@ export function ChatView() {
 
   return (
     <div className="flex-1 flex flex-col h-screen">
-      <div className="px-4 py-3 border-b border-border bg-background/80 backdrop-blur-sm flex items-center gap-3">
+      <div className="px-4 py-3 border-b border-border bg-background flex items-center gap-3">
         {agent && (
           <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center">
             <span className="text-sm">{agent.icon}</span>

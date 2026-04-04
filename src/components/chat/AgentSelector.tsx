@@ -115,11 +115,10 @@ export function AgentSelector({ onRequireAuth }: AgentSelectorProps) {
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center relative overflow-hidden">
-      {/* Mesh gradient background */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-primary/[0.07] blur-[120px] animate-pulse" style={{ animationDuration: '6s' }} />
-        <div className="absolute top-1/3 left-1/3 w-[400px] h-[400px] rounded-full bg-accent/[0.05] blur-[100px] animate-pulse" style={{ animationDuration: '8s', animationDelay: '2s' }} />
-        <div className="absolute bottom-1/3 right-1/3 w-[350px] h-[350px] rounded-full bg-primary/[0.04] blur-[90px] animate-pulse" style={{ animationDuration: '7s', animationDelay: '1s' }} />
+      {/* Static mesh gradient - GPU optimized */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none gpu-layer">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-primary/[0.06] blur-[100px]" />
+        <div className="absolute top-1/3 left-1/3 w-[400px] h-[400px] rounded-full bg-accent/[0.04] blur-[80px]" />
       </div>
 
       <div className="relative z-10 w-full px-4">
@@ -166,7 +165,7 @@ export function AgentSelector({ onRequireAuth }: AgentSelectorProps) {
             )}
           </AnimatePresence>
 
-          <div className="relative bg-card/60 backdrop-blur-xl border border-border/30 rounded-full shadow-[0_8px_32px_-8px_hsl(var(--primary)/0.12)] focus-within:border-primary/40 focus-within:shadow-[0_8px_32px_-8px_hsl(var(--primary)/0.2)] transition-all duration-300">
+          <div className="relative bg-card/80 border border-border/30 rounded-full shadow-[var(--shadow-elevated)] focus-within:border-primary/40 transition-all duration-200">
             <div className="flex items-center gap-1 px-4 py-3">
               <div className="flex items-center gap-0.5 shrink-0">
                 <PillBtn icon={Paperclip} title="Anexar" onClick={() => { if (!user) { onRequireAuth(); return; } fileInputRef.current?.click(); }} />
@@ -180,7 +179,7 @@ export function AgentSelector({ onRequireAuth }: AgentSelectorProps) {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 8, scale: 0.96 }}
                         transition={{ duration: 0.15 }}
-                        className="absolute bottom-full left-0 mb-2 w-52 bg-popover/95 backdrop-blur-xl border border-border/40 rounded-xl shadow-lg p-1 z-50"
+                        className="absolute bottom-full left-0 mb-2 w-52 bg-popover border border-border/40 rounded-xl shadow-lg p-1 z-50"
                       >
                         {toolItems.map((item, i) => (
                           <button
@@ -234,7 +233,7 @@ export function AgentSelector({ onRequireAuth }: AgentSelectorProps) {
             <button
               key={i}
               onClick={() => handleSelectAgent(action.agent)}
-              className="flex items-center gap-2 px-4 py-2 rounded-full bg-card/40 backdrop-blur-sm border border-border/30 text-sm text-muted-foreground hover:text-foreground hover:border-primary/30 hover:bg-card/60 transition-all duration-200"
+              className="flex items-center gap-2 px-4 py-2 rounded-full bg-card/60 border border-border/30 text-sm text-muted-foreground hover:text-foreground hover:border-primary/30 hover:bg-card/80 transition-colors touch-feedback"
             >
               <action.icon className="h-3.5 w-3.5" />
               <span>{action.label}</span>
@@ -256,7 +255,7 @@ export function AgentSelector({ onRequireAuth }: AgentSelectorProps) {
                 <button
                   key={agent.id}
                   onClick={() => handleSelectAgent(agent.id)}
-                  className="group flex flex-col items-center gap-2 p-3 rounded-xl bg-card/30 backdrop-blur-sm border border-border/20 hover:border-primary/30 hover:bg-card/50 transition-all duration-200 text-center"
+                  className="group flex flex-col items-center gap-2 p-3 rounded-xl bg-card/40 border border-border/20 hover:border-primary/30 hover:bg-card/60 transition-colors text-center touch-feedback"
                 >
                   <IconComp className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
                   <span className="text-xs font-medium text-foreground/80">{agent.name}</span>

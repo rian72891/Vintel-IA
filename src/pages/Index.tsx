@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Menu, Plus } from 'lucide-react';
+import { Menu, Plus, Zap } from 'lucide-react';
 import { Sidebar } from '@/components/chat/Sidebar';
 import { AgentSelector } from '@/components/chat/AgentSelector';
 import { ChatView } from '@/components/chat/ChatView';
@@ -12,40 +12,39 @@ const Index = () => {
   const { user } = useAuth();
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
-  const requireAuth = (callback: () => void) => {
-    if (!user) {
-      setAuthModalOpen(true);
-      return;
-    }
-    callback();
-  };
+  const userInitial = user?.user_metadata?.full_name?.[0] || user?.email?.[0]?.toUpperCase() || '?';
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
       {user && <Sidebar />}
 
       <div className="flex-1 flex flex-col relative min-w-0">
+        {/* Minimal Header */}
         {user && !sidebarOpen && (
-          <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-background/80 backdrop-blur-sm">
+          <header className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-background">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-feedback"
               >
                 <Menu className="h-5 w-5" />
               </button>
-              <div className="flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50" />
-                <span className="text-sm font-semibold text-foreground tracking-tight">Vintel IA</span>
+              <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Zap className="h-4 w-4 text-primary" />
               </div>
             </div>
-            <button
-              onClick={() => createConversation()}
-              className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            >
-              <Plus className="h-5 w-5" />
-            </button>
-          </div>
+
+            {/* Center: empty */}
+            <div className="flex-1" />
+
+            {/* Right: user avatar */}
+            <div className="relative">
+              <div className="h-8 w-8 rounded-full bg-primary/15 border border-primary/20 flex items-center justify-center">
+                <span className="text-xs font-semibold text-primary">{userInitial}</span>
+              </div>
+              <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-primary border-2 border-background" />
+            </div>
+          </header>
         )}
 
         {activeConversationId && user ? (
