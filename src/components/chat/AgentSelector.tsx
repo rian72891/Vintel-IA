@@ -179,7 +179,7 @@ export function AgentSelector({ onRequireAuth }: AgentSelectorProps) {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 8, scale: 0.96 }}
                         transition={{ duration: 0.15 }}
-                        className="absolute bottom-full left-0 mb-2 w-52 bg-popover/95 backdrop-blur-xl border border-border/40 rounded-xl shadow-lg p-1 z-50"
+                        className="absolute bottom-full left-0 mb-2 w-52 bg-popover border border-border/40 rounded-xl shadow-lg p-1 z-50"
                       >
                         {toolItems.map((item, i) => (
                           <button
