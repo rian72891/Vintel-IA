@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Menu, Plus, Zap } from 'lucide-react';
+import { Menu } from 'lucide-react';
+import vintelLogo from '@/assets/vintel-logo.png';
 import { Sidebar } from '@/components/chat/Sidebar';
 import { AgentSelector } from '@/components/chat/AgentSelector';
 import { ChatView } from '@/components/chat/ChatView';
@@ -21,16 +22,23 @@ const Index = () => {
       <div className="flex-1 flex flex-col relative min-w-0">
         {/* Minimal Header */}
         {user && !sidebarOpen && (
-          <header className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-background">
+          <header className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-background/80 will-change-transform">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-feedback"
+                className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors active:scale-95"
               >
                 <Menu className="h-5 w-5" />
               </button>
-              <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Zap className="h-4 w-4 text-primary" />
+              <div className="flex items-center gap-2 group cursor-default">
+                <img
+                  src={vintelLogo}
+                  alt="Vintel IA"
+                  className="h-7 w-7 rounded-lg object-cover transition-transform group-hover:scale-110"
+                />
+                <span className="text-sm font-semibold text-foreground tracking-tight transition-colors group-hover:text-primary">
+                  Vintel
+                </span>
               </div>
             </div>
 
