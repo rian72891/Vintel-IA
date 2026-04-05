@@ -11,6 +11,7 @@ import JSZip from 'jszip';
 interface ChatMessageProps {
   message: Message;
   audioUrl?: string | null;
+  isStreaming?: boolean;
 }
 
 interface Artifact {
