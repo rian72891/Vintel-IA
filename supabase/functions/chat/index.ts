@@ -381,9 +381,9 @@ serve(async (req) => {
       agency: "openai/gpt-5",
     };
     const maxTokensMap: Record<string, number> = {
-      free: 2000,
-      starter: 4000,
-      pro: 8000,
+      free: 4000,
+      starter: 6000,
+      pro: 10000,
       agency: 16000,
     };
     const model = modelMap[plan || "free"] || "google/gemini-2.5-flash-lite";
