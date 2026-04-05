@@ -547,36 +547,39 @@ export function ChatView() {
           <ChatMessage key={msg.id} message={msg} audioUrl={msg.content.startsWith('🔊 Áudio gerado') ? audioUrl : undefined} />
         ))}
         {isStreaming && streamingContent && (
-          <ChatMessage
-            message={{
-              id: 'streaming',
-              role: 'assistant',
-              content: streamingContent,
-              timestamp: new Date(),
-            }}
-          />
+          <div className="relative">
+            <ChatMessage
+              message={{
+                id: 'streaming',
+                role: 'assistant',
+                content: streamingContent,
+                timestamp: new Date(),
+              }}
+            />
+            <span className="inline-block w-[2px] h-[18px] bg-primary animate-blink ml-1 align-text-bottom" />
+          </div>
         )}
         {isStreaming && !streamingContent && (
           <div className="flex gap-3 px-4 py-3 max-w-4xl mx-auto">
-            <div className="h-7 w-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+            <div className="h-7 w-7 rounded-full bg-primary/10 border border-primary/15 flex items-center justify-center">
               {loadingLabel.includes('imagem') ? (
-                <ImageIcon className="h-4 w-4 text-primary animate-pulse" />
+                <ImageIcon className="h-3.5 w-3.5 text-primary animate-pulse" />
               ) : loadingLabel.includes('PDF') || loadingLabel.includes('HTML') || loadingLabel.includes('texto') || loadingLabel.includes('ZIP') ? (
-                <FileText className="h-4 w-4 text-primary animate-pulse" />
+                <FileText className="h-3.5 w-3.5 text-primary animate-pulse" />
               ) : loadingLabel.includes('áudio') ? (
-                <Mic className="h-4 w-4 text-primary animate-pulse" />
+                <Mic className="h-3.5 w-3.5 text-primary animate-pulse" />
               ) : (
-                <Loader2 className="h-4 w-4 text-primary animate-spin" />
+                <Loader2 className="h-3.5 w-3.5 text-primary animate-spin" />
               )}
             </div>
-            <div className="bg-card border border-border rounded-2xl rounded-bl-md px-4 py-3">
+            <div className="flex items-center gap-3 px-4 py-3">
               {loadingLabel ? (
-                <span className="text-xs text-muted-foreground">{loadingLabel}</span>
+                <span className="text-xs text-muted-foreground animate-pulse">{loadingLabel}</span>
               ) : (
-                <div className="flex gap-1">
-                  <span className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-pulse" />
-                  <span className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-pulse [animation-delay:0.2s]" />
-                  <span className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-pulse [animation-delay:0.4s]" />
+                <div className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-primary/50 animate-bounce [animation-delay:0ms]" />
+                  <span className="h-2 w-2 rounded-full bg-primary/50 animate-bounce [animation-delay:150ms]" />
+                  <span className="h-2 w-2 rounded-full bg-primary/50 animate-bounce [animation-delay:300ms]" />
                 </div>
               )}
             </div>

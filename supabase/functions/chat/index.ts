@@ -375,15 +375,15 @@ serve(async (req) => {
 
     // Model selection based on plan
     const modelMap: Record<string, string> = {
-      free: "google/gemini-2.5-flash-lite",
+      free: "google/gemini-3-flash-preview",
       starter: "google/gemini-2.5-flash",
       pro: "google/gemini-2.5-pro",
       agency: "openai/gpt-5",
     };
     const maxTokensMap: Record<string, number> = {
-      free: 2000,
-      starter: 4000,
-      pro: 8000,
+      free: 4000,
+      starter: 6000,
+      pro: 10000,
       agency: 16000,
     };
     const model = modelMap[plan || "free"] || "google/gemini-2.5-flash-lite";
