@@ -323,6 +323,9 @@ export function ChatMessage({ message, audioUrl, isStreaming }: ChatMessageProps
             >
               {cleanContent}
             </ReactMarkdown>
+            {isStreaming && (
+              <span className="inline-block w-[2px] h-[1em] bg-primary animate-blink align-text-bottom ml-0.5" />
+            )}
           </div>
         ) : null}
       </div>
