@@ -37,7 +37,7 @@ const getFileIcon = (filename: string) => {
   }
 };
 
-export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
+export function ChatMessage({ message, audioUrl, isStreaming }: ChatMessageProps) {
   const isUser = message.role === 'user';
   const isVoiceMessage = isUser && message.content.startsWith('🎤 ');
   const [copiedBlock, setCopiedBlock] = useState<number | null>(null);
