@@ -11,6 +11,7 @@ import JSZip from 'jszip';
 interface ChatMessageProps {
   message: Message;
   audioUrl?: string | null;
+  isStreaming?: boolean;
 }
 
 interface Artifact {
@@ -36,7 +37,7 @@ const getFileIcon = (filename: string) => {
   }
 };
 
-export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
+export function ChatMessage({ message, audioUrl, isStreaming }: ChatMessageProps) {
   const isUser = message.role === 'user';
   const isVoiceMessage = isUser && message.content.startsWith('🎤 ');
   const [copiedBlock, setCopiedBlock] = useState<number | null>(null);
@@ -322,6 +323,9 @@ export function ChatMessage({ message, audioUrl }: ChatMessageProps) {
             >
               {cleanContent}
             </ReactMarkdown>
+            {isStreaming && (
+              <span className="inline-block w-[2px] h-[1em] bg-primary animate-blink align-text-bottom ml-0.5" />
+            )}
           </div>
         ) : null}
       </div>

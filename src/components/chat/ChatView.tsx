@@ -547,17 +547,15 @@ export function ChatView() {
           <ChatMessage key={msg.id} message={msg} audioUrl={msg.content.startsWith('🔊 Áudio gerado') ? audioUrl : undefined} />
         ))}
         {isStreaming && streamingContent && (
-          <div className="relative">
-            <ChatMessage
-              message={{
-                id: 'streaming',
-                role: 'assistant',
-                content: streamingContent,
-                timestamp: new Date(),
-              }}
-            />
-            <span className="inline-block w-[2px] h-[18px] bg-primary animate-blink ml-1 align-text-bottom" />
-          </div>
+          <ChatMessage
+            message={{
+              id: 'streaming',
+              role: 'assistant',
+              content: streamingContent,
+              timestamp: new Date(),
+            }}
+            isStreaming
+          />
         )}
         {isStreaming && !streamingContent && (
           <div className="flex gap-3 px-4 py-3 max-w-4xl mx-auto">
