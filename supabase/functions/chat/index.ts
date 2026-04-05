@@ -375,7 +375,7 @@ serve(async (req) => {
 
     // Model selection based on plan
     const modelMap: Record<string, string> = {
-      free: "google/gemini-2.5-flash-lite",
+      free: "google/gemini-3-flash-preview",
       starter: "google/gemini-2.5-flash",
       pro: "google/gemini-2.5-pro",
       agency: "openai/gpt-5",

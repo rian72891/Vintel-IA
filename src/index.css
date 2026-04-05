@@ -158,10 +158,18 @@
     background: hsl(var(--card) / 0.85);
   }
 
-  .gpu-layer {
-    will-change: transform;
-    transform: translateZ(0);
-  }
+.gpu-layer {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+.animate-blink {
+  animation: blink 1s step-end infinite;
+}
 
   .touch-feedback {
     transition: transform 0.1s ease;
