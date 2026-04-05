@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { lovable } from '@/integrations/lovable/index';
-import { Zap, Mail, Lock, User, Loader2 } from 'lucide-react';
+import { Mail, Lock, User, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
+import vintelLogo from '@/assets/vintel-logo.png';
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -60,24 +61,32 @@ export default function Auth() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-sm"
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-sm flex flex-col items-center"
       >
-        {/* Logo */}
-        <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
-            <Zap className="h-6 w-6 text-primary-foreground" />
-          </div>
-          <span className="text-2xl font-bold text-foreground tracking-tight">Vintel IA</span>
-        </div>
+        {/* Logo with glow pulse */}
+        <motion.div
+          className="relative mb-6"
+          whileHover={{ scale: 1.05 }}
+          transition={{ type: 'spring', stiffness: 300 }}
+        >
+          <div className="absolute inset-0 rounded-full bg-primary/20 blur-2xl animate-pulse" />
+          <img
+            src={vintelLogo}
+            alt="Vintel IA"
+            className="relative h-20 w-20 rounded-2xl object-cover"
+          />
+        </motion.div>
 
-        <div className="bg-card border border-border rounded-2xl p-6">
-          <h1 className="text-lg font-semibold text-foreground text-center mb-1">
-            {isLogin ? 'Entrar na sua conta' : 'Criar nova conta'}
-          </h1>
-          <p className="text-sm text-muted-foreground text-center mb-6">
-            {isLogin ? 'Acesse seus chats e histórico' : 'Comece a usar o Vintel IA gratuitamente'}
-          </p>
+        {/* Title */}
+        <h1 className="text-xl font-bold text-foreground tracking-tight mb-1">
+          Vintel IA: Acesso Premium
+        </h1>
+        <p className="text-sm text-muted-foreground mb-8">
+          Entre para criar 10x mais rápido
+        </p>
 
+        <div className="w-full bg-card border border-border rounded-2xl p-6">
           <button
             onClick={handleGoogle}
             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-border rounded-xl text-sm font-medium text-foreground hover:bg-muted transition-colors mb-4"
@@ -140,7 +149,7 @@ export default function Auth() {
               className="w-full py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isLogin ? 'Entrar' : 'Criar conta'}
+              {isLogin ? 'Desbloquear Acesso Pro' : 'Criar conta'}
             </button>
           </form>
 
