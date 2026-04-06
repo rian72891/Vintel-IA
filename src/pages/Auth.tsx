@@ -16,7 +16,6 @@ export default function Auth() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -24,12 +23,8 @@ export default function Auth() {
         toast.success('Bem-vindo de volta!');
       } else {
         const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { full_name: name },
-            emailRedirectTo: window.location.origin,
-          },
+          email, password,
+          options: { data: { full_name: name }, emailRedirectTo: window.location.origin },
         });
         if (error) throw error;
         toast.success('Conta criada! Verifique seu email para confirmar.');
@@ -43,9 +38,7 @@ export default function Auth() {
 
   const handleGoogle = async () => {
     try {
-      const { error } = await lovable.auth.signInWithOAuth('google', {
-        redirect_uri: window.location.origin,
-      });
+      const { error } = await lovable.auth.signInWithOAuth('google', { redirect_uri: window.location.origin });
       if (error) {
         console.error('Google OAuth error:', error);
         toast.error('Login com Google indisponível neste domínio. Use email e senha.');
@@ -58,29 +51,29 @@ export default function Auth() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      {/* Subtle ambient glow */}
+      <div className="fixed inset-0 pointer-events-none gpu-layer">
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[500px] h-[500px] rounded-full bg-primary/[0.05]" />
+      </div>
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-sm flex flex-col items-center"
+        className="relative z-10 w-full max-w-sm flex flex-col items-center"
       >
-        {/* Logo with glow pulse */}
+        {/* Logo with pulse glow */}
         <motion.div
           className="relative mb-6"
           whileHover={{ scale: 1.05 }}
           transition={{ type: 'spring', stiffness: 300 }}
         >
-          <div className="absolute inset-0 rounded-full bg-primary/20 blur-2xl animate-pulse" />
-          <img
-            src={vintelLogo}
-            alt="Vintel IA"
-            className="relative h-20 w-20 rounded-2xl object-cover"
-          />
+          <div className="absolute inset-[-12px] rounded-full bg-primary/15 animate-pulse" />
+          <img src={vintelLogo} alt="Vintel IA" className="relative h-20 w-20 rounded-2xl object-cover" />
         </motion.div>
 
-        {/* Title */}
         <h1 className="text-xl font-bold text-foreground tracking-tight mb-1">
-          Vintel IA: Acesso Premium
+          Bem-vindo à <span className="animated-gradient-text">Vintel IA</span>
         </h1>
         <p className="text-sm text-muted-foreground mb-8">
           Entre para criar 10x mais rápido
@@ -110,44 +103,22 @@ export default function Auth() {
             {!isLogin && (
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Seu nome"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-background border border-input rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                  required
-                />
+                <input type="text" placeholder="Seu nome" value={name} onChange={(e) => setName(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 bg-background border border-input rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" required />
               </div>
             )}
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <input
-                type="email"
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-background border border-input rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                required
-              />
+              <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 bg-background border border-input rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" required />
             </div>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <input
-                type="password"
-                placeholder="Senha"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-background border border-input rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                required
-                minLength={6}
-              />
+              <input type="password" placeholder="Senha" value={password} onChange={(e) => setPassword(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 bg-background border border-input rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" required minLength={6} />
             </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
-            >
+            <button type="submit" disabled={loading}
+              className="w-full py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2">
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               {isLogin ? 'Desbloquear Acesso Pro' : 'Criar conta'}
             </button>
@@ -155,17 +126,14 @@ export default function Auth() {
 
           <p className="text-xs text-muted-foreground text-center mt-4">
             {isLogin ? 'Não tem conta?' : 'Já tem conta?'}{' '}
-            <button
-              onClick={() => setIsLogin(!isLogin)}
-              className="text-primary hover:underline font-medium"
-            >
+            <button onClick={() => setIsLogin(!isLogin)} className="text-primary hover:underline font-medium">
               {isLogin ? 'Criar conta' : 'Entrar'}
             </button>
           </p>
         </div>
 
-        <p className="text-[10px] text-muted-foreground text-center mt-4">
-          Plano gratuito: 5 mensagens por dia
+        <p className="text-[10px] text-muted-foreground/40 text-center mt-6">
+          Powered by Gemini Pro & GPT-4o
         </p>
       </motion.div>
     </div>
