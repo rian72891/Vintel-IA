@@ -23,34 +23,36 @@ const Index = () => {
         {/* Minimal Header */}
         {user && !sidebarOpen && (
           <header className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-background/80 will-change-transform">
-            <div className="flex items-center gap-3">
+            {/* Left: menu */}
+            <div className="w-10">
               <button
                 onClick={() => setSidebarOpen(true)}
                 className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors active:scale-95"
               >
                 <Menu className="h-5 w-5" />
               </button>
-              <div className="flex items-center gap-2 group cursor-default">
-                <img
-                  src={vintelLogo}
-                  alt="Vintel IA"
-                  className="h-7 w-7 rounded-lg object-cover transition-transform group-hover:scale-110"
-                />
-                <span className="text-sm font-semibold text-foreground tracking-tight transition-colors group-hover:text-primary">
-                  Vintel
-                </span>
-              </div>
             </div>
 
-            {/* Center: empty */}
-            <div className="flex-1" />
+            {/* Center: brand */}
+            <div className="flex items-center gap-2 group cursor-default">
+              <img
+                src={vintelLogo}
+                alt="Vintel IA"
+                className="h-7 w-7 rounded-lg object-cover transition-transform group-hover:scale-110"
+              />
+              <span className="text-sm font-semibold text-foreground tracking-tight transition-colors group-hover:text-primary">
+                Vintel
+              </span>
+            </div>
 
             {/* Right: user avatar */}
-            <div className="relative">
-              <div className="h-8 w-8 rounded-full bg-primary/15 border border-primary/20 flex items-center justify-center">
-                <span className="text-xs font-semibold text-primary">{userInitial}</span>
+            <div className="w-10 flex justify-end">
+              <div className="relative">
+                <div className="h-8 w-8 rounded-full bg-primary/15 border border-primary/20 flex items-center justify-center">
+                  <span className="text-xs font-semibold text-primary">{userInitial}</span>
+                </div>
+                <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-primary border-2 border-background" />
               </div>
-              <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-primary border-2 border-background" />
             </div>
           </header>
         )}
