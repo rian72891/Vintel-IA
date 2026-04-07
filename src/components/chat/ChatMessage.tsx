@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { Message } from '@/types/agent';
 import { cn } from '@/lib/utils';
-import { Bot, User, Download, Copy, Check, Volume2, Pause, FileText, Code, FileArchive, File, Mic, FileCode, Share2, Loader2, CheckCircle2 } from 'lucide-react';
+import { Bot, User, Download, Copy, Check, Volume2, Pause, FileText, Code, FileArchive, File, Mic, FileCode, Share2, Loader2, CheckCircle2, Pencil } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
@@ -12,6 +12,7 @@ interface ChatMessageProps {
   message: Message;
   audioUrl?: string | null;
   isStreaming?: boolean;
+  onEdit?: (content: string) => void;
 }
 
 interface Artifact {
@@ -37,7 +38,7 @@ const getFileIcon = (filename: string) => {
   }
 };
 
-export function ChatMessage({ message, audioUrl, isStreaming }: ChatMessageProps) {
+export function ChatMessage({ message, audioUrl, isStreaming, onEdit }: ChatMessageProps) {
   const isUser = message.role === 'user';
   const isVoiceMessage = isUser && message.content.startsWith('🎤 ');
   const [copiedBlock, setCopiedBlock] = useState<number | null>(null);
@@ -46,6 +47,8 @@ export function ChatMessage({ message, audioUrl, isStreaming }: ChatMessageProps
   const [downloadedAll, setDownloadedAll] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editText, setEditText] = useState('');
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const { cleanContent, artifacts } = useMemo(() => {
@@ -155,6 +158,23 @@ export function ChatMessage({ message, audioUrl, isStreaming }: ChatMessageProps
     }
   };
 
+  const startEdit = () => {
+    setEditText(message.content);
+    setIsEditing(true);
+  };
+
+  const confirmEdit = () => {
+    if (editText.trim() && onEdit) {
+      onEdit(editText.trim());
+    }
+    setIsEditing(false);
+  };
+
+  const cancelEdit = () => {
+    setIsEditing(false);
+    setEditText('');
+  };
+
   let codeBlockIdx = 0;
 
   return (
@@ -162,7 +182,7 @@ export function ChatMessage({ message, audioUrl, isStreaming }: ChatMessageProps
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, ease: 'easeOut' }}
-      className={cn('flex gap-3 px-4 py-3 max-w-4xl mx-auto w-full', isUser ? 'justify-end' : 'justify-start')}
+      className={cn('group flex gap-3 px-4 py-3 max-w-4xl mx-auto w-full', isUser ? 'justify-end' : 'justify-start')}
     >
       {!isUser && (
         <div className="h-7 w-7 rounded-full bg-primary/10 border border-primary/15 flex items-center justify-center shrink-0 mt-1">
@@ -171,12 +191,23 @@ export function ChatMessage({ message, audioUrl, isStreaming }: ChatMessageProps
       )}
       <div
         className={cn(
-          'max-w-[85%] rounded-2xl',
+          'max-w-[85%] rounded-2xl relative',
           isUser
             ? 'bg-primary text-primary-foreground rounded-br-sm px-4 py-2.5'
             : 'text-foreground'
         )}
       >
+        {/* Edit button for user messages */}
+        {isUser && onEdit && !isEditing && (
+          <button
+            onClick={startEdit}
+            className="absolute -left-9 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 opacity-0 group-hover:opacity-100 transition-all"
+            title="Editar mensagem"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+        )}
+
         {isVoiceMessage && (
           <div className="flex items-center gap-1.5 mb-1 opacity-70">
             <Mic className="h-3 w-3" />
@@ -187,9 +218,9 @@ export function ChatMessage({ message, audioUrl, isStreaming }: ChatMessageProps
         {message.attachments?.map((att, i) => (
           <div key={i} className="mb-2.5">
             {att.type === 'image' ? (
-              <div className="group relative inline-block">
+              <div className="group/img relative inline-block">
                 <img src={att.url} alt={att.name} className="rounded-xl max-h-72 object-contain cursor-pointer hover:opacity-95 transition-opacity" onClick={() => window.open(att.url, '_blank')} />
-                <button onClick={(e) => { e.stopPropagation(); downloadImage(att.url, att.name || undefined); }} className="absolute bottom-2 right-2 p-1.5 bg-background/80 backdrop-blur-sm border border-border/50 rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-background flex items-center gap-1.5" title="Baixar imagem">
+                <button onClick={(e) => { e.stopPropagation(); downloadImage(att.url, att.name || undefined); }} className="absolute bottom-2 right-2 p-1.5 bg-background/80 backdrop-blur-sm border border-border/50 rounded-lg opacity-0 group-hover/img:opacity-100 transition-all hover:bg-background flex items-center gap-1.5" title="Baixar imagem">
                   <Download className="h-3.5 w-3.5 text-foreground" />
                   <span className="text-[11px] text-foreground font-medium">Baixar</span>
                 </button>
@@ -238,7 +269,7 @@ export function ChatMessage({ message, audioUrl, isStreaming }: ChatMessageProps
               </div>
             </div>
             {artifacts.map((artifact, idx) => (
-              <div key={idx} className="group bg-muted/30 border border-border/50 rounded-xl overflow-hidden hover:border-primary/30 transition-all">
+              <div key={idx} className="group/art bg-muted/30 border border-border/50 rounded-xl overflow-hidden hover:border-primary/30 transition-all">
                 <div className="flex items-center justify-between p-2.5">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
                     {getFileIcon(artifact.filename)}
@@ -272,7 +303,30 @@ export function ChatMessage({ message, audioUrl, isStreaming }: ChatMessageProps
         )}
 
         {isUser ? (
-          <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{isVoiceMessage ? message.content.replace('🎤 ', '') : message.content}</p>
+          isEditing ? (
+            <div className="space-y-2">
+              <textarea
+                value={editText}
+                onChange={(e) => setEditText(e.target.value)}
+                className="w-full bg-primary-foreground/10 border border-primary-foreground/20 rounded-lg px-3 py-2 text-[15px] text-primary-foreground placeholder:text-primary-foreground/50 resize-none focus:outline-none min-h-[60px]"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); confirmEdit(); }
+                  if (e.key === 'Escape') cancelEdit();
+                }}
+              />
+              <div className="flex items-center gap-2 justify-end">
+                <button onClick={cancelEdit} className="px-3 py-1 text-xs text-primary-foreground/70 hover:text-primary-foreground rounded-lg transition-colors">
+                  Cancelar
+                </button>
+                <button onClick={confirmEdit} className="px-3 py-1 text-xs bg-primary-foreground/20 hover:bg-primary-foreground/30 text-primary-foreground rounded-lg transition-colors font-medium">
+                  Enviar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{isVoiceMessage ? message.content.replace('🎤 ', '') : message.content}</p>
+          )
         ) : cleanContent ? (
           <div className="prose prose-sm dark:prose-invert max-w-none
             prose-p:text-[15px] prose-p:leading-[1.7] prose-p:my-2 prose-p:text-foreground
@@ -294,7 +348,7 @@ export function ChatMessage({ message, audioUrl, isStreaming }: ChatMessageProps
                     const currentIdx = codeBlockIdx++;
                     const codeStr = String(children).replace(/\n$/, '');
                     return (
-                      <div className="relative group my-3 rounded-xl overflow-hidden border border-border/40 bg-[hsl(var(--background))]">
+                      <div className="relative group/code my-3 rounded-xl overflow-hidden border border-border/40 bg-[hsl(var(--background))]">
                         <div className="flex items-center justify-between bg-muted/60 px-4 py-1.5 text-[11px] text-muted-foreground border-b border-border/30">
                           <span className="font-medium uppercase tracking-wider text-[10px]">{match?.[1] || 'code'}</span>
                           <button onClick={() => copyCode(codeStr, currentIdx)} className="flex items-center gap-1.5 text-[11px] hover:text-foreground transition-colors">
@@ -311,9 +365,9 @@ export function ChatMessage({ message, audioUrl, isStreaming }: ChatMessageProps
                 },
                 img({ src, alt }) {
                   return (
-                    <div className="my-3 group relative inline-block">
+                    <div className="my-3 group/img relative inline-block">
                       <img src={src} alt={alt || ''} className="rounded-xl max-h-96 object-contain cursor-pointer hover:opacity-95 transition-opacity" onClick={() => src && window.open(src, '_blank')} />
-                      <button onClick={(e) => { e.stopPropagation(); if (src) downloadImage(src, alt || undefined); }} className="absolute bottom-2 right-2 p-1.5 bg-background/80 backdrop-blur-sm border border-border/50 rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-background" title="Baixar imagem">
+                      <button onClick={(e) => { e.stopPropagation(); if (src) downloadImage(src, alt || undefined); }} className="absolute bottom-2 right-2 p-1.5 bg-background/80 backdrop-blur-sm border border-border/50 rounded-lg opacity-0 group-hover/img:opacity-100 transition-all hover:bg-background" title="Baixar imagem">
                         <Download className="h-3.5 w-3.5 text-foreground" />
                       </button>
                     </div>

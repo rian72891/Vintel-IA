@@ -7,69 +7,114 @@ export async function generatePDF(content: string, title = 'Documento Vintel IA'
   const pageHeight = pdf.internal.pageSize.height;
   const margin = 20;
   const contentWidth = pageWidth - 2 * margin;
-  let y = 25;
+  let y = 30;
 
-  pdf.setFontSize(20);
+  // Header accent bar
+  pdf.setFillColor(99, 102, 241); // indigo-500
+  pdf.rect(0, 0, pageWidth, 4, 'F');
+
+  // Title
+  pdf.setFontSize(22);
   pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(30, 30, 30);
   const titleWrapped = pdf.splitTextToSize(title, contentWidth);
   pdf.text(titleWrapped, margin, y);
-  y += titleWrapped.length * 10 + 5;
+  y += titleWrapped.length * 10 + 4;
 
-  pdf.setDrawColor(200, 200, 200);
+  // Subtitle line
+  pdf.setFontSize(9);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(140, 140, 140);
+  pdf.text(`Gerado por Vintel IA • ${new Date().toLocaleDateString('pt-BR')}`, margin, y);
+  y += 8;
+
+  // Divider
+  pdf.setDrawColor(220, 220, 220);
+  pdf.setLineWidth(0.3);
   pdf.line(margin, y, pageWidth - margin, y);
   y += 10;
 
+  pdf.setTextColor(40, 40, 40);
   const lines = content.split('\n');
 
   for (const line of lines) {
-    if (y > pageHeight - 25) {
+    if (y > pageHeight - 30) {
       pdf.addPage();
-      y = 25;
+      pdf.setFillColor(99, 102, 241);
+      pdf.rect(0, 0, pageWidth, 2, 'F');
+      y = 20;
     }
 
     if (line.startsWith('# ')) {
       pdf.setFontSize(18);
       pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(30, 30, 30);
       const text = line.replace('# ', '');
       const wrapped = pdf.splitTextToSize(text, contentWidth);
-      y += 4;
+      y += 6;
       pdf.text(wrapped, margin, y);
       y += wrapped.length * 9 + 4;
     } else if (line.startsWith('## ')) {
       pdf.setFontSize(14);
       pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(60, 60, 60);
       const text = line.replace('## ', '');
       const wrapped = pdf.splitTextToSize(text, contentWidth);
-      y += 3;
+      y += 5;
       pdf.text(wrapped, margin, y);
       y += wrapped.length * 7 + 3;
     } else if (line.startsWith('### ')) {
       pdf.setFontSize(12);
       pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(70, 70, 70);
       const text = line.replace('### ', '');
       const wrapped = pdf.splitTextToSize(text, contentWidth);
-      y += 2;
+      y += 3;
       pdf.text(wrapped, margin, y);
       y += wrapped.length * 6 + 2;
+    } else if (line.startsWith('> ')) {
+      // Blockquote with left bar
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'italic');
+      pdf.setTextColor(100, 100, 100);
+      const text = line.replace('> ', '');
+      const wrapped = pdf.splitTextToSize(text, contentWidth - 10);
+      pdf.setFillColor(99, 102, 241);
+      pdf.rect(margin, y - 4, 1.5, wrapped.length * 5.5 + 2, 'F');
+      pdf.text(wrapped, margin + 6, y);
+      y += wrapped.length * 5.5 + 2;
+      pdf.setTextColor(40, 40, 40);
     } else if (line.startsWith('- ') || line.startsWith('* ')) {
       pdf.setFontSize(10);
       pdf.setFont('helvetica', 'normal');
-      const text = '• ' + line.replace(/^[-*]\s/, '').replace(/\*\*/g, '');
-      const wrapped = pdf.splitTextToSize(text, contentWidth - 5);
-      pdf.text(wrapped, margin + 5, y);
-      y += wrapped.length * 5.5;
+      pdf.setTextColor(50, 50, 50);
+      const text = line.replace(/^[-*]\s/, '').replace(/\*\*/g, '');
+      const wrapped = pdf.splitTextToSize(text, contentWidth - 10);
+      // Bullet circle
+      pdf.setFillColor(99, 102, 241);
+      pdf.circle(margin + 2, y - 1.2, 1, 'F');
+      pdf.text(wrapped, margin + 7, y);
+      y += wrapped.length * 5.5 + 1;
     } else if (/^\d+\.\s/.test(line)) {
       pdf.setFontSize(10);
       pdf.setFont('helvetica', 'normal');
-      const text = line.replace(/\*\*/g, '');
-      const wrapped = pdf.splitTextToSize(text, contentWidth - 5);
-      pdf.text(wrapped, margin + 5, y);
-      y += wrapped.length * 5.5;
+      pdf.setTextColor(50, 50, 50);
+      const num = line.match(/^(\d+)\./)?.[1] || '';
+      const text = line.replace(/^\d+\.\s/, '').replace(/\*\*/g, '');
+      const wrapped = pdf.splitTextToSize(text, contentWidth - 10);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(99, 102, 241);
+      pdf.text(`${num}.`, margin, y);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(50, 50, 50);
+      pdf.text(wrapped, margin + 7, y);
+      y += wrapped.length * 5.5 + 1;
     } else if (line === '') {
       y += 3;
     } else {
       pdf.setFontSize(10);
       pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(50, 50, 50);
       const text = line.replace(/\*\*/g, '').replace(/\*/g, '').replace(/`/g, '');
       const wrapped = pdf.splitTextToSize(text, contentWidth);
       pdf.text(wrapped, margin, y);
@@ -80,11 +125,15 @@ export async function generatePDF(content: string, title = 'Documento Vintel IA'
   const pageCount = pdf.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     pdf.setPage(i);
+    // Footer
+    pdf.setDrawColor(230, 230, 230);
+    pdf.setLineWidth(0.2);
+    pdf.line(margin, pageHeight - 16, pageWidth - margin, pageHeight - 16);
     pdf.setFontSize(8);
     pdf.setFont('helvetica', 'normal');
-    pdf.setTextColor(150, 150, 150);
-    pdf.text(`Gerado por Vintel IA • Página ${i} de ${pageCount}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
-    pdf.setTextColor(0, 0, 0);
+    pdf.setTextColor(160, 160, 160);
+    pdf.text(`Vintel IA`, margin, pageHeight - 10);
+    pdf.text(`Página ${i} de ${pageCount}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
   }
 
   const blob = pdf.output('blob');
