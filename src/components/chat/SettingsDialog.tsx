@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useChatStore } from '@/store/chatStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -6,10 +5,13 @@ import { useUsage } from '@/hooks/useUsage';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
+import { Slider } from '@/components/ui/slider';
 import {
   Sun, Moon, Crown, RefreshCw, LogOut, User, Zap, MessageSquare,
-  Image, FileText, Mic, Eye, Loader2, Palette, Settings2, Brain, Key, Copy, Check
+  Image, FileText, Mic, Eye, Loader2, Palette, Settings2, Brain, Key, Copy, Check,
+  Thermometer
 } from 'lucide-react';
+import { useState } from 'react';
 import { PLANS, PlanKey } from '@/lib/stripe';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -21,14 +23,12 @@ interface SettingsDialogProps {
 }
 
 export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
-  const { theme, setTheme } = useChatStore();
+  const { theme, setTheme, temperature, setTemperature, verboseMode, setVerboseMode, streamingEnabled, setStreamingEnabled } = useChatStore();
   const { user } = useAuth();
   const { plan, subscribed, loading: subLoading, checkSubscription } = useSubscription();
   const { usage, refreshUsage, getUsagePercent, getUsageLabel } = useUsage();
   const [syncing, setSyncing] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
-  const [streamingEnabled, setStreamingEnabled] = useState(true);
-  const [verboseMode, setVerboseMode] = useState<'short' | 'detailed'>('detailed');
   const [copiedKey, setCopiedKey] = useState(false);
 
   const planData = PLANS[plan as PlanKey] || PLANS.free;
@@ -71,6 +71,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     pro: 'bg-accent/10 text-accent',
     agency: 'bg-orange-500/10 text-orange-500',
   };
+
+  const temperatureLabel = temperature <= 0.3 ? 'Preciso' : temperature >= 0.8 ? 'Criativo' : 'Balanceado';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -193,6 +195,37 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
           {/* ─── AI Tab ─── */}
           <TabsContent value="ai" className="space-y-5 mt-0">
+            {/* Temperature / Creativity */}
+            <div>
+              <div className="flex items-center gap-1.5 mb-2.5">
+                <Thermometer className="h-4 w-4 text-primary" />
+                <label className="text-sm font-semibold text-foreground">Criatividade</label>
+                <span className={cn(
+                  'ml-auto text-[11px] font-semibold px-2 py-0.5 rounded-full',
+                  temperature <= 0.3 ? 'bg-cyan-500/10 text-cyan-500' :
+                  temperature >= 0.8 ? 'bg-orange-500/10 text-orange-500' :
+                  'bg-primary/10 text-primary'
+                )}>
+                  {temperatureLabel}
+                </span>
+              </div>
+              <div className="px-1">
+                <Slider
+                  value={[temperature]}
+                  onValueChange={([v]) => setTemperature(v)}
+                  min={0}
+                  max={1}
+                  step={0.1}
+                  className="w-full"
+                />
+              </div>
+              <div className="flex justify-between mt-1.5 px-1">
+                <span className="text-[10px] text-muted-foreground">Preciso</span>
+                <span className="text-[10px] text-muted-foreground">Criativo</span>
+              </div>
+            </div>
+
+            {/* Response style */}
             <div>
               <label className="text-sm font-semibold text-foreground mb-2.5 block">Estilo de Resposta</label>
               <div className="flex gap-2">
@@ -211,6 +244,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               </div>
             </div>
 
+            {/* Streaming */}
             <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50 border border-border">
               <div>
                 <p className="text-sm font-medium text-foreground">Modo Streaming</p>
