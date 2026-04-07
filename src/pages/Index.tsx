@@ -22,7 +22,7 @@ const Index = () => {
       <div className="flex-1 flex flex-col relative min-w-0">
         {/* Minimal Header */}
         {user && !sidebarOpen && (
-          <header className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-background/80 will-change-transform">
+          <header className="flex items-center justify-between px-4 py-2.5 bg-background will-change-transform">
             {/* Left: menu */}
             <div className="w-10">
               <button

@@ -41,9 +41,25 @@ export const useChatStore = create<ChatState>((set, get) => ({
   sidebarOpen: true,
   theme: savedTheme,
   loaded: false,
+  temperature: parseFloat(localStorage.getItem('vintel-temperature') || '0.7'),
+  verboseMode: (localStorage.getItem('vintel-verbose') as 'short' | 'detailed') || 'detailed',
+  streamingEnabled: localStorage.getItem('vintel-streaming') !== 'false',
 
   setSelectedAgent: (agent) => set({ selectedAgent: agent }),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
+
+  setTemperature: (temp) => {
+    localStorage.setItem('vintel-temperature', temp.toString());
+    set({ temperature: temp });
+  },
+  setVerboseMode: (mode) => {
+    localStorage.setItem('vintel-verbose', mode);
+    set({ verboseMode: mode });
+  },
+  setStreamingEnabled: (enabled) => {
+    localStorage.setItem('vintel-streaming', enabled.toString());
+    set({ streamingEnabled: enabled });
+  },
 
   setTheme: (theme) => {
     localStorage.setItem('vintel-theme', theme);
