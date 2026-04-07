@@ -246,6 +246,7 @@ export function ChatView() {
         messages: history,
         agent: conversation?.agent,
         plan,
+        temperature,
         onDelta: (delta) => {
           fullContent += delta;
           setStreamingContent(fullContent);
