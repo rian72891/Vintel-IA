@@ -425,7 +425,7 @@ serve(async (req) => {
             ...processedMessages,
           ],
           stream: true,
-          temperature: 0.7,
+          temperature: typeof userTemp === 'number' ? Math.min(Math.max(userTemp, 0), 1) : 0.7,
           max_tokens: maxTokens,
         }),
       }
