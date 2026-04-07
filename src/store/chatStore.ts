@@ -9,10 +9,16 @@ interface ChatState {
   sidebarOpen: boolean;
   theme: 'light' | 'dark';
   loaded: boolean;
+  temperature: number;
+  verboseMode: 'short' | 'detailed';
+  streamingEnabled: boolean;
 
   setSelectedAgent: (agent: AgentType | null) => void;
   setSidebarOpen: (open: boolean) => void;
   setTheme: (theme: 'light' | 'dark') => void;
+  setTemperature: (temp: number) => void;
+  setVerboseMode: (mode: 'short' | 'detailed') => void;
+  setStreamingEnabled: (enabled: boolean) => void;
   createConversation: (agent?: AgentType) => Promise<string | null>;
   setActiveConversation: (id: string | null) => void;
   addMessage: (conversationId: string, message: Omit<Message, 'id' | 'timestamp'>) => Promise<void>;
