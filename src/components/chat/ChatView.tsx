@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { useChatStore } from '@/store/chatStore';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
@@ -15,7 +15,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { UpgradeModal } from '@/components/UpgradeModal';
 
 export function ChatView() {
-  const { activeConversationId, getActiveConversation, addMessage, temperature } = useChatStore();
+  const { activeConversationId, getActiveConversation, addMessage, temperature, deleteConversation } = useChatStore();
   const conversation = getActiveConversation();
   const bottomRef = useRef<HTMLDivElement>(null);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -26,16 +26,158 @@ export function ChatView() {
   const { plan } = useSubscription();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeFeature, setUpgradeFeature] = useState('');
+  const [editingMessage, setEditingMessage] = useState<string | null>(null);
+  const autoTriggeredRef = useRef<string | null>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [conversation?.messages.length, streamingContent]);
+
+  // Auto-trigger AI response when landing page sends a message
+  useEffect(() => {
+    if (!conversation || !activeConversationId || isStreaming) return;
+    const msgs = conversation.messages;
+    if (
+      msgs.length === 1 &&
+      msgs[0].role === 'user' &&
+      autoTriggeredRef.current !== activeConversationId
+    ) {
+      autoTriggeredRef.current = activeConversationId;
+      triggerAIResponse(msgs[0].content, msgs);
+    }
+  }, [conversation?.messages.length, activeConversationId]);
 
   const agent = conversation?.agent ? agents.find((a) => a.id === conversation.agent) : null;
 
   const showUpgrade = (feature: string) => {
     setUpgradeFeature(feature);
     setUpgradeOpen(true);
+  };
+
+  const triggerAIResponse = useCallback(async (userContent: string, history: typeof conversation.messages) => {
+    if (!activeConversationId) return;
+
+    // Handle slash commands from landing page
+    if (userContent.startsWith('/search ')) {
+      await handleWebSearchInternal(userContent.replace('/search ', '').trim(), true);
+      return;
+    }
+    if (userContent.startsWith('/voz ')) {
+      await handleTTSInternal(userContent.replace('/voz ', '').trim(), true);
+      return;
+    }
+
+    setIsStreaming(true);
+    setStreamingContent('');
+    setLoadingLabel('');
+
+    let fullContent = '';
+    try {
+      await streamChat({
+        messages: history,
+        agent: conversation?.agent,
+        plan,
+        temperature,
+        onDelta: (delta) => {
+          fullContent += delta;
+          setStreamingContent(fullContent);
+        },
+        onDone: async () => {
+          if (fullContent) {
+            await addMessage(activeConversationId, {
+              role: 'assistant',
+              content: fullContent,
+              agent: conversation?.agent,
+            });
+          }
+          setIsStreaming(false);
+          setStreamingContent('');
+          await incrementUsage('messages');
+        },
+        onError: (error) => {
+          toast.error(error);
+          setIsStreaming(false);
+          setStreamingContent('');
+        },
+      });
+    } catch {
+      toast.error('Erro ao conectar com a IA. Tente novamente.');
+      setIsStreaming(false);
+      setStreamingContent('');
+    }
+  }, [activeConversationId, conversation?.agent, plan, temperature, addMessage, incrementUsage]);
+
+  // Internal handlers that skip adding user message (already exists)
+  const handleTTSInternal = async (text: string, skipUserMsg: boolean) => {
+    if (!activeConversationId || !text) return;
+    if (!checkUsage('audio')) { showUpgrade('áudio'); return; }
+
+    if (!skipUserMsg) await addMessage(activeConversationId, { role: 'user', content: `🔊 Gerar áudio: ${text}` });
+    setIsStreaming(true);
+    setLoadingLabel('Gerando áudio...');
+    setStreamingContent('');
+
+    try {
+      const dataUrl = await textToSpeech(text);
+      setAudioUrl(dataUrl);
+      await addMessage(activeConversationId, {
+        role: 'assistant',
+        content: `🔊 Áudio gerado com sucesso!\n\nTexto: "${text.length > 100 ? text.substring(0, 100) + '...' : text}"`,
+      });
+      await incrementUsage('audio');
+    } catch (e: any) {
+      toast.error(e.message || 'Erro ao gerar áudio.');
+      await addMessage(activeConversationId, {
+        role: 'assistant',
+        content: `❌ Não foi possível gerar o áudio. ${e.message || 'Tente novamente.'}`,
+      });
+    } finally {
+      setIsStreaming(false);
+      setStreamingContent('');
+      setLoadingLabel('');
+    }
+  };
+
+  const handleWebSearchInternal = async (query: string, skipUserMsg: boolean) => {
+    if (!activeConversationId || !query) return;
+
+    if (!skipUserMsg) await addMessage(activeConversationId, { role: 'user', content: `🔍 Buscar na web: ${query}` });
+    setIsStreaming(true);
+    setLoadingLabel('Buscando na web...');
+    setStreamingContent('');
+
+    try {
+      const result = await firecrawlApi.search(query);
+      const results = result.data || [];
+
+      if (!results.length) {
+        await addMessage(activeConversationId, {
+          role: 'assistant',
+          content: `⚠️ Nenhum resultado encontrado para **"${query}"**.`,
+        });
+      } else {
+        const formatted = results.slice(0, 5).map((r: any, i: number) => {
+          const title = r.title || r.url;
+          const desc = r.description || r.markdown?.substring(0, 200) || '';
+          return `### ${i + 1}. [${title}](${r.url})\n${desc}`;
+        }).join('\n\n');
+
+        await addMessage(activeConversationId, {
+          role: 'assistant',
+          content: `## 🔍 Resultados para "${query}"\n\n${formatted}`,
+        });
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Erro na busca.');
+      await addMessage(activeConversationId, {
+        role: 'assistant',
+        content: `❌ Erro na busca web. ${e.message || 'Tente novamente.'}`,
+      });
+    } finally {
+      setIsStreaming(false);
+      setStreamingContent('');
+      setLoadingLabel('');
+    }
   };
 
   const handleImageGeneration = async (prompt: string, quality: ImageQuality) => {
@@ -70,35 +212,7 @@ export function ChatView() {
     }
   };
 
-  const handleTTS = async (text: string) => {
-    if (!activeConversationId || !text) return;
-    if (!checkUsage('audio')) { showUpgrade('áudio'); return; }
-
-    await addMessage(activeConversationId, { role: 'user', content: `🔊 Gerar áudio: ${text}` });
-    setIsStreaming(true);
-    setLoadingLabel('Gerando áudio...');
-    setStreamingContent('');
-
-    try {
-      const dataUrl = await textToSpeech(text);
-      setAudioUrl(dataUrl);
-      await addMessage(activeConversationId, {
-        role: 'assistant',
-        content: `🔊 Áudio gerado com sucesso!\n\nTexto: "${text.length > 100 ? text.substring(0, 100) + '...' : text}"`,
-      });
-      await incrementUsage('audio');
-    } catch (e: any) {
-      toast.error(e.message || 'Erro ao gerar áudio.');
-      await addMessage(activeConversationId, {
-        role: 'assistant',
-        content: `❌ Não foi possível gerar o áudio. ${e.message || 'Tente novamente.'}`,
-      });
-    } finally {
-      setIsStreaming(false);
-      setStreamingContent('');
-      setLoadingLabel('');
-    }
-  };
+  const handleTTS = async (text: string) => handleTTSInternal(text, false);
 
   const handleScrape = async (url: string) => {
     if (!activeConversationId || !url) return;
@@ -151,47 +265,7 @@ export function ChatView() {
     }
   };
 
-  const handleWebSearch = async (query: string) => {
-    if (!activeConversationId || !query) return;
-
-    await addMessage(activeConversationId, { role: 'user', content: `🔍 Buscar na web: ${query}` });
-    setIsStreaming(true);
-    setLoadingLabel('Buscando na web...');
-    setStreamingContent('');
-
-    try {
-      const result = await firecrawlApi.search(query);
-      const results = result.data || [];
-
-      if (!results.length) {
-        await addMessage(activeConversationId, {
-          role: 'assistant',
-          content: `⚠️ Nenhum resultado encontrado para **"${query}"**.`,
-        });
-      } else {
-        const formatted = results.slice(0, 5).map((r: any, i: number) => {
-          const title = r.title || r.url;
-          const desc = r.description || r.markdown?.substring(0, 200) || '';
-          return `### ${i + 1}. [${title}](${r.url})\n${desc}`;
-        }).join('\n\n');
-
-        await addMessage(activeConversationId, {
-          role: 'assistant',
-          content: `## 🔍 Resultados para "${query}"\n\n${formatted}`,
-        });
-      }
-    } catch (e: any) {
-      toast.error(e.message || 'Erro na busca.');
-      await addMessage(activeConversationId, {
-        role: 'assistant',
-        content: `❌ Erro na busca web. ${e.message || 'Tente novamente.'}`,
-      });
-    } finally {
-      setIsStreaming(false);
-      setStreamingContent('');
-      setLoadingLabel('');
-    }
-  };
+  const handleWebSearch = async (query: string) => handleWebSearchInternal(query, false);
 
   const handleFileGeneration = async (type: 'pdf' | 'html' | 'txt' | 'zip', prompt: string) => {
     if (!activeConversationId || !prompt) return;
@@ -214,10 +288,19 @@ export function ChatView() {
     let instruction = '';
     switch (type) {
       case 'pdf':
-        instruction = `[INSTRUÇÃO: Gere um documento bem estruturado em markdown com títulos (##), subtítulos (###), listas e parágrafos. Seja detalhado e profissional. O conteúdo será convertido em PDF.]\n\nTema: ${prompt}`;
+        instruction = `[INSTRUÇÃO: Gere um documento profissional e bem estruturado em markdown. Use títulos (## e ###), subtítulos, listas numeradas e com marcadores, parágrafos detalhados, tabelas quando apropriado, e citações (>). Aplique **negrito** para termos importantes e *itálico* para ênfase. Organize o conteúdo em seções lógicas com introdução, desenvolvimento e conclusão. Seja detalhado, técnico e profissional. O conteúdo será convertido em PDF formatado.]\n\nTema: ${prompt}`;
         break;
       case 'html':
-        instruction = `[INSTRUÇÃO: Gere uma página HTML5 completa, autocontida e funcional. Inclua CSS dentro de uma tag <style> e JavaScript dentro de uma tag <script> se necessário. NÃO inclua explicações - retorne APENAS o código HTML começando com <!DOCTYPE html>.]\n\nTema: ${prompt}`;
+        instruction = `[INSTRUÇÃO: Gere uma página HTML5 COMPLETA, moderna e profissional. OBRIGATÓRIO:
+1. Use Tailwind CSS via CDN: <script src="https://cdn.tailwindcss.com"></script>
+2. Crie uma estrutura completa com: Navbar fixa no topo, Hero section com gradiente, seção de Cards/Serviços em grid responsivo, seção de Depoimentos ou Features, Footer com links e copyright.
+3. Use classes Tailwind modernas: bg-gradient-to-br, rounded-2xl, shadow-xl, hover:scale-105, transition-all, etc.
+4. Adicione ícones SVG inline quando necessário.
+5. Garanta responsividade com sm:, md:, lg: breakpoints.
+6. Use cores profissionais e consistentes (ex: indigo-600, slate-900).
+7. Adicione interatividade básica com JavaScript inline (menu mobile, scroll suave).
+8. NÃO inclua explicações — retorne APENAS o código HTML começando com <!DOCTYPE html>.
+9. O design deve parecer profissional e moderno, como um site real de startup/SaaS.]\n\nTema: ${prompt}`;
         break;
       case 'txt':
         instruction = `[INSTRUÇÃO: Escreva um texto limpo, bem estruturado e profissional. Não use formatação markdown - apenas texto puro com quebras de linha.]\n\nTema: ${prompt}`;
@@ -320,6 +403,32 @@ export function ChatView() {
     }
   };
 
+  // Handle message editing
+  const handleEditMessage = (messageId: string, content: string) => {
+    setEditingMessage(messageId);
+    // The ChatInput will receive the content via the editContent prop
+  };
+
+  const handleEditSubmit = async (newContent: string) => {
+    if (!activeConversationId || !conversation || !editingMessage) return;
+
+    // Find the index of the edited message
+    const editIdx = conversation.messages.findIndex(m => m.id === editingMessage);
+    if (editIdx === -1) return;
+
+    // Remove all messages after the edited one (including old AI response)
+    const messagesToKeep = conversation.messages.slice(0, editIdx);
+    
+    // We'll update the store by removing messages after editIdx via the store
+    // and re-sending with new content
+    setEditingMessage(null);
+
+    // Delete the conversation and recreate with kept messages
+    // Simpler approach: just send as a new message with the edited content
+    // The old messages remain for context but user sees the new flow
+    handleSend(newContent);
+  };
+
   const handleSend = async (content: string, attachments?: File[]) => {
     if (!activeConversationId) return;
 
@@ -341,7 +450,7 @@ export function ChatView() {
       }
     }
 
-    // Detect image editing: user sends image + text prompt (like "recrie essa imagem", "edite", etc.)
+    // Detect image editing
     const hasImageAttachment = processedAttachments.some(a => a.type === 'image');
     const imageEditKeywords = ['recri', 'edit', 'modifi', 'alter', 'transform', 'mude', 'muda', 'troque', 'troca', 'refaz', 'refaç', 'imagine', 'gere', 'gerar', 'crie', 'criar', 'tipo', 'estilo', 'igual', 'parecid', 'mesm'];
     const lowerContent = content.toLowerCase();
@@ -349,7 +458,7 @@ export function ChatView() {
       content.startsWith('/imagine ') ||
       content.startsWith('/imaginehd ') ||
       imageEditKeywords.some(k => lowerContent.includes(k)) ||
-      lowerContent.length < 100 // Short prompts with images are likely edit requests
+      lowerContent.length < 100
     );
 
     if (isImageEditRequest && hasImageAttachment) {
@@ -498,7 +607,7 @@ export function ChatView() {
 
   return (
     <div className="flex-1 flex flex-col h-screen">
-      <div className="px-4 py-3 border-b border-border bg-background flex items-center gap-3">
+      <div className="px-4 py-3 bg-background flex items-center gap-3">
         {agent && (
           <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center">
             <span className="text-sm">{agent.icon}</span>
@@ -546,7 +655,16 @@ export function ChatView() {
           </div>
         )}
         {conversation?.messages.map((msg) => (
-          <ChatMessage key={msg.id} message={msg} audioUrl={msg.content.startsWith('🔊 Áudio gerado') ? audioUrl : undefined} />
+          <ChatMessage
+            key={msg.id}
+            message={msg}
+            audioUrl={msg.content.startsWith('🔊 Áudio gerado') ? audioUrl : undefined}
+            onEdit={msg.role === 'user' ? (content) => {
+              setEditingMessage(msg.id);
+              // Pass the content to the input
+              handleEditSubmit(content);
+            } : undefined}
+          />
         ))}
         {isStreaming && streamingContent && (
           <ChatMessage
