@@ -15,7 +15,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { UpgradeModal } from '@/components/UpgradeModal';
 
 export function ChatView() {
-  const { activeConversationId, getActiveConversation, addMessage } = useChatStore();
+  const { activeConversationId, getActiveConversation, addMessage, temperature } = useChatStore();
   const conversation = getActiveConversation();
   const bottomRef = useRef<HTMLDivElement>(null);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -246,6 +246,7 @@ export function ChatView() {
         messages: history,
         agent: conversation?.agent,
         plan,
+        temperature,
         onDelta: (delta) => {
           fullContent += delta;
           setStreamingContent(fullContent);
@@ -462,6 +463,7 @@ export function ChatView() {
         messages: history,
         agent: conversation?.agent,
         plan,
+        temperature,
         onDelta: (delta) => {
           fullContent += delta;
           setStreamingContent(fullContent);
