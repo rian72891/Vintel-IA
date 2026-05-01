@@ -227,7 +227,9 @@ export function generateTXT(content: string): string {
     .replace(/`/g, '')
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
 
-  const blob = new Blob([cleanText], { type: 'text/plain;charset=utf-8' });
+  // UTF-8 BOM ensures correct encoding in Notepad/Excel/legacy editors
+  const BOM = '\uFEFF';
+  const blob = new Blob([BOM + cleanText], { type: 'text/plain;charset=utf-8' });
   return URL.createObjectURL(blob);
 }
 
