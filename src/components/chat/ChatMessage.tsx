@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { Message } from '@/types/agent';
 import { cn } from '@/lib/utils';
-import { Bot, User, Download, Copy, Check, Volume2, Pause, FileText, Code, FileArchive, File, Mic, FileCode, Share2, Loader2, CheckCircle2, Pencil } from 'lucide-react';
+import { Bot, User, Download, Copy, Check, Volume2, Pause, FileText, Code, FileArchive, File, Mic, FileCode, Share2, Loader2, CheckCircle2, Pencil, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
@@ -173,6 +173,21 @@ export function ChatMessage({ message, audioUrl, isStreaming, onEdit }: ChatMess
   const cancelEdit = () => {
     setIsEditing(false);
     setEditText('');
+  };
+
+  const [previewOpen, setPreviewOpen] = useState<Record<string, boolean>>({});
+  const togglePreview = (key: string) => setPreviewOpen((p) => ({ ...p, [key]: !p[key] }));
+
+  const isHTMLContent = (code: string, lang?: string) => {
+    if (lang && ['html', 'htm'].includes(lang.toLowerCase())) return true;
+    const c = code.trim().toLowerCase();
+    return c.startsWith('<!doctype html') || c.startsWith('<html') || (c.includes('<body') && c.includes('</body>'));
+  };
+
+  const buildPreviewSrcDoc = (code: string) => {
+    const c = code.trim();
+    if (c.toLowerCase().startsWith('<!doctype') || c.toLowerCase().startsWith('<html')) return c;
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8"><script src="https://cdn.tailwindcss.com"></script></head><body>${code}</body></html>`;
   };
 
   let codeBlockIdx = 0;
