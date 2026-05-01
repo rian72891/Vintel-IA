@@ -29,7 +29,27 @@ export function ChatView() {
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeFeature, setUpgradeFeature] = useState('');
   const [editingMessage, setEditingMessage] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
   const autoTriggeredRef = useRef<string | null>(null);
+
+  // Simulate real progress feedback when a heavy task is running
+  useEffect(() => {
+    if (!loadingLabel) {
+      setProgress(0);
+      return;
+    }
+    setProgress(8);
+    const interval = setInterval(() => {
+      setProgress((p) => {
+        // Cap at 92% until task actually finishes
+        if (p >= 92) return p;
+        // Faster early, slower near the end (logarithmic feel)
+        const increment = p < 40 ? 6 : p < 70 ? 3 : 1;
+        return Math.min(92, p + increment);
+      });
+    }, 350);
+    return () => clearInterval(interval);
+  }, [loadingLabel]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
