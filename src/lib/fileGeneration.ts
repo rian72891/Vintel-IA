@@ -3,6 +3,9 @@ import JSZip from 'jszip';
 
 export async function generatePDF(content: string, title = 'Documento Vintel IA'): Promise<string> {
   const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
+  // Normalize content to NFC (composed unicode) for consistent accent rendering
+  content = (content || '').normalize('NFC');
+  title = (title || '').normalize('NFC');
   const pageWidth = pdf.internal.pageSize.width;
   const pageHeight = pdf.internal.pageSize.height;
   const margin = 20;
