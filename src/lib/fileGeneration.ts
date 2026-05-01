@@ -254,9 +254,11 @@ export async function generateZIP(filesJson: string, projectName = 'projeto-vint
       throw new Error('Nenhum arquivo encontrado no JSON');
     }
 
+    const encoder = new TextEncoder();
     for (const file of files) {
       if (file.name && file.content) {
-        zip.file(file.name, file.content);
+        // Encode as UTF-8 bytes to guarantee correct character handling
+        zip.file(file.name, encoder.encode(file.content));
       }
     }
 
