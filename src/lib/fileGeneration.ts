@@ -3,6 +3,9 @@ import JSZip from 'jszip';
 
 export async function generatePDF(content: string, title = 'Documento Vintel IA'): Promise<string> {
   const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
+  // Normalize content to NFC (composed unicode) for consistent accent rendering
+  content = (content || '').normalize('NFC');
+  title = (title || '').normalize('NFC');
   const pageWidth = pdf.internal.pageSize.width;
   const pageHeight = pdf.internal.pageSize.height;
   const margin = 20;
@@ -141,8 +144,14 @@ export async function generatePDF(content: string, title = 'Documento Vintel IA'
 }
 
 export function generateHTML(content: string, title = 'Documento Vintel IA'): string {
+  const BOM = '\uFEFF';
   if (content.trim().toLowerCase().startsWith('<!doctype') || content.trim().toLowerCase().startsWith('<html')) {
-    const blob = new Blob([content], { type: 'text/html;charset=utf-8' });
+    // Ensure charset meta exists
+    let html = content;
+    if (!/<meta\s+charset/i.test(html)) {
+      html = html.replace(/<head([^>]*)>/i, '<head$1>\n  <meta charset="UTF-8">');
+    }
+    const blob = new Blob([BOM + html], { type: 'text/html;charset=utf-8' });
     return URL.createObjectURL(blob);
   }
 
@@ -183,7 +192,7 @@ export function generateHTML(content: string, title = 'Documento Vintel IA'): st
 </body>
 </html>`;
 
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const blob = new Blob([BOM + html], { type: 'text/html;charset=utf-8' });
   return URL.createObjectURL(blob);
 }
 
@@ -221,7 +230,9 @@ export function generateTXT(content: string): string {
     .replace(/`/g, '')
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
 
-  const blob = new Blob([cleanText], { type: 'text/plain;charset=utf-8' });
+  // UTF-8 BOM ensures correct encoding in Notepad/Excel/legacy editors
+  const BOM = '\uFEFF';
+  const blob = new Blob([BOM + cleanText], { type: 'text/plain;charset=utf-8' });
   return URL.createObjectURL(blob);
 }
 
@@ -246,14 +257,17 @@ export async function generateZIP(filesJson: string, projectName = 'projeto-vint
       throw new Error('Nenhum arquivo encontrado no JSON');
     }
 
+    const encoder = new TextEncoder();
     for (const file of files) {
       if (file.name && file.content) {
-        zip.file(file.name, file.content);
+        // Encode as UTF-8 bytes to guarantee correct character handling
+        zip.file(file.name, encoder.encode(file.content));
       }
     }
 
     if (!files.some(f => f.name.toLowerCase() === 'readme.md')) {
-      zip.file('README.md', `# ${projectName}\n\nProjeto gerado por Vintel IA\n\n## Arquivos\n\n${files.map(f => `- ${f.name}`).join('\n')}`);
+      const readme = `# ${projectName}\n\nProjeto gerado por Vintel IA\n\n## Arquivos\n\n${files.map(f => `- ${f.name}`).join('\n')}`;
+      zip.file('README.md', encoder.encode(readme));
     }
 
     const blob = await zip.generateAsync({ type: 'blob' });

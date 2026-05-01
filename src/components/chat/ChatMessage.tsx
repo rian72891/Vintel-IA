@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { Message } from '@/types/agent';
 import { cn } from '@/lib/utils';
-import { Bot, User, Download, Copy, Check, Volume2, Pause, FileText, Code, FileArchive, File, Mic, FileCode, Share2, Loader2, CheckCircle2, Pencil } from 'lucide-react';
+import { Bot, User, Download, Copy, Check, Volume2, Pause, FileText, Code, FileArchive, File, Mic, FileCode, Share2, Loader2, CheckCircle2, Pencil, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
@@ -175,6 +175,21 @@ export function ChatMessage({ message, audioUrl, isStreaming, onEdit }: ChatMess
     setEditText('');
   };
 
+  const [previewOpen, setPreviewOpen] = useState<Record<string, boolean>>({});
+  const togglePreview = (key: string) => setPreviewOpen((p) => ({ ...p, [key]: !p[key] }));
+
+  const isHTMLContent = (code: string, lang?: string) => {
+    if (lang && ['html', 'htm'].includes(lang.toLowerCase())) return true;
+    const c = code.trim().toLowerCase();
+    return c.startsWith('<!doctype html') || c.startsWith('<html') || (c.includes('<body') && c.includes('</body>'));
+  };
+
+  const buildPreviewSrcDoc = (code: string) => {
+    const c = code.trim();
+    if (c.toLowerCase().startsWith('<!doctype') || c.toLowerCase().startsWith('<html')) return c;
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8"><script src="https://cdn.tailwindcss.com"></script></head><body>${code}</body></html>`;
+  };
+
   let codeBlockIdx = 0;
 
   return (
@@ -268,7 +283,11 @@ export function ChatMessage({ message, audioUrl, isStreaming, onEdit }: ChatMess
                 )}
               </div>
             </div>
-            {artifacts.map((artifact, idx) => (
+            {artifacts.map((artifact, idx) => {
+              const isHTML = isHTMLContent(artifact.content, artifact.filename.split('.').pop());
+              const previewKey = `art-${idx}`;
+              const open = previewOpen[previewKey];
+              return (
               <div key={idx} className="group/art bg-muted/30 border border-border/50 rounded-xl overflow-hidden hover:border-primary/30 transition-all">
                 <div className="flex items-center justify-between p-2.5">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -283,6 +302,12 @@ export function ChatMessage({ message, audioUrl, isStreaming, onEdit }: ChatMess
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5">
+                    {isHTML && (
+                      <button onClick={() => togglePreview(previewKey)} className="flex items-center gap-1 px-2 py-1 bg-background/50 border border-border/50 rounded-md text-[11px] font-medium hover:bg-muted transition-colors shrink-0" title={open ? 'Ocultar preview' : 'Ver preview'}>
+                        {open ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                        {open ? 'Ocultar' : 'Preview'}
+                      </button>
+                    )}
                     <button onClick={() => copyArtifact(artifact.content, idx)} className="flex items-center gap-1 px-2 py-1 bg-background/50 border border-border/50 rounded-md text-[11px] font-medium hover:bg-muted transition-colors shrink-0" title="Copiar">
                       {copiedArtifact === idx ? (<><Check className="h-3 w-3 text-green-500" /></>) : (<><Copy className="h-3 w-3" /></>)}
                     </button>
@@ -297,8 +322,18 @@ export function ChatMessage({ message, audioUrl, isStreaming, onEdit }: ChatMess
                     </button>
                   </div>
                 </div>
+                {isHTML && open && (
+                  <div className="border-t border-border/40 bg-white">
+                    <iframe
+                      srcDoc={buildPreviewSrcDoc(artifact.content)}
+                      title={`Preview ${artifact.filename}`}
+                      sandbox="allow-scripts"
+                      className="w-full h-[420px] border-0"
+                    />
+                  </div>
+                )}
               </div>
-            ))}
+            );})}
           </div>
         )}
 
@@ -347,17 +382,37 @@ export function ChatMessage({ message, audioUrl, isStreaming, onEdit }: ChatMess
                   if (isBlock) {
                     const currentIdx = codeBlockIdx++;
                     const codeStr = String(children).replace(/\n$/, '');
+                    const lang = match?.[1];
+                    const showPreview = isHTMLContent(codeStr, lang);
+                    const previewKey = `code-${currentIdx}`;
+                    const open = previewOpen[previewKey];
                     return (
                       <div className="relative group/code my-3 rounded-xl overflow-hidden border border-border/40 bg-[hsl(var(--background))]">
                         <div className="flex items-center justify-between bg-muted/60 px-4 py-1.5 text-[11px] text-muted-foreground border-b border-border/30">
-                          <span className="font-medium uppercase tracking-wider text-[10px]">{match?.[1] || 'code'}</span>
-                          <button onClick={() => copyCode(codeStr, currentIdx)} className="flex items-center gap-1.5 text-[11px] hover:text-foreground transition-colors">
-                            {copiedBlock === currentIdx ? (<><Check className="h-3 w-3 text-green-500" /> Copiado</>) : (<><Copy className="h-3 w-3" /> Copiar</>)}
-                          </button>
+                          <span className="font-medium uppercase tracking-wider text-[10px]">{lang || 'code'}</span>
+                          <div className="flex items-center gap-3">
+                            {showPreview && (
+                              <button onClick={() => togglePreview(previewKey)} className="flex items-center gap-1.5 text-[11px] hover:text-foreground transition-colors">
+                                {open ? <><EyeOff className="h-3 w-3" /> Código</> : <><Eye className="h-3 w-3" /> Preview</>}
+                              </button>
+                            )}
+                            <button onClick={() => copyCode(codeStr, currentIdx)} className="flex items-center gap-1.5 text-[11px] hover:text-foreground transition-colors">
+                              {copiedBlock === currentIdx ? (<><Check className="h-3 w-3 text-green-500" /> Copiado</>) : (<><Copy className="h-3 w-3" /> Copiar</>)}
+                            </button>
+                          </div>
                         </div>
-                        <pre className="p-4 overflow-x-auto text-[13px] leading-[1.6] font-mono">
-                          <code className={className} {...props}>{children}</code>
-                        </pre>
+                        {showPreview && open ? (
+                          <iframe
+                            srcDoc={buildPreviewSrcDoc(codeStr)}
+                            title="HTML preview"
+                            sandbox="allow-scripts"
+                            className="w-full h-[420px] border-0 bg-white"
+                          />
+                        ) : (
+                          <pre className="p-4 overflow-x-auto text-[13px] leading-[1.6] font-mono">
+                            <code className={className} {...props}>{children}</code>
+                          </pre>
+                        )}
                       </div>
                     );
                   }

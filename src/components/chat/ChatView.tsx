@@ -8,7 +8,9 @@ import { generateImage, ImageQuality } from '@/lib/generateImage';
 import { textToSpeech } from '@/lib/api/elevenlabs';
 import { firecrawlApi } from '@/lib/api/firecrawl';
 import { generatePDF, generateHTML, generateTXT, generateZIP, downloadFile } from '@/lib/fileGeneration';
-import { Loader2, ImageIcon, FileText, Mic, Sparkles } from 'lucide-react';
+import { Loader2, ImageIcon, FileText, Mic, Sparkles, Search, Globe } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { useUsage } from '@/hooks/useUsage';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -27,7 +29,27 @@ export function ChatView() {
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeFeature, setUpgradeFeature] = useState('');
   const [editingMessage, setEditingMessage] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
   const autoTriggeredRef = useRef<string | null>(null);
+
+  // Simulate real progress feedback when a heavy task is running
+  useEffect(() => {
+    if (!loadingLabel) {
+      setProgress(0);
+      return;
+    }
+    setProgress(8);
+    const interval = setInterval(() => {
+      setProgress((p) => {
+        // Cap at 92% until task actually finishes
+        if (p >= 92) return p;
+        // Faster early, slower near the end (logarithmic feel)
+        const increment = p < 40 ? 6 : p < 70 ? 3 : 1;
+        return Math.min(92, p + increment);
+      });
+    }, 350);
+    return () => clearInterval(interval);
+  }, [loadingLabel]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -678,23 +700,38 @@ export function ChatView() {
           />
         )}
         {isStreaming && !streamingContent && (
-          <div className="flex gap-3 px-4 py-3 max-w-4xl mx-auto">
-            <div className="h-7 w-7 rounded-full bg-primary/10 border border-primary/15 flex items-center justify-center">
+          <div className="flex gap-3 px-4 py-3 max-w-4xl mx-auto w-full">
+            <div className="h-7 w-7 rounded-full bg-primary/10 border border-primary/15 flex items-center justify-center shrink-0">
               {loadingLabel.includes('imagem') ? (
                 <ImageIcon className="h-3.5 w-3.5 text-primary animate-pulse" />
               ) : loadingLabel.includes('PDF') || loadingLabel.includes('HTML') || loadingLabel.includes('texto') || loadingLabel.includes('ZIP') ? (
                 <FileText className="h-3.5 w-3.5 text-primary animate-pulse" />
               ) : loadingLabel.includes('áudio') ? (
                 <Mic className="h-3.5 w-3.5 text-primary animate-pulse" />
+              ) : loadingLabel.includes('Buscando') ? (
+                <Search className="h-3.5 w-3.5 text-primary animate-pulse" />
+              ) : loadingLabel.includes('Extraindo') ? (
+                <Globe className="h-3.5 w-3.5 text-primary animate-pulse" />
               ) : (
                 <Loader2 className="h-3.5 w-3.5 text-primary animate-spin" />
               )}
             </div>
-            <div className="flex items-center gap-3 px-4 py-3">
+            <div className="flex-1 min-w-0 space-y-2.5 max-w-xl">
               {loadingLabel ? (
-                <span className="text-xs text-muted-foreground animate-pulse">{loadingLabel}</span>
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] text-foreground/80 font-medium">{loadingLabel}</span>
+                    <span className="text-[11px] text-muted-foreground tabular-nums">{Math.round(progress)}%</span>
+                  </div>
+                  <Progress value={progress} className="h-1.5 bg-muted/40" />
+                  <div className="space-y-2 pt-1">
+                    <Skeleton className="h-3 w-[85%]" />
+                    <Skeleton className="h-3 w-[70%]" />
+                    <Skeleton className="h-3 w-[60%]" />
+                  </div>
+                </>
               ) : (
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 py-2">
                   <span className="h-2 w-2 rounded-full bg-primary/50 animate-bounce [animation-delay:0ms]" />
                   <span className="h-2 w-2 rounded-full bg-primary/50 animate-bounce [animation-delay:150ms]" />
                   <span className="h-2 w-2 rounded-full bg-primary/50 animate-bounce [animation-delay:300ms]" />

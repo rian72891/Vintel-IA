@@ -211,6 +211,34 @@ IDENTIDADE E COMPORTAMENTO
 - Use português brasileiro fluente e profissional
 
 ═══════════════════════════════════════════════
+VISÃO COMPUTACIONAL — LAYOUT TO CODE (HIGH FIDELITY)
+═══════════════════════════════════════════════
+
+Quando o usuário enviar uma IMAGEM (print, mockup, screenshot, wireframe):
+
+1. 🔍 ANÁLISE VISUAL DETALHADA:
+   • Identifique TODOS os elementos: navbar, hero, cards, formulários, botões, footer
+   • Capture cores exatas (extraia paleta hex aproximada)
+   • Identifique tipografia (serif/sans-serif, peso, hierarquia)
+   • Mapeie espaçamentos, alinhamentos e grid (12 cols, flex, grid)
+   • Note efeitos visuais: sombras, gradientes, bordas, blur, opacidade
+   • Identifique estados (hover, active, disabled) quando visíveis
+   • Detecte responsividade (mobile, tablet, desktop)
+
+2. 🏗️ CÓDIGO ESTRUTURADO DE ALTA FIDELIDADE:
+   • Gere HTML5 SEMÂNTICO completo (header, main, section, article, footer)
+   • Use Tailwind CSS via CDN para fidelidade pixel-perfect
+   • Reproduza a paleta exata com classes ou CSS vars
+   • Adicione ícones SVG inline (lucide-style) onde necessário
+   • Implemente responsividade mobile-first (sm:, md:, lg:, xl:)
+   • Adicione micro-interações (hover, transitions, animations)
+   • Garanta acessibilidade (aria-labels, alt, contraste)
+
+3. 📦 ENTREGA:
+   Sempre envolva em <artifact filename="layout.html" type="html" title="Layout reconstruído">
+   Código completo começando com <!DOCTYPE html>
+
+═══════════════════════════════════════════════
 RACIOCÍNIO AVANÇADO (Chain of Thought)
 ═══════════════════════════════════════════════
 
@@ -318,7 +346,24 @@ serve(async (req) => {
       return { role: msg.role, content: msg.content };
     });
 
-    console.log(`[CHAT] Using model: ${model}, maxTokens: ${maxTokens}, plan: ${plan || "free"}`);
+    // Smart context window: keep first 4 messages (anchor) + last 30 (recent)
+    // This preserves the original intent in long conversations without ballooning tokens.
+    const MAX_MSGS = 40;
+    const ANCHOR = 4;
+    let contextMessages = processedMessages;
+    if (processedMessages.length > MAX_MSGS) {
+      const head = processedMessages.slice(0, ANCHOR);
+      const tail = processedMessages.slice(-(MAX_MSGS - ANCHOR - 1));
+      const droppedCount = processedMessages.length - head.length - tail.length;
+      contextMessages = [
+        ...head,
+        { role: 'system', content: `[Contexto comprimido: ${droppedCount} mensagens intermediárias omitidas para preservar memória de longo prazo. As primeiras ${ANCHOR} mensagens (intenção original) e as ${tail.length} mais recentes foram mantidas.]` },
+        ...tail,
+      ];
+      console.log(`[CHAT] Context compression: ${processedMessages.length} → ${contextMessages.length} messages`);
+    }
+
+    console.log(`[CHAT] Using model: ${model}, maxTokens: ${maxTokens}, plan: ${plan || "free"}, msgs: ${contextMessages.length}`);
 
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
@@ -332,7 +377,7 @@ serve(async (req) => {
           model,
           messages: [
             { role: "system", content: systemPrompt },
-            ...processedMessages,
+            ...contextMessages,
           ],
           stream: true,
           temperature: typeof userTemp === 'number' ? Math.min(Math.max(userTemp, 0), 1) : 0.7,
