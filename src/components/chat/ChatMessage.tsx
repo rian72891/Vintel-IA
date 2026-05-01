@@ -382,17 +382,37 @@ export function ChatMessage({ message, audioUrl, isStreaming, onEdit }: ChatMess
                   if (isBlock) {
                     const currentIdx = codeBlockIdx++;
                     const codeStr = String(children).replace(/\n$/, '');
+                    const lang = match?.[1];
+                    const showPreview = isHTMLContent(codeStr, lang);
+                    const previewKey = `code-${currentIdx}`;
+                    const open = previewOpen[previewKey];
                     return (
                       <div className="relative group/code my-3 rounded-xl overflow-hidden border border-border/40 bg-[hsl(var(--background))]">
                         <div className="flex items-center justify-between bg-muted/60 px-4 py-1.5 text-[11px] text-muted-foreground border-b border-border/30">
-                          <span className="font-medium uppercase tracking-wider text-[10px]">{match?.[1] || 'code'}</span>
-                          <button onClick={() => copyCode(codeStr, currentIdx)} className="flex items-center gap-1.5 text-[11px] hover:text-foreground transition-colors">
-                            {copiedBlock === currentIdx ? (<><Check className="h-3 w-3 text-green-500" /> Copiado</>) : (<><Copy className="h-3 w-3" /> Copiar</>)}
-                          </button>
+                          <span className="font-medium uppercase tracking-wider text-[10px]">{lang || 'code'}</span>
+                          <div className="flex items-center gap-3">
+                            {showPreview && (
+                              <button onClick={() => togglePreview(previewKey)} className="flex items-center gap-1.5 text-[11px] hover:text-foreground transition-colors">
+                                {open ? <><EyeOff className="h-3 w-3" /> Código</> : <><Eye className="h-3 w-3" /> Preview</>}
+                              </button>
+                            )}
+                            <button onClick={() => copyCode(codeStr, currentIdx)} className="flex items-center gap-1.5 text-[11px] hover:text-foreground transition-colors">
+                              {copiedBlock === currentIdx ? (<><Check className="h-3 w-3 text-green-500" /> Copiado</>) : (<><Copy className="h-3 w-3" /> Copiar</>)}
+                            </button>
+                          </div>
                         </div>
-                        <pre className="p-4 overflow-x-auto text-[13px] leading-[1.6] font-mono">
-                          <code className={className} {...props}>{children}</code>
-                        </pre>
+                        {showPreview && open ? (
+                          <iframe
+                            srcDoc={buildPreviewSrcDoc(codeStr)}
+                            title="HTML preview"
+                            sandbox="allow-scripts"
+                            className="w-full h-[420px] border-0 bg-white"
+                          />
+                        ) : (
+                          <pre className="p-4 overflow-x-auto text-[13px] leading-[1.6] font-mono">
+                            <code className={className} {...props}>{children}</code>
+                          </pre>
+                        )}
                       </div>
                     );
                   }
