@@ -700,23 +700,38 @@ export function ChatView() {
           />
         )}
         {isStreaming && !streamingContent && (
-          <div className="flex gap-3 px-4 py-3 max-w-4xl mx-auto">
-            <div className="h-7 w-7 rounded-full bg-primary/10 border border-primary/15 flex items-center justify-center">
+          <div className="flex gap-3 px-4 py-3 max-w-4xl mx-auto w-full">
+            <div className="h-7 w-7 rounded-full bg-primary/10 border border-primary/15 flex items-center justify-center shrink-0">
               {loadingLabel.includes('imagem') ? (
                 <ImageIcon className="h-3.5 w-3.5 text-primary animate-pulse" />
               ) : loadingLabel.includes('PDF') || loadingLabel.includes('HTML') || loadingLabel.includes('texto') || loadingLabel.includes('ZIP') ? (
                 <FileText className="h-3.5 w-3.5 text-primary animate-pulse" />
               ) : loadingLabel.includes('áudio') ? (
                 <Mic className="h-3.5 w-3.5 text-primary animate-pulse" />
+              ) : loadingLabel.includes('Buscando') ? (
+                <Search className="h-3.5 w-3.5 text-primary animate-pulse" />
+              ) : loadingLabel.includes('Extraindo') ? (
+                <Globe className="h-3.5 w-3.5 text-primary animate-pulse" />
               ) : (
                 <Loader2 className="h-3.5 w-3.5 text-primary animate-spin" />
               )}
             </div>
-            <div className="flex items-center gap-3 px-4 py-3">
+            <div className="flex-1 min-w-0 space-y-2.5 max-w-xl">
               {loadingLabel ? (
-                <span className="text-xs text-muted-foreground animate-pulse">{loadingLabel}</span>
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] text-foreground/80 font-medium">{loadingLabel}</span>
+                    <span className="text-[11px] text-muted-foreground tabular-nums">{Math.round(progress)}%</span>
+                  </div>
+                  <Progress value={progress} className="h-1.5 bg-muted/40" />
+                  <div className="space-y-2 pt-1">
+                    <Skeleton className="h-3 w-[85%]" />
+                    <Skeleton className="h-3 w-[70%]" />
+                    <Skeleton className="h-3 w-[60%]" />
+                  </div>
+                </>
               ) : (
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 py-2">
                   <span className="h-2 w-2 rounded-full bg-primary/50 animate-bounce [animation-delay:0ms]" />
                   <span className="h-2 w-2 rounded-full bg-primary/50 animate-bounce [animation-delay:150ms]" />
                   <span className="h-2 w-2 rounded-full bg-primary/50 animate-bounce [animation-delay:300ms]" />
