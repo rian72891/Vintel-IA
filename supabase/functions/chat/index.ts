@@ -346,12 +346,43 @@ serve(async (req) => {
       return { role: msg.role, content: msg.content };
     });
 
-    console.log(`[CHAT] Using model: ${model}, maxTokens: ${maxTokens}, plan: ${plan || "free"}`);
+    // Smart context window: keep first 4 messages (anchor) + last 30 (recent)
+    // This preserves the original intent in long conversations without ballooning tokens.
+    const MAX_MSGS = 40;
+    const ANCHOR = 4;
+    let contextMessages = processedMessages;
+    if (processedMessages.length > MAX_MSGS) {
+      const head = processedMessages.slice(0, ANCHOR);
+      const tail = processedMessages.slice(-(MAX_MSGS - ANCHOR - 1));
+      const droppedCount = processedMessages.length - head.length - tail.length;
+      contextMessages = [
+        ...head,
+        { role: 'system', content: `[Contexto comprimido: ${droppedCount} mensagens intermediárias omitidas para preservar memória de longo prazo. As primeiras ${ANCHOR} mensagens (intenção original) e as ${tail.length} mais recentes foram mantidas.]` },
+        ...tail,
+      ];
+      console.log(`[CHAT] Context compression: ${processedMessages.length} → ${contextMessages.length} messages`);
+    }
+
+    console.log(`[CHAT] Using model: ${model}, maxTokens: ${maxTokens}, plan: ${plan || "free"}, msgs: ${contextMessages.length}`);
 
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
       {
         method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            ...contextMessages,
+          ],
+          stream: true,
+          temperature: typeof userTemp === 'number' ? Math.min(Math.max(userTemp, 0), 1) : 0.7,
+          max_tokens: maxTokens,
+        }),
         headers: {
           Authorization: `Bearer ${LOVABLE_API_KEY}`,
           "Content-Type": "application/json",
