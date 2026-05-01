@@ -383,20 +383,6 @@ serve(async (req) => {
           temperature: typeof userTemp === 'number' ? Math.min(Math.max(userTemp, 0), 1) : 0.7,
           max_tokens: maxTokens,
         }),
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: "system", content: systemPrompt },
-            ...processedMessages,
-          ],
-          stream: true,
-          temperature: typeof userTemp === 'number' ? Math.min(Math.max(userTemp, 0), 1) : 0.7,
-          max_tokens: maxTokens,
-        }),
       }
     );
 
