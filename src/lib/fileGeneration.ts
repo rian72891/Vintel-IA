@@ -141,8 +141,14 @@ export async function generatePDF(content: string, title = 'Documento Vintel IA'
 }
 
 export function generateHTML(content: string, title = 'Documento Vintel IA'): string {
+  const BOM = '\uFEFF';
   if (content.trim().toLowerCase().startsWith('<!doctype') || content.trim().toLowerCase().startsWith('<html')) {
-    const blob = new Blob([content], { type: 'text/html;charset=utf-8' });
+    // Ensure charset meta exists
+    let html = content;
+    if (!/<meta\s+charset/i.test(html)) {
+      html = html.replace(/<head([^>]*)>/i, '<head$1>\n  <meta charset="UTF-8">');
+    }
+    const blob = new Blob([BOM + html], { type: 'text/html;charset=utf-8' });
     return URL.createObjectURL(blob);
   }
 
