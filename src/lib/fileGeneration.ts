@@ -189,7 +189,8 @@ export function generateHTML(content: string, title = 'Documento Vintel IA'): st
 </body>
 </html>`;
 
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const BOM = '\uFEFF';
+  const blob = new Blob([BOM + html], { type: 'text/html;charset=utf-8' });
   return URL.createObjectURL(blob);
 }
 
