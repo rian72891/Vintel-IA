@@ -263,7 +263,8 @@ export async function generateZIP(filesJson: string, projectName = 'projeto-vint
     }
 
     if (!files.some(f => f.name.toLowerCase() === 'readme.md')) {
-      zip.file('README.md', `# ${projectName}\n\nProjeto gerado por Vintel IA\n\n## Arquivos\n\n${files.map(f => `- ${f.name}`).join('\n')}`);
+      const readme = `# ${projectName}\n\nProjeto gerado por Vintel IA\n\n## Arquivos\n\n${files.map(f => `- ${f.name}`).join('\n')}`;
+      zip.file('README.md', encoder.encode(readme));
     }
 
     const blob = await zip.generateAsync({ type: 'blob' });
