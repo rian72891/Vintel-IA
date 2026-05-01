@@ -283,7 +283,11 @@ export function ChatMessage({ message, audioUrl, isStreaming, onEdit }: ChatMess
                 )}
               </div>
             </div>
-            {artifacts.map((artifact, idx) => (
+            {artifacts.map((artifact, idx) => {
+              const isHTML = isHTMLContent(artifact.content, artifact.filename.split('.').pop());
+              const previewKey = `art-${idx}`;
+              const open = previewOpen[previewKey];
+              return (
               <div key={idx} className="group/art bg-muted/30 border border-border/50 rounded-xl overflow-hidden hover:border-primary/30 transition-all">
                 <div className="flex items-center justify-between p-2.5">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -298,6 +302,12 @@ export function ChatMessage({ message, audioUrl, isStreaming, onEdit }: ChatMess
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5">
+                    {isHTML && (
+                      <button onClick={() => togglePreview(previewKey)} className="flex items-center gap-1 px-2 py-1 bg-background/50 border border-border/50 rounded-md text-[11px] font-medium hover:bg-muted transition-colors shrink-0" title={open ? 'Ocultar preview' : 'Ver preview'}>
+                        {open ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                        {open ? 'Ocultar' : 'Preview'}
+                      </button>
+                    )}
                     <button onClick={() => copyArtifact(artifact.content, idx)} className="flex items-center gap-1 px-2 py-1 bg-background/50 border border-border/50 rounded-md text-[11px] font-medium hover:bg-muted transition-colors shrink-0" title="Copiar">
                       {copiedArtifact === idx ? (<><Check className="h-3 w-3 text-green-500" /></>) : (<><Copy className="h-3 w-3" /></>)}
                     </button>
@@ -312,8 +322,18 @@ export function ChatMessage({ message, audioUrl, isStreaming, onEdit }: ChatMess
                     </button>
                   </div>
                 </div>
+                {isHTML && open && (
+                  <div className="border-t border-border/40 bg-white">
+                    <iframe
+                      srcDoc={buildPreviewSrcDoc(artifact.content)}
+                      title={`Preview ${artifact.filename}`}
+                      sandbox="allow-scripts"
+                      className="w-full h-[420px] border-0"
+                    />
+                  </div>
+                )}
               </div>
-            ))}
+            );})}
           </div>
         )}
 
