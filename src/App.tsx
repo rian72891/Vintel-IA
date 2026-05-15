@@ -34,6 +34,7 @@ const App = () => (
                 <Route path="/cancelar" element={<Cancelar />} />
                 <Route path="/upgrade" element={<Upgrade />} />
                 <Route path="/shared/:id" element={<SharedArtifacts />} />
+                <Route path="/conectores" element={<Conectores />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>
