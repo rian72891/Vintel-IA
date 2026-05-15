@@ -65,6 +65,22 @@ export default function Conectores() {
 
   const handleConnect = async (p: Provider) => {
     if (!user) return;
+
+    if (p.id === 'github') {
+      try {
+        const redirect_uri = `${window.location.origin}/auth/callback/github`;
+        const { data, error } = await supabase.functions.invoke('oauth-init', {
+          body: { provider: 'github', redirect_uri },
+        });
+        if (error || !data?.url) throw new Error(error?.message || data?.error || 'Falha ao iniciar OAuth');
+        window.location.href = data.url as string;
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Erro desconhecido';
+        toast.error(`Não foi possível iniciar GitHub OAuth: ${msg}`);
+      }
+      return;
+    }
+
     toast(`Em breve! A integração com ${p.name} está sendo configurada.`);
   };
 

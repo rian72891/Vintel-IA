@@ -13,6 +13,7 @@ import Cancelar from "./pages/Cancelar";
 import Upgrade from "./pages/Upgrade";
 import SharedArtifacts from "./pages/SharedArtifacts";
 import Conectores from "./pages/Conectores";
+import OAuthCallback from "./pages/OAuthCallback";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,6 +36,7 @@ const App = () => (
                 <Route path="/upgrade" element={<Upgrade />} />
                 <Route path="/shared/:id" element={<SharedArtifacts />} />
                 <Route path="/conectores" element={<Conectores />} />
+                <Route path="/auth/callback/:provider" element={<OAuthCallback />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>
