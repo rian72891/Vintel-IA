@@ -12,6 +12,7 @@ import Obrigado from "./pages/Obrigado";
 import Cancelar from "./pages/Cancelar";
 import Upgrade from "./pages/Upgrade";
 import SharedArtifacts from "./pages/SharedArtifacts";
+import Conectores from "./pages/Conectores";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
