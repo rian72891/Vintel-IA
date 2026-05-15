@@ -13,6 +13,7 @@ import Cancelar from "./pages/Cancelar";
 import Upgrade from "./pages/Upgrade";
 import SharedArtifacts from "./pages/SharedArtifacts";
 import Conectores from "./pages/Conectores";
+import OAuthCallback from "./pages/OAuthCallback";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
