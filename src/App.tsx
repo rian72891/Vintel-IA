@@ -36,6 +36,7 @@ const App = () => (
                 <Route path="/upgrade" element={<Upgrade />} />
                 <Route path="/shared/:id" element={<SharedArtifacts />} />
                 <Route path="/conectores" element={<Conectores />} />
+                <Route path="/auth/callback/:provider" element={<OAuthCallback />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>
