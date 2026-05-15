@@ -67,31 +67,17 @@ export default function Conectores() {
     if (!user) return;
 
     if (p.id === 'github') {
-      const clientId = 'Ov23' as string; // placeholder, real id comes from server-side init
-      // Build URL on the fly using a tiny fetch to the edge function would be ideal,
-      // but to avoid an extra round trip we read the public client id from an env var.
-      const ghClientId = import.meta.env.VITE_GITHUB_CLIENT_ID as string | undefined;
-      if (!ghClientId) {
-        // Fallback: ask the edge function for the auth URL
-        try {
-          const { data, error } = await supabase.functions.invoke('oauth-init', {
-            body: { provider: 'github', redirect_uri: `${window.location.origin}/auth/callback/github` },
-          });
-          if (error || !data?.url) throw new Error(error?.message || 'Falha ao iniciar OAuth');
-          window.location.href = data.url;
-        } catch (e) {
-          const msg = e instanceof Error ? e.message : 'Erro desconhecido';
-          toast.error(`Não foi possível iniciar GitHub OAuth: ${msg}`);
-        }
-        return;
+      try {
+        const redirect_uri = `${window.location.origin}/auth/callback/github`;
+        const { data, error } = await supabase.functions.invoke('oauth-init', {
+          body: { provider: 'github', redirect_uri },
+        });
+        if (error || !data?.url) throw new Error(error?.message || data?.error || 'Falha ao iniciar OAuth');
+        window.location.href = data.url as string;
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Erro desconhecido';
+        toast.error(`Não foi possível iniciar GitHub OAuth: ${msg}`);
       }
-
-      const redirect = `${window.location.origin}/auth/callback/github`;
-      const url = new URL('https://github.com/login/oauth/authorize');
-      url.searchParams.set('client_id', ghClientId);
-      url.searchParams.set('redirect_uri', redirect);
-      url.searchParams.set('scope', 'repo read:user');
-      window.location.href = url.toString();
       return;
     }
 
