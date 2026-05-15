@@ -132,16 +132,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { error: connErr } = await admin
-      .from('user_connectors')
-      .upsert(
-        { user_id: userId, provider, status: 'connected' },
-        { onConflict: 'user_id,provider' },
-      );
-    if (connErr) {
-      // Not fatal — token saved. Try plain insert if upsert constraint missing.
-      await admin.from('user_connectors').insert({ user_id: userId, provider, status: 'connected' });
-    }
+    // Refresh user_connectors row (no unique constraint, so delete + insert).
+    await admin.from('user_connectors').delete().eq('user_id', userId).eq('provider', provider);
+    await admin.from('user_connectors').insert({ user_id: userId, provider, status: 'connected' });
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
