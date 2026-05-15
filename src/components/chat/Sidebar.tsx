@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, MessageSquare, X, Trash2, Pencil, Check, Settings, LogOut, Menu, Search, Star, User } from 'lucide-react';
+import { Plus, MessageSquare, X, Trash2, Pencil, Check, Settings, LogOut, Menu, Search, Star, User, Plug } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useChatStore } from '@/store/chatStore';
 import { cn } from '@/lib/utils';
@@ -192,6 +192,13 @@ export function Sidebar() {
               <PlanBadge />
 
               <div className="flex items-center gap-1">
+                <button
+                  onClick={() => navigate('/conectores')}
+                  className="flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-feedback"
+                  title="Conectores"
+                >
+                  <Plug className="h-3.5 w-3.5" />
+                </button>
                 <button
                   onClick={() => setSettingsOpen(true)}
                   className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-feedback"
