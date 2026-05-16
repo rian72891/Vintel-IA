@@ -68,7 +68,8 @@ export default function Conectores() {
 
     if (p.id === 'github') {
       try {
-        const redirect_uri = `${window.location.origin}/auth/callback/github`;
+        // Always use the published domain to match the GitHub OAuth App callback URL.
+        const redirect_uri = 'https://vintel-ia.lovable.app/auth/callback/github';
         const { data, error } = await supabase.functions.invoke('oauth-init', {
           body: { provider: 'github', redirect_uri },
         });

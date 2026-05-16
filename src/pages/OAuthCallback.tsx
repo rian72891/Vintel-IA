@@ -44,7 +44,10 @@ export default function OAuthCallback() {
 
     (async () => {
       try {
-        const redirect_uri = `${window.location.origin}/auth/callback/${provider}`;
+        // Must match the redirect_uri used during oauth-init (registered in the OAuth App).
+        const redirect_uri = provider === 'github'
+          ? 'https://vintel-ia.lovable.app/auth/callback/github'
+          : `${window.location.origin}/auth/callback/${provider}`;
         const { data, error: fnErr } = await supabase.functions.invoke('oauth-callback', {
           body: { code, provider, redirect_uri },
         });
