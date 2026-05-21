@@ -7,9 +7,16 @@ import { useAuth } from '@/hooks/useAuth';
 
 const PROVIDER_LABELS: Record<string, string> = {
   github: 'GitHub',
+  google: 'Google Workspace',
   google_drive: 'Google Drive',
   gmail: 'Gmail',
+  notion: 'Notion',
+  slack: 'Slack',
+  linear: 'Linear',
+  asana: 'Asana',
 };
+
+const BASE_REDIRECT = 'https://vintel-ia.lovable.app/auth/callback';
 
 export default function OAuthCallback() {
   const { provider } = useParams<{ provider: string }>();
@@ -44,10 +51,7 @@ export default function OAuthCallback() {
 
     (async () => {
       try {
-        // Must match the redirect_uri used during oauth-init (registered in the OAuth App).
-        const redirect_uri = provider === 'github'
-          ? 'https://vintel-ia.lovable.app/auth/callback/github'
-          : `${window.location.origin}/auth/callback/${provider}`;
+        const redirect_uri = `${BASE_REDIRECT}/${provider}`;
         const { data, error: fnErr } = await supabase.functions.invoke('oauth-callback', {
           body: { code, provider, redirect_uri },
         });

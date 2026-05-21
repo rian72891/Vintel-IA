@@ -1,6 +1,100 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 
+type TokenResult = {
+  access_token: string;
+  refresh_token?: string | null;
+  scope?: string | null;
+  token_type?: string | null;
+  expires_at?: string | null;
+};
+
+async function exchangeToken(provider: string, code: string, redirect_uri: string): Promise<TokenResult> {
+  const env = (k: string) => Deno.env.get(k);
+
+  const expireFrom = (s?: number) =>
+    s ? new Date(Date.now() + s * 1000).toISOString() : null;
+
+  if (provider === 'github') {
+    const id = env('GITHUB_CLIENT_ID'), secret = env('GITHUB_CLIENT_SECRET');
+    if (!id || !secret) throw new Error('GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET ausentes');
+    const res = await fetch('https://github.com/login/oauth/access_token', {
+      method: 'POST',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client_id: id, client_secret: secret, code, redirect_uri }),
+    });
+    const d = await res.json();
+    if (d.error) throw new Error(d.error_description || d.error);
+    return { access_token: d.access_token, refresh_token: d.refresh_token ?? null, scope: d.scope, token_type: d.token_type };
+  }
+
+  if (provider === 'google') {
+    const id = env('GOOGLE_CLIENT_ID'), secret = env('GOOGLE_CLIENT_SECRET');
+    if (!id || !secret) throw new Error('GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET ausentes');
+    const body = new URLSearchParams({ code, client_id: id, client_secret: secret, redirect_uri, grant_type: 'authorization_code' });
+    const res = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString(),
+    });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error_description || d.error || 'Token exchange failed');
+    return { access_token: d.access_token, refresh_token: d.refresh_token ?? null, scope: d.scope, token_type: d.token_type, expires_at: expireFrom(d.expires_in) };
+  }
+
+  if (provider === 'notion') {
+    const id = env('NOTION_CLIENT_ID'), secret = env('NOTION_CLIENT_SECRET');
+    if (!id || !secret) throw new Error('NOTION_CLIENT_ID / NOTION_CLIENT_SECRET ausentes');
+    const basic = btoa(`${id}:${secret}`);
+    const res = await fetch('https://api.notion.com/v1/oauth/token', {
+      method: 'POST',
+      headers: { Authorization: `Basic ${basic}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ grant_type: 'authorization_code', code, redirect_uri }),
+    });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error_description || d.error || 'Notion token exchange failed');
+    return { access_token: d.access_token, token_type: 'bearer', scope: d.workspace_name ?? null };
+  }
+
+  if (provider === 'slack') {
+    const id = env('SLACK_CLIENT_ID'), secret = env('SLACK_CLIENT_SECRET');
+    if (!id || !secret) throw new Error('SLACK_CLIENT_ID / SLACK_CLIENT_SECRET ausentes');
+    const params = new URLSearchParams({ code, client_id: id, client_secret: secret, redirect_uri });
+    const res = await fetch('https://slack.com/api/oauth.v2.access', {
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: params.toString(),
+    });
+    const d = await res.json();
+    if (!d.ok) throw new Error(d.error || 'Slack token exchange failed');
+    const access = d.access_token || d.authed_user?.access_token;
+    if (!access) throw new Error('Nenhum access_token retornado pelo Slack');
+    return { access_token: access, scope: d.scope, token_type: 'bearer' };
+  }
+
+  if (provider === 'linear') {
+    const id = env('LINEAR_CLIENT_ID'), secret = env('LINEAR_CLIENT_SECRET');
+    if (!id || !secret) throw new Error('LINEAR_CLIENT_ID / LINEAR_CLIENT_SECRET ausentes');
+    const body = new URLSearchParams({ code, client_id: id, client_secret: secret, redirect_uri, grant_type: 'authorization_code' });
+    const res = await fetch('https://api.linear.app/oauth/token', {
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString(),
+    });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error_description || d.error || 'Linear token exchange failed');
+    return { access_token: d.access_token, scope: d.scope, token_type: d.token_type, expires_at: expireFrom(d.expires_in) };
+  }
+
+  if (provider === 'asana') {
+    const id = env('ASANA_CLIENT_ID'), secret = env('ASANA_CLIENT_SECRET');
+    if (!id || !secret) throw new Error('ASANA_CLIENT_ID / ASANA_CLIENT_SECRET ausentes');
+    const body = new URLSearchParams({ code, client_id: id, client_secret: secret, redirect_uri, grant_type: 'authorization_code' });
+    const res = await fetch('https://app.asana.com/-/oauth_token', {
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString(),
+    });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error_description || d.error || 'Asana token exchange failed');
+    return { access_token: d.access_token, refresh_token: d.refresh_token ?? null, token_type: d.token_type, expires_at: expireFrom(d.expires_in) };
+  }
+
+  throw new Error(`Unsupported provider: ${provider}`);
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
@@ -27,94 +121,23 @@ Deno.serve(async (req) => {
     }
     const userId = claims.claims.sub as string;
 
-    const body = await req.json().catch(() => ({}));
-    const { code, provider, redirect_uri } = body as {
-      code?: string; provider?: string; redirect_uri?: string;
-    };
-
+    const { code, provider, redirect_uri } = await req.json().catch(() => ({}));
     if (!code || !provider || !redirect_uri) {
       return new Response(JSON.stringify({ error: 'Missing code, provider or redirect_uri' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    let access_token = '';
-    let refresh_token: string | null = null;
-    let scope: string | null = null;
-    let token_type: string | null = null;
-    let expires_at: string | null = null;
-
-    if (provider === 'github') {
-      const clientId = Deno.env.get('GITHUB_CLIENT_ID');
-      const clientSecret = Deno.env.get('GITHUB_CLIENT_SECRET');
-      if (!clientId || !clientSecret) {
-        return new Response(JSON.stringify({ error: 'GitHub credentials not configured' }), {
-          status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
-        method: 'POST',
-        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          client_id: clientId,
-          client_secret: clientSecret,
-          code,
-          redirect_uri,
-        }),
-      });
-
-      const tokenData = await tokenRes.json();
-      if (!tokenRes.ok || tokenData.error) {
-        return new Response(JSON.stringify({ error: tokenData.error_description || 'Token exchange failed' }), {
-          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      access_token = tokenData.access_token;
-      refresh_token = tokenData.refresh_token ?? null;
-      scope = tokenData.scope ?? null;
-      token_type = tokenData.token_type ?? null;
-    } else if (provider === 'google_drive' || provider === 'gmail') {
-      const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
-      const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
-      if (!clientId || !clientSecret) {
-        return new Response(JSON.stringify({ error: 'Google credentials not configured' }), {
-          status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      const params = new URLSearchParams({
-        code,
-        client_id: clientId,
-        client_secret: clientSecret,
-        redirect_uri,
-        grant_type: 'authorization_code',
-      });
-      const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: params.toString(),
-      });
-      const tokenData = await tokenRes.json();
-      if (!tokenRes.ok) {
-        return new Response(JSON.stringify({ error: tokenData.error_description || 'Token exchange failed' }), {
-          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      access_token = tokenData.access_token;
-      refresh_token = tokenData.refresh_token ?? null;
-      scope = tokenData.scope ?? null;
-      token_type = tokenData.token_type ?? null;
-      if (tokenData.expires_in) {
-        expires_at = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
-      }
-    } else {
-      return new Response(JSON.stringify({ error: 'Unsupported provider' }), {
+    let result: TokenResult;
+    try {
+      result = await exchangeToken(provider, code, redirect_uri);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Token exchange failed';
+      return new Response(JSON.stringify({ error: msg }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Save tokens with service role to bypass RLS for INSERT/UPDATE.
     const admin = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
@@ -123,7 +146,15 @@ Deno.serve(async (req) => {
     const { error: upsertErr } = await admin
       .from('oauth_tokens')
       .upsert(
-        { user_id: userId, provider, access_token, refresh_token, scope, token_type, expires_at, updated_at: new Date().toISOString() },
+        {
+          user_id: userId, provider,
+          access_token: result.access_token,
+          refresh_token: result.refresh_token ?? null,
+          scope: result.scope ?? null,
+          token_type: result.token_type ?? null,
+          expires_at: result.expires_at ?? null,
+          updated_at: new Date().toISOString(),
+        },
         { onConflict: 'user_id,provider' },
       );
     if (upsertErr) {
@@ -132,7 +163,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Refresh user_connectors row (no unique constraint, so delete + insert).
     await admin.from('user_connectors').delete().eq('user_id', userId).eq('provider', provider);
     await admin.from('user_connectors').insert({ user_id: userId, provider, status: 'connected' });
 

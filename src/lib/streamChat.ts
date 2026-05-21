@@ -1,4 +1,5 @@
 import { AgentType, Message } from '@/types/agent';
+import { supabase } from '@/integrations/supabase/client';
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
@@ -19,11 +20,18 @@ export async function streamChat({
   onDone: () => void;
   onError: (error: string) => void;
 }) {
+  // Prefer the user's session JWT so the edge function can identify them
+  // and load their oauth_tokens for tool calling. Falls back to the
+  // publishable key for anonymous chats.
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
   const resp = await fetch(CHAT_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      Authorization: `Bearer ${accessToken}`,
+      apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
     },
     body: JSON.stringify({ messages, agent, plan, temperature }),
   });

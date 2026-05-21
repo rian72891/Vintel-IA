@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -6,415 +7,512 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// ---- System prompts (mantidos) ----
 const agentSystemPrompts: Record<string, string> = {
-  research: `Você é um assistente de pesquisa avançado.
-
-CAPACIDADES PRINCIPAIS:
-- Análise profunda de informações
-- Síntese de dados de múltiplas fontes
-- Fact-checking e validação
-- Comparação crítica de perspectivas
-
-RACIOCÍNIO ESTRUTURADO (Chain of Thought):
-1. Interprete a pergunta identificando conceitos-chave
-2. Quebre em sub-perguntas se necessário
-3. Analise cada componente
-4. Sintetize conclusões com evidências
-5. Apresente resposta estruturada
-
-FORMATO DE RESPOSTA:
-- Use markdown rico (títulos, listas, tabelas, citações)
-- Organize em seções lógicas
-- Cite fontes e evidências
-- Destaque insights-chave em **negrito**
-- Use > para citações importantes
-
-IMPORTANTE: Vá direto ao ponto, sem apresentações.`,
-
-  coder: `Você é um assistente de programação de elite.
-
-CAPACIDADES PRINCIPAIS:
-- Arquitetura de software escalável
-- Code review com análise de complexidade
-- Debugging sistemático
-- Otimização de performance
-- Refatoração inteligente
-
-RACIOCÍNIO ESTRUTURADO (Chain of Thought):
-1. Analise o problema técnico
-2. Identifique patterns e anti-patterns
-3. Proponha soluções com trade-offs
-4. Implemente com boas práticas
-5. Valide com testes e edge cases
-
-FORMATO DE CÓDIGO:
-\`\`\`linguagem
-// Comentários explicativos inline
-código limpo e tipado
-\`\`\`
-
-ANÁLISE:
-- Big O notation para complexidade
-- Sugestões de melhoria
-- Riscos de segurança
-- Alternativas de implementação
-
-IMPORTANTE: Vá direto ao ponto, sem apresentações.`,
-
-  business: `Você é um estrategista de negócios.
-
-CAPACIDADES PRINCIPAIS:
-- Análise de mercado e competição
-- Modelagem de negócios e revenue
-- Planejamento estratégico
-- Identificação de oportunidades
-- Análise de riscos e mitigação
-
-RACIOCÍNIO ESTRUTURADO (Chain of Thought):
-1. Contextualize o cenário de negócio
-2. Analise dados de mercado
-3. Identifique oportunidades e ameaças
-4. Desenvolva estratégias acionáveis
-5. Projete métricas de sucesso
-
-FRAMEWORK DE ANÁLISE:
-- SWOT (Forças, Fraquezas, Oportunidades, Ameaças)
-- Canvas de modelo de negócio
-- Análise de concorrência
-- Projeções financeiras
-- Roadmap de execução
-
-IMPORTANTE: Vá direto ao ponto, sem apresentações.`,
-
-  marketing: `Você é um growth hacker estratégico.
-
-CAPACIDADES PRINCIPAIS:
-- Funis de conversão otimizados
-- Copywriting persuasivo
-- Growth loops e viral loops
-- Estratégias de acquisition
-- A/B testing e métricas
-
-RACIOCÍNIO ESTRUTURADO (Chain of Thought):
-1. Defina público-alvo e personas
-2. Mapeie jornada do cliente
-3. Identifique pontos de alavancagem
-4. Crie experimentos testáveis
-5. Estabeleça KPIs e tracking
-
-FRAMEWORK:
-- AARRR (Acquisition, Activation, Retention, Revenue, Referral)
-- Copywriting persuasivo (AIDA, PAS)
-- Channel strategy (Bullseye framework)
-- Growth tactics data-driven
-
-IMPORTANTE: Vá direto ao ponto, sem apresentações.`,
-
-  content: `Você é um criador de conteúdo multi-formato.
-
-CAPACIDADES PRINCIPAIS:
-- Storytelling envolvente
-- Copywriting para diferentes canais
-- SEO e otimização de conteúdo
-- Adaptação de tom e estilo
-- Scripts e roteiros
-
-RACIOCÍNIO ESTRUTURADO (Chain of Thought):
-1. Identifique propósito e audiência
-2. Escolha formato ideal
-3. Estruture narrativa
-4. Otimize para engajamento
-5. Refine com hooks e CTAs
-
-FORMATOS ESPECIALIZADOS:
-- Artigos long-form SEO-otimizados
-- Threads virais para redes sociais
-- Scripts de vídeo com timing
-- Email marketing persuasivo
-- Landing pages de alta conversão
-
-IMPORTANTE: Vá direto ao ponto, sem apresentações.`,
-
-  analyst: `Você é um analista de dados estratégico.
-
-CAPACIDADES PRINCIPAIS:
-- Análise estatística avançada
-- Identificação de padrões e tendências
-- Visualização de dados
-- Insights acionáveis
-- Forecasting e projeções
-
-RACIOCÍNIO ESTRUTURADO (Chain of Thought):
-1. Compreenda o contexto dos dados
-2. Limpe e estruture informações
-3. Aplique análise apropriada
-4. Identifique padrões significativos
-5. Traduza em insights acionáveis
-
-MÉTODOS DE ANÁLISE:
-- Análise descritiva (o que aconteceu)
-- Análise diagnóstica (por que aconteceu)
-- Análise preditiva (o que vai acontecer)
-- Análise prescritiva (o que fazer)
-
-FORMATO:
-- Tabelas e gráficos conceituais
-- Métricas-chave destacadas
-- Recomendações baseadas em dados
-
-IMPORTANTE: Vá direto ao ponto, sem apresentações.`,
-
-  automation: `Você é um especialista em automação e integrações.
-
-CAPACIDADES PRINCIPAIS:
-- Design de workflows automáticos
-- Integração de APIs e sistemas
-- Automação de processos (RPA)
-- Orquestração de tarefas
-- Otimização de pipelines
-
-RACIOCÍNIO ESTRUTURADO (Chain of Thought):
-1. Mapeie o processo atual
-2. Identifique gargalos e repetições
-3. Desenhe fluxo otimizado
-4. Defina triggers e condições
-5. Implemente com error handling
-
-FRAMEWORK DE AUTOMAÇÃO:
-- Triggers (eventos que iniciam)
-- Conditions (regras de lógica)
-- Actions (tarefas executadas)
-- Error handling (falhas e retry)
-- Monitoring (logs e alertas)
-
-FERRAMENTAS:
-- APIs REST/GraphQL
-- Webhooks e event-driven
-- Scheduled jobs (cron)
-- Queue systems
-- Workflow engines
-
-IMPORTANTE: Vá direto ao ponto, sem apresentações.`,
+  research: `Você é um assistente de pesquisa avançado. Use markdown rico, cite fontes e seja direto.`,
+  coder: `Você é um assistente de programação de elite. Entregue código completo, tipado, comentado.`,
+  business: `Você é um estrategista de negócios. Use SWOT/Canvas/AARRR. Seja direto.`,
+  marketing: `Você é um growth hacker. Use AIDA/PAS, AARRR. Seja direto.`,
+  content: `Você é criador de conteúdo. Storytelling envolvente, SEO. Seja direto.`,
+  analyst: `Você é analista de dados. Insights acionáveis com tabelas e métricas.`,
+  automation: `Você é especialista em automação. Workflows, APIs, integrações.`,
 };
 
-const defaultSystemPrompt = `Você é a Vintel IA — um assistente de inteligência artificial de elite, proativo e técnico. Suas respostas devem ser equivalentes aos melhores modelos do mercado: profundas, detalhadas e prontas para produção.
+const defaultSystemPrompt = `Você é a Vintel IA — assistente de elite, direto e técnico em português brasileiro. Use markdown rico, código completo em blocos, e responda profundo sem rodeios.
 
-═══════════════════════════════════════════════
-IDENTIDADE E COMPORTAMENTO
-═══════════════════════════════════════════════
+QUANDO O USUÁRIO TIVER CONECTORES ATIVOS, você PODE chamar as ferramentas disponíveis (Notion, Slack, Linear, Asana, Google Calendar/Sheets/Docs/Drive) para executar ações reais. Confirme com o usuário em ações destrutivas. Se uma ferramenta falhar, explique o erro de forma humana.`;
 
-- Aja como um especialista sênior em QUALQUER assunto
-- NUNCA dê respostas genéricas ou superficiais
-- Entregue códigos COMPLETOS, prontos para copiar e usar
-- Antecipe necessidades do usuário e sugira melhorias
-- Seja direto: vá ao ponto sem introduções desnecessárias
-- Use português brasileiro fluente e profissional
+// ---- Provider token helpers ----
+type TokenRow = { provider: string; access_token: string; refresh_token: string | null; expires_at: string | null };
 
-═══════════════════════════════════════════════
-VISÃO COMPUTACIONAL — LAYOUT TO CODE (HIGH FIDELITY)
-═══════════════════════════════════════════════
+async function refreshGoogleToken(refresh_token: string): Promise<{ access_token: string; expires_at: string } | null> {
+  const id = Deno.env.get("GOOGLE_CLIENT_ID"); const secret = Deno.env.get("GOOGLE_CLIENT_SECRET");
+  if (!id || !secret) return null;
+  const body = new URLSearchParams({ client_id: id, client_secret: secret, refresh_token, grant_type: "refresh_token" });
+  const res = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: body.toString(),
+  });
+  const d = await res.json();
+  if (!res.ok || !d.access_token) return null;
+  return { access_token: d.access_token, expires_at: new Date(Date.now() + (d.expires_in ?? 3600) * 1000).toISOString() };
+}
 
-Quando o usuário enviar uma IMAGEM (print, mockup, screenshot, wireframe):
+async function getValidToken(admin: any, userId: string, provider: string, tokens: Map<string, TokenRow>): Promise<string | null> {
+  const t = tokens.get(provider);
+  if (!t) return null;
+  if (provider === "google" && t.expires_at && new Date(t.expires_at).getTime() < Date.now() + 60_000) {
+    if (!t.refresh_token) return null;
+    const refreshed = await refreshGoogleToken(t.refresh_token);
+    if (!refreshed) return null;
+    await admin.from("oauth_tokens").update({ access_token: refreshed.access_token, expires_at: refreshed.expires_at, updated_at: new Date().toISOString() })
+      .eq("user_id", userId).eq("provider", provider);
+    t.access_token = refreshed.access_token;
+    t.expires_at = refreshed.expires_at;
+  }
+  return t.access_token;
+}
 
-1. 🔍 ANÁLISE VISUAL DETALHADA:
-   • Identifique TODOS os elementos: navbar, hero, cards, formulários, botões, footer
-   • Capture cores exatas (extraia paleta hex aproximada)
-   • Identifique tipografia (serif/sans-serif, peso, hierarquia)
-   • Mapeie espaçamentos, alinhamentos e grid (12 cols, flex, grid)
-   • Note efeitos visuais: sombras, gradientes, bordas, blur, opacidade
-   • Identifique estados (hover, active, disabled) quando visíveis
-   • Detecte responsividade (mobile, tablet, desktop)
+// ---- Tool definitions ----
+function buildToolsForProviders(providers: Set<string>) {
+  const tools: any[] = [];
 
-2. 🏗️ CÓDIGO ESTRUTURADO DE ALTA FIDELIDADE:
-   • Gere HTML5 SEMÂNTICO completo (header, main, section, article, footer)
-   • Use Tailwind CSS via CDN para fidelidade pixel-perfect
-   • Reproduza a paleta exata com classes ou CSS vars
-   • Adicione ícones SVG inline (lucide-style) onde necessário
-   • Implemente responsividade mobile-first (sm:, md:, lg:, xl:)
-   • Adicione micro-interações (hover, transitions, animations)
-   • Garanta acessibilidade (aria-labels, alt, contraste)
+  if (providers.has("notion")) {
+    tools.push({
+      type: "function",
+      function: {
+        name: "notion_search",
+        description: "Busca páginas e bancos no Notion do usuário.",
+        parameters: { type: "object", properties: { query: { type: "string" } }, required: ["query"] },
+      },
+    });
+    tools.push({
+      type: "function",
+      function: {
+        name: "notion_create_page",
+        description: "Cria uma nova página no Notion dentro de uma página pai (parent_page_id).",
+        parameters: {
+          type: "object",
+          properties: {
+            parent_page_id: { type: "string", description: "ID da página pai no Notion." },
+            title: { type: "string" },
+            content_markdown: { type: "string", description: "Conteúdo em texto simples (markdown leve)." },
+          },
+          required: ["parent_page_id", "title"],
+        },
+      },
+    });
+  }
 
-3. 📦 ENTREGA:
-   Sempre envolva em <artifact filename="layout.html" type="html" title="Layout reconstruído">
-   Código completo começando com <!DOCTYPE html>
+  if (providers.has("slack")) {
+    tools.push({
+      type: "function",
+      function: {
+        name: "slack_send_message",
+        description: "Envia mensagem em um canal do Slack. Use # antes do nome do canal ou o ID.",
+        parameters: {
+          type: "object",
+          properties: { channel: { type: "string" }, text: { type: "string" } },
+          required: ["channel", "text"],
+        },
+      },
+    });
+    tools.push({
+      type: "function",
+      function: {
+        name: "slack_list_channels",
+        description: "Lista canais públicos do Slack.",
+        parameters: { type: "object", properties: {} },
+      },
+    });
+  }
 
-═══════════════════════════════════════════════
-RACIOCÍNIO AVANÇADO (Chain of Thought)
-═══════════════════════════════════════════════
+  if (providers.has("linear")) {
+    tools.push({
+      type: "function",
+      function: {
+        name: "linear_create_issue",
+        description: "Cria uma issue no Linear. Precisa do team_id (use linear_list_teams se não souber).",
+        parameters: {
+          type: "object",
+          properties: {
+            team_id: { type: "string" },
+            title: { type: "string" },
+            description: { type: "string" },
+          },
+          required: ["team_id", "title"],
+        },
+      },
+    });
+    tools.push({
+      type: "function",
+      function: { name: "linear_list_teams", description: "Lista times do Linear.", parameters: { type: "object", properties: {} } },
+    });
+  }
 
-Para tarefas complexas, pense passo a passo:
-1. 🎯 DECOMPOR: quebre o problema em partes
-2. 🗺️ PLANEJAR: crie um plano de resolução
-3. 💡 EXECUTAR: resolva cada parte com profundidade
-4. ✅ VALIDAR: verifique a lógica e coerência
-5. 📊 SINTETIZAR: apresente a solução final
+  if (providers.has("asana")) {
+    tools.push({
+      type: "function",
+      function: { name: "asana_list_workspaces", description: "Lista workspaces do Asana.", parameters: { type: "object", properties: {} } },
+    });
+    tools.push({
+      type: "function",
+      function: {
+        name: "asana_create_task",
+        description: "Cria uma tarefa no Asana em um workspace.",
+        parameters: {
+          type: "object",
+          properties: {
+            workspace_id: { type: "string" },
+            name: { type: "string" },
+            notes: { type: "string" },
+          },
+          required: ["workspace_id", "name"],
+        },
+      },
+    });
+  }
 
-═══════════════════════════════════════════════
-GERAÇÃO DE ARTEFATOS
-═══════════════════════════════════════════════
+  if (providers.has("google")) {
+    tools.push({
+      type: "function",
+      function: {
+        name: "google_calendar_list_events",
+        description: "Lista próximos eventos do Google Calendar primário.",
+        parameters: {
+          type: "object",
+          properties: { max_results: { type: "number", description: "Padrão 10." } },
+        },
+      },
+    });
+    tools.push({
+      type: "function",
+      function: {
+        name: "google_calendar_create_event",
+        description: "Cria um evento no Google Calendar primário.",
+        parameters: {
+          type: "object",
+          properties: {
+            summary: { type: "string" },
+            description: { type: "string" },
+            start_iso: { type: "string", description: "Data/hora início ISO 8601 com timezone." },
+            end_iso: { type: "string", description: "Data/hora fim ISO 8601 com timezone." },
+          },
+          required: ["summary", "start_iso", "end_iso"],
+        },
+      },
+    });
+    tools.push({
+      type: "function",
+      function: {
+        name: "google_sheets_read",
+        description: "Lê valores de um intervalo de uma planilha do Google Sheets.",
+        parameters: {
+          type: "object",
+          properties: {
+            spreadsheet_id: { type: "string" },
+            range: { type: "string", description: "Ex: 'Sheet1!A1:D10'." },
+          },
+          required: ["spreadsheet_id", "range"],
+        },
+      },
+    });
+    tools.push({
+      type: "function",
+      function: {
+        name: "google_docs_create",
+        description: "Cria um novo Google Doc com um título e conteúdo de texto opcional.",
+        parameters: {
+          type: "object",
+          properties: { title: { type: "string" }, body: { type: "string" } },
+          required: ["title"],
+        },
+      },
+    });
+  }
 
-Quando criar código, documentos ou projetos:
+  if (providers.has("github")) {
+    tools.push({
+      type: "function",
+      function: {
+        name: "github_list_repos",
+        description: "Lista repositórios do usuário no GitHub.",
+        parameters: { type: "object", properties: {} },
+      },
+    });
+  }
 
-<artifact filename="nome.ext" type="code|document|html|config" title="Título">
-conteúdo completo
-</artifact>
+  return tools;
+}
 
-REGRAS:
-• Use artefatos para código > 10 linhas
-• Código deve ser COMPLETO, tipado e com comentários
-• HTML deve usar Tailwind CSS via CDN, com design moderno
-• Pode gerar múltiplos artefatos por resposta
+// ---- Tool dispatcher ----
+async function executeTool(
+  name: string,
+  args: any,
+  ctx: { admin: any; userId: string; tokens: Map<string, TokenRow> },
+): Promise<any> {
+  const t = async (provider: string) => {
+    const tok = await getValidToken(ctx.admin, ctx.userId, provider, ctx.tokens);
+    if (!tok) throw new Error(`Conector ${provider} não está conectado.`);
+    return tok;
+  };
 
-═══════════════════════════════════════════════
-ESPECIALIDADES
-═══════════════════════════════════════════════
+  try {
+    if (name === "notion_search") {
+      const tok = await t("notion");
+      const r = await fetch("https://api.notion.com/v1/search", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json", "Notion-Version": "2022-06-28" },
+        body: JSON.stringify({ query: args.query, page_size: 10 }),
+      });
+      return await r.json();
+    }
+    if (name === "notion_create_page") {
+      const tok = await t("notion");
+      const r = await fetch("https://api.notion.com/v1/pages", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json", "Notion-Version": "2022-06-28" },
+        body: JSON.stringify({
+          parent: { page_id: args.parent_page_id },
+          properties: { title: { title: [{ text: { content: args.title } }] } },
+          children: args.content_markdown ? [{
+            object: "block", type: "paragraph",
+            paragraph: { rich_text: [{ type: "text", text: { content: args.content_markdown } }] },
+          }] : [],
+        }),
+      });
+      return await r.json();
+    }
+    if (name === "slack_send_message") {
+      const tok = await t("slack");
+      const r = await fetch("https://slack.com/api/chat.postMessage", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json; charset=utf-8" },
+        body: JSON.stringify({ channel: args.channel, text: args.text }),
+      });
+      return await r.json();
+    }
+    if (name === "slack_list_channels") {
+      const tok = await t("slack");
+      const r = await fetch("https://slack.com/api/conversations.list?limit=100&types=public_channel", {
+        headers: { Authorization: `Bearer ${tok}` },
+      });
+      const d = await r.json();
+      return { channels: (d.channels ?? []).map((c: any) => ({ id: c.id, name: c.name })) };
+    }
+    if (name === "linear_list_teams") {
+      const tok = await t("linear");
+      const r = await fetch("https://api.linear.app/graphql", {
+        method: "POST", headers: { Authorization: tok, "Content-Type": "application/json" },
+        body: JSON.stringify({ query: "{ teams { nodes { id name key } } }" }),
+      });
+      return await r.json();
+    }
+    if (name === "linear_create_issue") {
+      const tok = await t("linear");
+      const r = await fetch("https://api.linear.app/graphql", {
+        method: "POST", headers: { Authorization: tok, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: `mutation($i: IssueCreateInput!) { issueCreate(input: $i) { success issue { id identifier url title } } }`,
+          variables: { i: { teamId: args.team_id, title: args.title, description: args.description ?? "" } },
+        }),
+      });
+      return await r.json();
+    }
+    if (name === "asana_list_workspaces") {
+      const tok = await t("asana");
+      const r = await fetch("https://app.asana.com/api/1.0/workspaces", { headers: { Authorization: `Bearer ${tok}` } });
+      return await r.json();
+    }
+    if (name === "asana_create_task") {
+      const tok = await t("asana");
+      const r = await fetch("https://app.asana.com/api/1.0/tasks", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ data: { workspace: args.workspace_id, name: args.name, notes: args.notes ?? "" } }),
+      });
+      return await r.json();
+    }
+    if (name === "google_calendar_list_events") {
+      const tok = await t("google");
+      const max = args.max_results ?? 10;
+      const now = new Date().toISOString();
+      const r = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?maxResults=${max}&timeMin=${encodeURIComponent(now)}&singleEvents=true&orderBy=startTime`, {
+        headers: { Authorization: `Bearer ${tok}` },
+      });
+      return await r.json();
+    }
+    if (name === "google_calendar_create_event") {
+      const tok = await t("google");
+      const r = await fetch("https://www.googleapis.com/calendar/v3/calendars/primary/events", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          summary: args.summary, description: args.description ?? "",
+          start: { dateTime: args.start_iso }, end: { dateTime: args.end_iso },
+        }),
+      });
+      return await r.json();
+    }
+    if (name === "google_sheets_read") {
+      const tok = await t("google");
+      const r = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${args.spreadsheet_id}/values/${encodeURIComponent(args.range)}`, {
+        headers: { Authorization: `Bearer ${tok}` },
+      });
+      return await r.json();
+    }
+    if (name === "google_docs_create") {
+      const tok = await t("google");
+      const createRes = await fetch("https://docs.googleapis.com/v1/documents", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ title: args.title }),
+      });
+      const doc = await createRes.json();
+      if (args.body && doc.documentId) {
+        await fetch(`https://docs.googleapis.com/v1/documents/${doc.documentId}:batchUpdate`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ requests: [{ insertText: { location: { index: 1 }, text: args.body } }] }),
+        });
+      }
+      return { documentId: doc.documentId, title: doc.title, url: doc.documentId ? `https://docs.google.com/document/d/${doc.documentId}/edit` : null };
+    }
+    if (name === "github_list_repos") {
+      const tok = await t("github");
+      const r = await fetch("https://api.github.com/user/repos?per_page=30&sort=updated", {
+        headers: { Authorization: `Bearer ${tok}`, Accept: "application/vnd.github+json" },
+      });
+      const data = await r.json();
+      return Array.isArray(data) ? data.map((x: any) => ({ name: x.full_name, url: x.html_url, private: x.private })) : data;
+    }
 
-🔧 CÓDIGO: Entregue código limpo, tipado, com error handling, testes e documentação inline. Sempre sugira melhorias de arquitetura.
+    return { error: `Tool desconhecida: ${name}` };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Erro na execução" };
+  }
+}
 
-📊 ANÁLISE: Use frameworks como SWOT, Canvas, AARRR. Apresente dados em tabelas e métricas-chave em destaque.
-
-✍️ CONTEÚDO: Copywriting persuasivo, SEO otimizado, storytelling envolvente. Adapte tom e formato ao canal.
-
-🧠 RACIOCÍNIO: Pensamento crítico, análise de causa-raiz, trade-offs explícitos, soluções criativas.
-
-═══════════════════════════════════════════════
-FORMATO DE RESPOSTA
-═══════════════════════════════════════════════
-
-USE MARKDOWN RICO:
-• **Negrito** para conceitos-chave
-• \`código\` inline e blocos com linguagem
-• > Citações importantes
-• Tabelas para comparações
-• Emojis estratégicos (sem exagero)
-• Listas organizadas
-
-ESTRUTURA:
-1. Resposta direta (TL;DR se complexo)
-2. Desenvolvimento profundo
-3. Artefatos prontos para uso
-4. Próximos passos sugeridos
-
-PRINCÍPIOS: Direto ✓ Profundo ✓ Proativo ✓ Preciso ✓ Acionável ✓`;
+// ---- Helpers ----
+function sseChunk(content: string) {
+  const payload = { choices: [{ delta: { content } }] };
+  return new TextEncoder().encode(`data: ${JSON.stringify(payload)}\n\n`);
+}
+const SSE_DONE = new TextEncoder().encode("data: [DONE]\n\n");
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const { messages, agent, plan, temperature: userTemp } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const systemPrompt = agent && agentSystemPrompts[agent]
-      ? agentSystemPrompts[agent]
-      : defaultSystemPrompt;
+    // Identify user (optional) to load their oauth tokens for tool calling.
+    let userId: string | null = null;
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      try {
+        const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!);
+        const { data } = await sb.auth.getClaims(authHeader.replace("Bearer ", ""));
+        if (data?.claims?.sub) userId = data.claims.sub as string;
+      } catch { /* anonymous chat */ }
+    }
 
-    // Model selection based on plan
+    const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const tokens = new Map<string, TokenRow>();
+    const connectedProviders = new Set<string>();
+    if (userId) {
+      const { data: rows } = await admin
+        .from("oauth_tokens")
+        .select("provider, access_token, refresh_token, expires_at")
+        .eq("user_id", userId);
+      for (const r of rows ?? []) {
+        tokens.set(r.provider, r as TokenRow);
+        connectedProviders.add(r.provider);
+      }
+    }
+    const tools = buildToolsForProviders(connectedProviders);
+
+    const systemPrompt = agent && agentSystemPrompts[agent] ? agentSystemPrompts[agent] : defaultSystemPrompt;
+    const connectedNote = connectedProviders.size > 0
+      ? `\n\nConectores ativos do usuário: ${[...connectedProviders].join(", ")}. Use as ferramentas disponíveis quando útil.`
+      : `\n\nO usuário não tem conectores ativos no momento.`;
+
+    // Model selection
     const modelMap: Record<string, string> = {
-      free: "google/gemini-3-flash-preview",
+      free: "google/gemini-2.5-flash",
       starter: "google/gemini-2.5-flash",
       pro: "google/gemini-2.5-pro",
       agency: "openai/gpt-5",
     };
-    const maxTokensMap: Record<string, number> = {
-      free: 4000,
-      starter: 6000,
-      pro: 10000,
-      agency: 16000,
-    };
-    const model = modelMap[plan || "free"] || "google/gemini-2.5-flash-lite";
-    const maxTokens = maxTokensMap[plan || "free"] || 2000;
+    const model = modelMap[plan || "free"] || "google/gemini-2.5-flash";
 
-    // Process messages to handle image attachments
-    const processedMessages = messages.map((msg: any) => {
-      if (msg.attachments && msg.attachments.length > 0) {
-        const imageAttachments = msg.attachments.filter((att: any) => att.type === 'image');
-        
-        if (imageAttachments.length > 0) {
-          const content = [
-            { type: "text", text: msg.content },
-            ...imageAttachments.map((img: any) => ({
-              type: "image_url",
-              image_url: { url: img.url }
-            }))
-          ];
-          return { role: msg.role, content };
+    // Process attachments
+    const processed = (messages as any[]).map((m: any) => {
+      if (m.attachments?.length) {
+        const imgs = m.attachments.filter((a: any) => a.type === "image");
+        if (imgs.length) {
+          return {
+            role: m.role,
+            content: [{ type: "text", text: m.content }, ...imgs.map((i: any) => ({ type: "image_url", image_url: { url: i.url } }))],
+          };
         }
       }
-      return { role: msg.role, content: msg.content };
+      return { role: m.role, content: m.content };
     });
 
-    // Smart context window: keep first 4 messages (anchor) + last 30 (recent)
-    // This preserves the original intent in long conversations without ballooning tokens.
-    const MAX_MSGS = 40;
-    const ANCHOR = 4;
-    let contextMessages = processedMessages;
-    if (processedMessages.length > MAX_MSGS) {
-      const head = processedMessages.slice(0, ANCHOR);
-      const tail = processedMessages.slice(-(MAX_MSGS - ANCHOR - 1));
-      const droppedCount = processedMessages.length - head.length - tail.length;
-      contextMessages = [
-        ...head,
-        { role: 'system', content: `[Contexto comprimido: ${droppedCount} mensagens intermediárias omitidas para preservar memória de longo prazo. As primeiras ${ANCHOR} mensagens (intenção original) e as ${tail.length} mais recentes foram mantidas.]` },
-        ...tail,
-      ];
-      console.log(`[CHAT] Context compression: ${processedMessages.length} → ${contextMessages.length} messages`);
-    }
+    const convo: any[] = [
+      { role: "system", content: systemPrompt + connectedNote },
+      ...processed,
+    ];
 
-    console.log(`[CHAT] Using model: ${model}, maxTokens: ${maxTokens}, plan: ${plan || "free"}, msgs: ${contextMessages.length}`);
-
-    const response = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
-      {
+    // If no tools available, behave like before: stream straight from the gateway.
+    if (tools.length === 0) {
+      const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: "system", content: systemPrompt },
-            ...contextMessages,
-          ],
-          stream: true,
-          temperature: typeof userTemp === 'number' ? Math.min(Math.max(userTemp, 0), 1) : 0.7,
-          max_tokens: maxTokens,
-        }),
+        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model, messages: convo, stream: true, temperature: typeof userTemp === "number" ? userTemp : 0.7 }),
+      });
+      if (!r.ok) {
+        if (r.status === 429) return new Response(JSON.stringify({ error: "Limite de requisições excedido." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        if (r.status === 402) return new Response(JSON.stringify({ error: "Créditos insuficientes." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ error: "Erro no gateway de IA" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-    );
-
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Limite de requisições excedido. Tente novamente em alguns segundos." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Créditos insuficientes." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      const t = await response.text();
-      console.error("AI gateway error:", response.status, t);
-      return new Response(
-        JSON.stringify({ error: "Erro no gateway de IA" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(r.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
     }
 
-    return new Response(response.body, {
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+    // Tool loop (non-streaming), then stream the final answer.
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          for (let i = 0; i < 5; i++) {
+            const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ model, messages: convo, tools, tool_choice: "auto", temperature: typeof userTemp === "number" ? userTemp : 0.7 }),
+            });
+            if (!r.ok) {
+              const txt = await r.text();
+              controller.enqueue(sseChunk(`\n\n⚠️ Erro no gateway: ${r.status} ${txt.slice(0, 200)}`));
+              break;
+            }
+            const data = await r.json();
+            const msg = data.choices?.[0]?.message;
+            if (!msg) { controller.enqueue(sseChunk("\n\n⚠️ Resposta vazia do modelo.")); break; }
+
+            convo.push(msg);
+
+            if (msg.tool_calls?.length) {
+              for (const tc of msg.tool_calls) {
+                let parsedArgs: any = {};
+                try { parsedArgs = JSON.parse(tc.function.arguments || "{}"); } catch { /* keep empty */ }
+                controller.enqueue(sseChunk(`\n\n🔧 *Executando \`${tc.function.name}\`…*\n`));
+                const result = await executeTool(tc.function.name, parsedArgs, { admin, userId: userId!, tokens });
+                convo.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result).slice(0, 8000) });
+              }
+              continue;
+            }
+
+            // Final text — stream as one chunk so the frontend renders it.
+            const content = msg.content || "";
+            if (content) controller.enqueue(sseChunk(content));
+            break;
+          }
+          controller.enqueue(SSE_DONE);
+          controller.close();
+        } catch (e) {
+          controller.enqueue(sseChunk(`\n\n⚠️ ${e instanceof Error ? e.message : "Erro"}`));
+          controller.enqueue(SSE_DONE);
+          controller.close();
+        }
+      },
     });
+
+    return new Response(stream, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
   } catch (e) {
     console.error("chat error:", e);
-    return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Erro desconhecido" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Erro desconhecido" }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
