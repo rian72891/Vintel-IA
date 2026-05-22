@@ -3,6 +3,7 @@ import { Send, Paperclip, Image, Sparkles, Wand2, Volume2, Globe, Search, Mic, S
 import { motion, AnimatePresence } from 'framer-motion';
 import { speechToText } from '@/lib/api/elevenlabs-stt';
 import { toast } from 'sonner';
+import { ConnectorIndicators } from './ConnectorIndicators';
 
 interface ChatInputProps {
   onSend: (message: string, attachments?: File[]) => void;
@@ -359,6 +360,8 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
             </motion.button>
           </div>
         </div>
+
+        <ConnectorIndicators />
 
         <p className="text-[10px] text-muted-foreground/50 text-center mt-2 tracking-wide">
           Vintel IA pode cometer erros. Verifique informações importantes.

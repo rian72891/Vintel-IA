@@ -414,8 +414,56 @@ serve(async (req) => {
     const tools = buildToolsForProviders(connectedProviders);
 
     const systemPrompt = agent && agentSystemPrompts[agent] ? agentSystemPrompts[agent] : defaultSystemPrompt;
+
+    // Silent eager context injection: pre-fetch lightweight metadata from connected
+    // providers so the model knows about the user's environment without needing
+    // to call a tool first. Best-effort; failures are swallowed.
+    let eagerContext = "";
+    if (connectedProviders.size > 0) {
+      const blocks: string[] = [];
+      await Promise.all([
+        (async () => {
+          if (!connectedProviders.has("github")) return;
+          try {
+            const tok = await getValidToken(admin, userId!, "github", tokens);
+            if (!tok) return;
+            const r = await fetch("https://api.github.com/user/repos?per_page=10&sort=updated", {
+              headers: { Authorization: `Bearer ${tok}`, Accept: "application/vnd.github+json" },
+            });
+            if (!r.ok) return;
+            const data = await r.json();
+            if (Array.isArray(data) && data.length) {
+              const list = data.slice(0, 10).map((x: any) => `- ${x.full_name}${x.description ? ` — ${x.description}` : ""}`).join("\n");
+              blocks.push(`Repositórios recentes do GitHub do usuário:\n${list}`);
+            }
+          } catch { /* silent */ }
+        })(),
+        (async () => {
+          if (!connectedProviders.has("google")) return;
+          try {
+            const tok = await getValidToken(admin, userId!, "google", tokens);
+            if (!tok) return;
+            const r = await fetch(
+              "https://www.googleapis.com/drive/v3/files?pageSize=10&orderBy=modifiedTime+desc&fields=files(name,mimeType,modifiedTime)",
+              { headers: { Authorization: `Bearer ${tok}` } },
+            );
+            if (!r.ok) return;
+            const data = await r.json();
+            const files = (data.files ?? []) as any[];
+            if (files.length) {
+              const list = files.map((f) => `- ${f.name} (${f.mimeType})`).join("\n");
+              blocks.push(`Arquivos recentes do Google Drive do usuário:\n${list}`);
+            }
+          } catch { /* silent */ }
+        })(),
+      ]);
+      if (blocks.length) {
+        eagerContext = `\n\nContexto do Usuário (pré-carregado, use de forma natural se relevante):\n${blocks.join("\n\n")}`;
+      }
+    }
+
     const connectedNote = connectedProviders.size > 0
-      ? `\n\nConectores ativos do usuário: ${[...connectedProviders].join(", ")}. Use as ferramentas disponíveis quando útil.`
+      ? `\n\nConectores ativos do usuário: ${[...connectedProviders].join(", ")}. Use as ferramentas disponíveis quando útil.${eagerContext}`
       : `\n\nO usuário não tem conectores ativos no momento.`;
 
     // Model selection
