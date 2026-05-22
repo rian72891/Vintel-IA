@@ -499,7 +499,7 @@ serve(async (req) => {
       const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model, messages: convo, stream: true, temperature: typeof userTemp === "number" ? userTemp : 0.7 }),
+        body: JSON.stringify({ model, messages: convo, stream: true, ...(model.startsWith("openai/") ? {} : { temperature: typeof userTemp === "number" ? userTemp : 0.7 }) }),
       });
       if (!r.ok) {
         if (r.status === 429) return new Response(JSON.stringify({ error: "Limite de requisições excedido." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -517,7 +517,7 @@ serve(async (req) => {
             const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
               method: "POST",
               headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-              body: JSON.stringify({ model, messages: convo, tools, tool_choice: "auto", temperature: typeof userTemp === "number" ? userTemp : 0.7 }),
+              body: JSON.stringify({ model, messages: convo, tools, tool_choice: "auto", ...(model.startsWith("openai/") ? {} : { temperature: typeof userTemp === "number" ? userTemp : 0.7 }) }),
             });
             if (!r.ok) {
               const txt = await r.text();
