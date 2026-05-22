@@ -219,6 +219,34 @@ function buildToolsForProviders(providers: Set<string>) {
         parameters: { type: "object", properties: {} },
       },
     });
+    tools.push({
+      type: "function",
+      function: {
+        name: "github_create_issue",
+        description: "Cria uma issue em um repositório do GitHub.",
+        parameters: {
+          type: "object",
+          properties: {
+            repo: { type: "string", description: "Nome completo do repositório (ex: dono/nome)." },
+            title: { type: "string", description: "Título da issue." },
+            body: { type: "string", description: "Corpo/descrição da issue." },
+          },
+          required: ["repo", "title"],
+        },
+      },
+    });
+    tools.push({
+      type: "function",
+      function: {
+        name: "github_get_repo",
+        description: "Obtém detalhes de um repositório específico do GitHub.",
+        parameters: {
+          type: "object",
+          properties: { repo: { type: "string", description: "Nome completo do repositório (ex: dono/nome)." } },
+          required: ["repo"],
+        },
+      },
+    });
   }
 
   return tools;
@@ -359,11 +387,51 @@ async function executeTool(
     }
     if (name === "github_list_repos") {
       const tok = await t("github");
-      const r = await fetch("https://api.github.com/user/repos?per_page=30&sort=updated", {
-        headers: { Authorization: `Bearer ${tok}`, Accept: "application/vnd.github+json" },
+      const r = await fetch("https://api.github.com/user/repos?per_page=100&sort=updated", {
+        headers: { 
+          Authorization: `Bearer ${tok}`, 
+          Accept: "application/vnd.github.v3+json",
+          "User-Agent": "Vintel-IA"
+        },
       });
       const data = await r.json();
-      return Array.isArray(data) ? data.map((x: any) => ({ name: x.full_name, url: x.html_url, private: x.private })) : data;
+      if (!r.ok) throw new Error(data.message || "Erro ao listar repositórios");
+      return Array.isArray(data) ? data.map((repo: any) => ({
+        full_name: repo.full_name,
+        description: repo.description,
+        private: repo.private,
+        html_url: repo.html_url,
+        updated_at: repo.updated_at
+      })) : data;
+    }
+    if (name === "github_get_repo") {
+      const tok = await t("github");
+      const r = await fetch(`https://api.github.com/repos/${args.repo}`, {
+        headers: { 
+          Authorization: `Bearer ${tok}`, 
+          Accept: "application/vnd.github.v3+json",
+          "User-Agent": "Vintel-IA"
+        },
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.message || "Erro ao obter repositório");
+      return data;
+    }
+    if (name === "github_create_issue") {
+      const tok = await t("github");
+      const r = await fetch(`https://api.github.com/repos/${args.repo}/issues`, {
+        method: "POST",
+        headers: { 
+          Authorization: `Bearer ${tok}`, 
+          Accept: "application/vnd.github.v3+json",
+          "Content-Type": "application/json",
+          "User-Agent": "Vintel-IA"
+        },
+        body: JSON.stringify({ title: args.title, body: args.body }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.message || "Erro ao criar issue");
+      return { id: data.id, number: data.number, url: data.html_url };
     }
 
     return { error: `Tool desconhecida: ${name}` };

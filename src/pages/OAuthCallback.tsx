@@ -16,7 +16,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   asana: 'Asana',
 };
 
-const BASE_REDIRECT = 'https://vintel-ia.lovable.app/auth/callback';
+const BASE_REDIRECT = window.location.origin + '/auth/callback';
 
 export default function OAuthCallback() {
   const { provider } = useParams<{ provider: string }>();

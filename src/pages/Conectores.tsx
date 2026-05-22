@@ -70,7 +70,7 @@ const PROVIDERS: Provider[] = [
   { id: 'github', name: 'GitHub', description: 'Conecte seus repositórios e fluxos de código.', color: '#181717', icon: <GitHubIcon /> },
 ];
 
-const BASE_REDIRECT = 'https://vintel-ia.lovable.app/auth/callback';
+const BASE_REDIRECT = window.location.origin + '/auth/callback';
 
 export default function Conectores() {
   const { user } = useAuth();
