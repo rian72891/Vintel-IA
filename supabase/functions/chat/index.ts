@@ -496,7 +496,7 @@ serve(async (req) => {
             const tok = await getValidToken(admin, userId!, "github", tokens);
             if (!tok) return;
             const r = await fetch("https://api.github.com/user/repos?per_page=10&sort=updated", {
-              headers: { Authorization: `Bearer ${tok}`, Accept: "application/vnd.github+json" },
+              headers: { Authorization: `Bearer ${tok}`, Accept: "application/vnd.github+json", "User-Agent": "Vintel-IA" },
             });
             if (!r.ok) return;
             const data = await r.json();
