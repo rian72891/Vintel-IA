@@ -515,6 +515,71 @@ async function executeTool(
       return { id: data.id, number: data.number, url: data.html_url };
     }
 
+    if (name === "github_read_file") {
+      const tok = await t("github");
+      const url = `https://api.github.com/repos/${args.repo}/contents/${args.path}${args.ref ? `?ref=${encodeURIComponent(args.ref)}` : ""}`;
+      const r = await fetch(url, {
+        headers: { Authorization: `Bearer ${tok}`, Accept: "application/vnd.github.v3+json", "User-Agent": "Vintel-IA" },
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.message || "Erro ao ler arquivo");
+      const content = data.content ? atob(String(data.content).replace(/\n/g, "")) : "";
+      return { path: data.path, size: data.size, content: content.slice(0, 8000) };
+    }
+    if (name === "google_drive_list") {
+      const tok = await t("google");
+      const params = new URLSearchParams({
+        pageSize: String(args.page_size ?? 20),
+        orderBy: "modifiedTime desc",
+        fields: "files(id,name,mimeType,modifiedTime,webViewLink)",
+      });
+      if (args.query) params.set("q", args.query);
+      const r = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`, { headers: { Authorization: `Bearer ${tok}` } });
+      return await r.json();
+    }
+    if (name === "google_drive_read") {
+      const tok = await t("google");
+      const r = await fetch(`https://www.googleapis.com/drive/v3/files/${args.file_id}?alt=media`, { headers: { Authorization: `Bearer ${tok}` } });
+      const text = await r.text();
+      return { content: text.slice(0, 8000) };
+    }
+    if (name === "google_sheets_write") {
+      const tok = await t("google");
+      const r = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${args.spreadsheet_id}/values/${args.range}?valueInputOption=USER_ENTERED`,
+        {
+          method: "PUT",
+          headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ values: args.values }),
+        },
+      );
+      return await r.json();
+    }
+    if (name === "notion_query_database") {
+      const tok = await t("notion");
+      const r = await fetch(`https://api.notion.com/v1/databases/${args.database_id}/query`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json", "Notion-Version": "2022-06-28" },
+        body: JSON.stringify({ page_size: 20 }),
+      });
+      return await r.json();
+    }
+    if (name === "linear_list_projects") {
+      const tok = await t("linear");
+      const r = await fetch("https://api.linear.app/graphql", {
+        method: "POST", headers: { Authorization: tok, "Content-Type": "application/json" },
+        body: JSON.stringify({ query: "{ projects { nodes { id name description state } } }" }),
+      });
+      return await r.json();
+    }
+    if (name === "asana_list_projects") {
+      const tok = await t("asana");
+      const r = await fetch(`https://app.asana.com/api/1.0/projects?workspace=${args.workspace_id}&limit=50`, {
+        headers: { Authorization: `Bearer ${tok}` },
+      });
+      return await r.json();
+    }
+
     return { error: `Tool desconhecida: ${name}` };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Erro na execução" };
