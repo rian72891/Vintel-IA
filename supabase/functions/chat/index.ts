@@ -247,6 +247,87 @@ function buildToolsForProviders(providers: Set<string>) {
         },
       },
     });
+    tools.push({
+      type: "function",
+      function: {
+        name: "github_read_file",
+        description: "Lê o conteúdo de um arquivo em um repositório do GitHub.",
+        parameters: {
+          type: "object",
+          properties: {
+            repo: { type: "string", description: "dono/nome" },
+            path: { type: "string", description: "Caminho do arquivo, ex: src/index.ts" },
+            ref: { type: "string", description: "Branch/tag/commit (opcional)." },
+          },
+          required: ["repo", "path"],
+        },
+      },
+    });
+  }
+
+  // Google extras: Drive + Sheets write
+  if (providers.has("google")) {
+    tools.push({
+      type: "function",
+      function: {
+        name: "google_drive_list",
+        description: "Lista arquivos recentes do Google Drive do usuário.",
+        parameters: { type: "object", properties: { query: { type: "string", description: "Filtro opcional (Drive query)." }, page_size: { type: "number" } } },
+      },
+    });
+    tools.push({
+      type: "function",
+      function: {
+        name: "google_drive_read",
+        description: "Lê o conteúdo de um arquivo do Google Drive (texto). Para Docs/Sheets use as ferramentas específicas.",
+        parameters: { type: "object", properties: { file_id: { type: "string" } }, required: ["file_id"] },
+      },
+    });
+    tools.push({
+      type: "function",
+      function: {
+        name: "google_sheets_write",
+        description: "Escreve/atualiza valores em um intervalo de uma planilha do Google Sheets.",
+        parameters: {
+          type: "object",
+          properties: {
+            spreadsheet_id: { type: "string" },
+            range: { type: "string", description: "Ex: 'Sheet1!A1'." },
+            values: { type: "array", description: "Matriz de linhas (array de arrays).", items: { type: "array", items: {} } },
+          },
+          required: ["spreadsheet_id", "range", "values"],
+        },
+      },
+    });
+  }
+
+  if (providers.has("notion")) {
+    tools.push({
+      type: "function",
+      function: {
+        name: "notion_query_database",
+        description: "Consulta um banco de dados do Notion pelo ID.",
+        parameters: { type: "object", properties: { database_id: { type: "string" } }, required: ["database_id"] },
+      },
+    });
+  }
+
+  if (providers.has("linear")) {
+    tools.push({
+      type: "function",
+      function: { name: "linear_list_projects", description: "Lista projetos do Linear.", parameters: { type: "object", properties: {} } },
+    });
+  }
+
+  if (providers.has("asana")) {
+    tools.push({
+      type: "function",
+      function: {
+        name: "asana_list_projects",
+        description: "Lista projetos do Asana em um workspace.",
+        parameters: { type: "object", properties: { workspace_id: { type: "string" } }, required: ["workspace_id"] },
+      },
+    });
   }
 
   return tools;
