@@ -20,7 +20,7 @@ const agentSystemPrompts: Record<string, string> = {
 
 const defaultSystemPrompt = `Você é a Vintel IA — assistente de elite, direto e técnico em português brasileiro. Use markdown rico, código completo em blocos, e responda profundo sem rodeios.
 
-QUANDO O USUÁRIO TIVER CONECTORES ATIVOS, você PODE chamar as ferramentas disponíveis (Notion, Slack, Linear, Asana, Google Calendar/Sheets/Docs/Drive) para executar ações reais. Confirme com o usuário em ações destrutivas. Se uma ferramenta falhar, explique o erro de forma humana.`;
+QUANDO O USUÁRIO TIVER CONECTORES ATIVOS, você PODE chamar as ferramentas disponíveis (Notion, Slack, Linear, Asana, GitHub, Google Drive/Sheets/Docs/Calendar) para executar ações reais. Você pode e deve COMBINAR ferramentas em fluxos completos quando fizer sentido — por exemplo: "leia esta planilha do Google e crie uma issue no GitHub com o resumo", "busque a página no Notion e mande no Slack", "veja meus repositórios e crie um evento no Calendar para a review". Confirme antes de ações destrutivas. Se uma ferramenta falhar, explique o erro de forma humana e proponha alternativa.`;
 
 // ---- Provider token helpers ----
 type TokenRow = { provider: string; access_token: string; refresh_token: string | null; expires_at: string | null };
@@ -247,6 +247,87 @@ function buildToolsForProviders(providers: Set<string>) {
         },
       },
     });
+    tools.push({
+      type: "function",
+      function: {
+        name: "github_read_file",
+        description: "Lê o conteúdo de um arquivo em um repositório do GitHub.",
+        parameters: {
+          type: "object",
+          properties: {
+            repo: { type: "string", description: "dono/nome" },
+            path: { type: "string", description: "Caminho do arquivo, ex: src/index.ts" },
+            ref: { type: "string", description: "Branch/tag/commit (opcional)." },
+          },
+          required: ["repo", "path"],
+        },
+      },
+    });
+  }
+
+  // Google extras: Drive + Sheets write
+  if (providers.has("google")) {
+    tools.push({
+      type: "function",
+      function: {
+        name: "google_drive_list",
+        description: "Lista arquivos recentes do Google Drive do usuário.",
+        parameters: { type: "object", properties: { query: { type: "string", description: "Filtro opcional (Drive query)." }, page_size: { type: "number" } } },
+      },
+    });
+    tools.push({
+      type: "function",
+      function: {
+        name: "google_drive_read",
+        description: "Lê o conteúdo de um arquivo do Google Drive (texto). Para Docs/Sheets use as ferramentas específicas.",
+        parameters: { type: "object", properties: { file_id: { type: "string" } }, required: ["file_id"] },
+      },
+    });
+    tools.push({
+      type: "function",
+      function: {
+        name: "google_sheets_write",
+        description: "Escreve/atualiza valores em um intervalo de uma planilha do Google Sheets.",
+        parameters: {
+          type: "object",
+          properties: {
+            spreadsheet_id: { type: "string" },
+            range: { type: "string", description: "Ex: 'Sheet1!A1'." },
+            values: { type: "array", description: "Matriz de linhas (array de arrays).", items: { type: "array", items: {} } },
+          },
+          required: ["spreadsheet_id", "range", "values"],
+        },
+      },
+    });
+  }
+
+  if (providers.has("notion")) {
+    tools.push({
+      type: "function",
+      function: {
+        name: "notion_query_database",
+        description: "Consulta um banco de dados do Notion pelo ID.",
+        parameters: { type: "object", properties: { database_id: { type: "string" } }, required: ["database_id"] },
+      },
+    });
+  }
+
+  if (providers.has("linear")) {
+    tools.push({
+      type: "function",
+      function: { name: "linear_list_projects", description: "Lista projetos do Linear.", parameters: { type: "object", properties: {} } },
+    });
+  }
+
+  if (providers.has("asana")) {
+    tools.push({
+      type: "function",
+      function: {
+        name: "asana_list_projects",
+        description: "Lista projetos do Asana em um workspace.",
+        parameters: { type: "object", properties: { workspace_id: { type: "string" } }, required: ["workspace_id"] },
+      },
+    });
   }
 
   return tools;
@@ -432,6 +513,71 @@ async function executeTool(
       const data = await r.json();
       if (!r.ok) throw new Error(data.message || "Erro ao criar issue");
       return { id: data.id, number: data.number, url: data.html_url };
+    }
+
+    if (name === "github_read_file") {
+      const tok = await t("github");
+      const url = `https://api.github.com/repos/${args.repo}/contents/${args.path}${args.ref ? `?ref=${encodeURIComponent(args.ref)}` : ""}`;
+      const r = await fetch(url, {
+        headers: { Authorization: `Bearer ${tok}`, Accept: "application/vnd.github.v3+json", "User-Agent": "Vintel-IA" },
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.message || "Erro ao ler arquivo");
+      const content = data.content ? atob(String(data.content).replace(/\n/g, "")) : "";
+      return { path: data.path, size: data.size, content: content.slice(0, 8000) };
+    }
+    if (name === "google_drive_list") {
+      const tok = await t("google");
+      const params = new URLSearchParams({
+        pageSize: String(args.page_size ?? 20),
+        orderBy: "modifiedTime desc",
+        fields: "files(id,name,mimeType,modifiedTime,webViewLink)",
+      });
+      if (args.query) params.set("q", args.query);
+      const r = await fetch(`https://www.googleapis.com/drive/v3/files?${params}`, { headers: { Authorization: `Bearer ${tok}` } });
+      return await r.json();
+    }
+    if (name === "google_drive_read") {
+      const tok = await t("google");
+      const r = await fetch(`https://www.googleapis.com/drive/v3/files/${args.file_id}?alt=media`, { headers: { Authorization: `Bearer ${tok}` } });
+      const text = await r.text();
+      return { content: text.slice(0, 8000) };
+    }
+    if (name === "google_sheets_write") {
+      const tok = await t("google");
+      const r = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${args.spreadsheet_id}/values/${args.range}?valueInputOption=USER_ENTERED`,
+        {
+          method: "PUT",
+          headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ values: args.values }),
+        },
+      );
+      return await r.json();
+    }
+    if (name === "notion_query_database") {
+      const tok = await t("notion");
+      const r = await fetch(`https://api.notion.com/v1/databases/${args.database_id}/query`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json", "Notion-Version": "2022-06-28" },
+        body: JSON.stringify({ page_size: 20 }),
+      });
+      return await r.json();
+    }
+    if (name === "linear_list_projects") {
+      const tok = await t("linear");
+      const r = await fetch("https://api.linear.app/graphql", {
+        method: "POST", headers: { Authorization: tok, "Content-Type": "application/json" },
+        body: JSON.stringify({ query: "{ projects { nodes { id name description state } } }" }),
+      });
+      return await r.json();
+    }
+    if (name === "asana_list_projects") {
+      const tok = await t("asana");
+      const r = await fetch(`https://app.asana.com/api/1.0/projects?workspace=${args.workspace_id}&limit=50`, {
+        headers: { Authorization: `Bearer ${tok}` },
+      });
+      return await r.json();
     }
 
     return { error: `Tool desconhecida: ${name}` };
