@@ -104,8 +104,21 @@ export default function Conectores() {
       const { data, error } = await supabase.functions.invoke('oauth-init', {
         body: { provider: p.id, redirect_uri },
       });
+      // Edge function returns 503 with `{ error: "... não configurado..." }`
+      // when the developer keys (CLIENT_ID/CLIENT_SECRET) are missing.
+      const payloadError = (data as { error?: string } | null)?.error;
+      const rawMsg = error?.message || payloadError || '';
+      const isPending = /não configurado|not configured|CLIENT_ID/i.test(rawMsg);
+
+      if (isPending) {
+        toast.message('Configuração pendente', {
+          description: `Certifique-se de preencher as chaves de desenvolvedor do ${p.name}.`,
+        });
+        setBusy(null);
+        return;
+      }
       if (error || !data?.url) {
-        throw new Error(error?.message || data?.error || 'Falha ao iniciar OAuth');
+        throw new Error(rawMsg || 'Falha ao iniciar OAuth');
       }
       window.location.href = data.url as string;
     } catch (e) {
