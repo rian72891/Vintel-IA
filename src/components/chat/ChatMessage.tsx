@@ -142,9 +142,15 @@ export function ChatMessage({ message, audioUrl, isStreaming, onEdit }: ChatMess
     if (artifacts.length === 0 || isSharing) return;
     setIsSharing(true);
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const uid = sessionData.session?.user?.id;
+      if (!uid) {
+        toast.error('Faça login para compartilhar artefatos.');
+        return;
+      }
       const { data, error } = await supabase
         .from('shared_artifacts')
-        .insert([{ title: `Arquivos Compartilhados (${artifacts.length})`, artifacts: artifacts as any }])
+        .insert([{ title: `Arquivos Compartilhados (${artifacts.length})`, artifacts: artifacts as any, user_id: uid }])
         .select()
         .single();
       if (error || !data) throw error;
