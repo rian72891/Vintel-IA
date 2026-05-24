@@ -707,7 +707,7 @@ serve(async (req) => {
       pro: "google/gemini-2.5-pro",
       agency: "openai/gpt-5",
     };
-    const model = modelMap[plan || "free"] || "google/gemini-2.5-flash";
+    const model = modelMap[plan] || "google/gemini-2.5-flash";
 
     // Process attachments
     const processed = (messages as any[]).map((m: any) => {
