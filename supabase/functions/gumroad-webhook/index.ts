@@ -50,6 +50,37 @@ serve(async (req) => {
       }
     }
 
+    // ---- Webhook authentication ----
+    // Gumroad does not sign payloads, so we require a shared secret that the
+    // user configures both in the Gumroad webhook URL and as the
+    // GUMROAD_WEBHOOK_SECRET env var. Reject anything that doesn't match.
+    const expectedSecret = Deno.env.get("GUMROAD_WEBHOOK_SECRET");
+    if (!expectedSecret) {
+      console.error("[GUMROAD-WEBHOOK] GUMROAD_WEBHOOK_SECRET not configured — refusing all events");
+      return new Response(JSON.stringify({ error: "Webhook not configured" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 503,
+      });
+    }
+    const providedSecret =
+      body.secret ||
+      body.webhook_secret ||
+      new URL(req.url).searchParams.get("secret") ||
+      req.headers.get("x-gumroad-secret") ||
+      "";
+    // constant-time compare
+    const a = new TextEncoder().encode(expectedSecret);
+    const b = new TextEncoder().encode(providedSecret);
+    let ok = a.length === b.length;
+    for (let i = 0; i < Math.min(a.length, b.length); i++) ok = ok && a[i] === b[i];
+    if (!ok) {
+      console.warn("[GUMROAD-WEBHOOK] Invalid or missing secret — rejecting");
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+      });
+    }
+
     // Extract fields - Gumroad uses different field names depending on event
     const email = body.email || body.purchaser_email || "";
     const event = body.resource_name || body.event || "sale";
@@ -62,7 +93,6 @@ serve(async (req) => {
     console.log(`[GUMROAD-WEBHOOK] Product: ${productPermalink}`);
     console.log(`[GUMROAD-WEBHOOK] Product Name: ${productName}`);
     console.log(`[GUMROAD-WEBHOOK] Subscription ID: ${gumroadSubId}`);
-    console.log(`[GUMROAD-WEBHOOK] All keys: ${Object.keys(body).join(", ")}`);
 
     if (!email) {
       console.error("[GUMROAD-WEBHOOK] No email found in payload");

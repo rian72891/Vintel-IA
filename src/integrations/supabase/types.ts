@@ -157,18 +157,21 @@ export type Database = {
           created_at: string
           id: string
           title: string
+          user_id: string | null
         }
         Insert: {
           artifacts: Json
           created_at?: string
           id?: string
           title?: string
+          user_id?: string | null
         }
         Update: {
           artifacts?: Json
           created_at?: string
           id?: string
           title?: string
+          user_id?: string | null
         }
         Relationships: []
       }

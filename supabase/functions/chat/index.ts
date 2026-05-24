@@ -597,7 +597,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages, agent, plan, temperature: userTemp } = await req.json();
+    const { messages, agent, temperature: userTemp } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
@@ -613,6 +613,26 @@ serve(async (req) => {
     }
 
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+    // Derive plan SERVER-SIDE from authenticated user's subscription.
+    // Never trust a client-supplied `plan` field — that would let anyone
+    // request premium models for free.
+    let plan = "free";
+    if (userId) {
+      const { data: sub } = await admin
+        .from("subscriptions")
+        .select("plan, status")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (sub?.status === "active" && sub.plan) {
+        plan = sub.plan;
+      } else {
+        const { data: prof } = await admin
+          .from("profiles").select("plan").eq("id", userId).maybeSingle();
+        if (prof?.plan) plan = prof.plan;
+      }
+    }
+
     const tokens = new Map<string, TokenRow>();
     const connectedProviders = new Set<string>();
     if (userId) {
@@ -687,7 +707,7 @@ serve(async (req) => {
       pro: "google/gemini-2.5-pro",
       agency: "openai/gpt-5",
     };
-    const model = modelMap[plan || "free"] || "google/gemini-2.5-flash";
+    const model = modelMap[plan] || "google/gemini-2.5-flash";
 
     // Process attachments
     const processed = (messages as any[]).map((m: any) => {
