@@ -252,24 +252,39 @@ export type Database = {
       }
       user_connectors: {
         Row: {
+          account_label: string | null
           created_at: string
           id: string
+          last_error: string | null
+          last_synced_at: string | null
           provider: string
+          scopes: string | null
           status: string
+          updated_at: string
           user_id: string
         }
         Insert: {
+          account_label?: string | null
           created_at?: string
           id?: string
+          last_error?: string | null
+          last_synced_at?: string | null
           provider: string
+          scopes?: string | null
           status?: string
+          updated_at?: string
           user_id: string
         }
         Update: {
+          account_label?: string | null
           created_at?: string
           id?: string
+          last_error?: string | null
+          last_synced_at?: string | null
           provider?: string
+          scopes?: string | null
           status?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
