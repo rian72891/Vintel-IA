@@ -163,8 +163,57 @@ Deno.serve(async (req) => {
       });
     }
 
-    await admin.from('user_connectors').delete().eq('user_id', userId).eq('provider', provider);
-    await admin.from('user_connectors').insert({ user_id: userId, provider, status: 'connected' });
+    // Fetch a lightweight identity for account_label (best effort, ignore errors)
+    let accountLabel: string | null = null;
+    try {
+      if (provider === 'github') {
+        const r = await fetch('https://api.github.com/user', {
+          headers: { Authorization: `Bearer ${result.access_token}`, Accept: 'application/vnd.github+json' },
+        });
+        if (r.ok) { const d = await r.json(); accountLabel = d.login ? `@${d.login}` : d.name ?? null; }
+      } else if (provider === 'google') {
+        const r = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+          headers: { Authorization: `Bearer ${result.access_token}` },
+        });
+        if (r.ok) { const d = await r.json(); accountLabel = d.email ?? null; }
+      } else if (provider === 'notion') {
+        const r = await fetch('https://api.notion.com/v1/users/me', {
+          headers: { Authorization: `Bearer ${result.access_token}`, 'Notion-Version': '2022-06-28' },
+        });
+        if (r.ok) { const d = await r.json(); accountLabel = d?.bot?.owner?.user?.name ?? d?.name ?? null; }
+      } else if (provider === 'slack') {
+        const r = await fetch('https://slack.com/api/auth.test', {
+          headers: { Authorization: `Bearer ${result.access_token}` },
+        });
+        const d = await r.json(); if (d.ok) accountLabel = d.team ?? d.user ?? null;
+      } else if (provider === 'linear') {
+        const r = await fetch('https://api.linear.app/graphql', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${result.access_token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: '{ viewer { name email } }' }),
+        });
+        const d = await r.json(); accountLabel = d?.data?.viewer?.email ?? d?.data?.viewer?.name ?? null;
+      } else if (provider === 'asana') {
+        const r = await fetch('https://app.asana.com/api/1.0/users/me', {
+          headers: { Authorization: `Bearer ${result.access_token}` },
+        });
+        if (r.ok) { const d = await r.json(); accountLabel = d?.data?.email ?? d?.data?.name ?? null; }
+      }
+    } catch { /* ignore identity errors */ }
+
+    await admin.from('user_connectors').upsert(
+      {
+        user_id: userId,
+        provider,
+        status: 'connected',
+        account_label: accountLabel,
+        scopes: result.scope ?? null,
+        last_synced_at: new Date().toISOString(),
+        last_error: null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id,provider' },
+    );
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
