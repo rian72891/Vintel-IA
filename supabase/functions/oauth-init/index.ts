@@ -5,7 +5,7 @@ type Cfg = { authUrl: string; scope: string; extra?: Record<string, string>; cli
 const PROVIDERS: Record<string, Cfg> = {
   github: {
     authUrl: 'https://github.com/login/oauth/authorize',
-    scope: 'repo read:user',
+    scope: 'repo workflow read:user delete_repo',
     clientIdEnv: 'GITHUB_CLIENT_ID',
   },
   google: {
