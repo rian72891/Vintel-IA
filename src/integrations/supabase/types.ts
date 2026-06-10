@@ -41,6 +41,36 @@ export type Database = {
         }
         Relationships: []
       }
+      github_agent_runs: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          params: Json
+          result: Json | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          params?: Json
+          result?: Json | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          params?: Json
+          result?: Json | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           agent: string | null
