@@ -20,7 +20,10 @@ const agentSystemPrompts: Record<string, string> = {
 
 const defaultSystemPrompt = `Você é a Vintel IA — assistente de elite, direto e técnico em português brasileiro. Use markdown rico, código completo em blocos, e responda profundo sem rodeios.
 
-QUANDO O USUÁRIO TIVER CONECTORES ATIVOS, você PODE chamar as ferramentas disponíveis (Notion, Slack, Linear, Asana, GitHub, Google Drive/Sheets/Docs/Calendar) para executar ações reais. Você pode e deve COMBINAR ferramentas em fluxos completos quando fizer sentido — por exemplo: "leia esta planilha do Google e crie uma issue no GitHub com o resumo", "busque a página no Notion e mande no Slack", "veja meus repositórios e crie um evento no Calendar para a review". Confirme antes de ações destrutivas. Se uma ferramenta falhar, explique o erro de forma humana e proponha alternativa.`;
+QUANDO O USUÁRIO TIVER CONECTORES ATIVOS, você PODE chamar as ferramentas disponíveis (Notion, Slack, Linear, Asana, GitHub, Google Drive/Sheets/Docs/Calendar) para executar ações reais. Você pode e deve COMBINAR ferramentas em fluxos completos quando fizer sentido.
+
+IMPORTANTE — GITHUB: quando o GitHub estiver conectado, você TEM permissão de ESCRITA real. Você PODE e DEVE: criar issues (github_create_issue), fazer commits diretos em arquivos (github_commit_file), criar branches (github_create_branch) e abrir Pull Requests (github_create_pull_request). NUNCA diga "não faço commits nem abro PRs" — você FAZ. Quando o usuário pedir uma ação de escrita, EXECUTE diretamente chamando a ferramenta correspondente (após confirmação apenas para ações destrutivas como deletar/arquivar). Para ações em lote em todos os repos (auditoria, padronização, README de perfil, reversão em 48h), avise que existe uma página dedicada em /github-agent com botões para cada comando.`;
+
 
 // ---- Provider token helpers ----
 type TokenRow = { provider: string; access_token: string; refresh_token: string | null; expires_at: string | null };
@@ -263,7 +266,60 @@ function buildToolsForProviders(providers: Set<string>) {
         },
       },
     });
+    tools.push({
+      type: "function",
+      function: {
+        name: "github_commit_file",
+        description: "Cria ou atualiza um arquivo no repositório GitHub com um commit direto na branch indicada (padrão: branch default). Faz commit REAL.",
+        parameters: {
+          type: "object",
+          properties: {
+            repo: { type: "string", description: "dono/nome" },
+            path: { type: "string", description: "Caminho do arquivo, ex: README.md ou src/index.ts" },
+            content: { type: "string", description: "Conteúdo completo do arquivo (texto)." },
+            message: { type: "string", description: "Mensagem do commit." },
+            branch: { type: "string", description: "Branch alvo (opcional; padrão: default branch)." },
+          },
+          required: ["repo", "path", "content", "message"],
+        },
+      },
+    });
+    tools.push({
+      type: "function",
+      function: {
+        name: "github_create_branch",
+        description: "Cria uma nova branch no repositório GitHub a partir de outra branch (padrão: default).",
+        parameters: {
+          type: "object",
+          properties: {
+            repo: { type: "string", description: "dono/nome" },
+            new_branch: { type: "string" },
+            from_branch: { type: "string", description: "Branch de origem (opcional; padrão: default)." },
+          },
+          required: ["repo", "new_branch"],
+        },
+      },
+    });
+    tools.push({
+      type: "function",
+      function: {
+        name: "github_create_pull_request",
+        description: "Abre um Pull Request REAL no GitHub.",
+        parameters: {
+          type: "object",
+          properties: {
+            repo: { type: "string", description: "dono/nome" },
+            title: { type: "string" },
+            head: { type: "string", description: "Branch com as mudanças." },
+            base: { type: "string", description: "Branch alvo (ex: main)." },
+            body: { type: "string" },
+          },
+          required: ["repo", "title", "head", "base"],
+        },
+      },
+    });
   }
+
 
   // Google extras: Drive + Sheets write
   if (providers.has("google")) {
@@ -580,7 +636,65 @@ async function executeTool(
       return await r.json();
     }
 
+    if (name === "github_commit_file") {
+      const tok = await t("github");
+      const ghHeaders = { Authorization: `Bearer ${tok}`, Accept: "application/vnd.github+json", "User-Agent": "Vintel-IA", "X-GitHub-Api-Version": "2022-11-28" };
+      let branch = args.branch as string | undefined;
+      if (!branch) {
+        const rr = await fetch(`https://api.github.com/repos/${args.repo}`, { headers: ghHeaders });
+        const rd = await rr.json();
+        if (!rr.ok) throw new Error(rd.message || "Erro ao obter repo");
+        branch = rd.default_branch;
+      }
+      // get existing sha if file exists
+      let sha: string | undefined;
+      const exist = await fetch(`https://api.github.com/repos/${args.repo}/contents/${encodeURIComponent(args.path)}?ref=${branch}`, { headers: ghHeaders });
+      if (exist.ok) { const ed = await exist.json(); sha = ed.sha; }
+      const b64 = btoa(unescape(encodeURIComponent(args.content)));
+      const r = await fetch(`https://api.github.com/repos/${args.repo}/contents/${encodeURIComponent(args.path)}`, {
+        method: "PUT",
+        headers: { ...ghHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({ message: args.message, content: b64, branch, ...(sha ? { sha } : {}) }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.message || "Erro ao commitar");
+      return { commit_url: data.commit?.html_url, content_url: data.content?.html_url, branch };
+    }
+    if (name === "github_create_branch") {
+      const tok = await t("github");
+      const ghHeaders = { Authorization: `Bearer ${tok}`, Accept: "application/vnd.github+json", "User-Agent": "Vintel-IA" };
+      let from = args.from_branch as string | undefined;
+      if (!from) {
+        const rr = await fetch(`https://api.github.com/repos/${args.repo}`, { headers: ghHeaders });
+        const rd = await rr.json();
+        from = rd.default_branch;
+      }
+      const refRes = await fetch(`https://api.github.com/repos/${args.repo}/git/refs/heads/${from}`, { headers: ghHeaders });
+      const refData = await refRes.json();
+      if (!refRes.ok) throw new Error(refData.message || "Erro ao obter ref base");
+      const r = await fetch(`https://api.github.com/repos/${args.repo}/git/refs`, {
+        method: "POST",
+        headers: { ...ghHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({ ref: `refs/heads/${args.new_branch}`, sha: refData.object.sha }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.message || "Erro ao criar branch");
+      return { ref: data.ref, sha: data.object?.sha };
+    }
+    if (name === "github_create_pull_request") {
+      const tok = await t("github");
+      const r = await fetch(`https://api.github.com/repos/${args.repo}/pulls`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${tok}`, Accept: "application/vnd.github+json", "User-Agent": "Vintel-IA", "Content-Type": "application/json" },
+        body: JSON.stringify({ title: args.title, head: args.head, base: args.base, body: args.body ?? "" }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.message || "Erro ao abrir PR");
+      return { number: data.number, url: data.html_url, state: data.state };
+    }
+
     return { error: `Tool desconhecida: ${name}` };
+
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Erro na execução" };
   }
