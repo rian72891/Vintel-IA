@@ -598,6 +598,24 @@ async function executeTool(
       const content = data.content ? atob(String(data.content).replace(/\n/g, "")) : "";
       return { path: data.path, size: data.size, content: content.slice(0, 8000) };
     }
+    if (name === "github_read_files") {
+      const tok = await t("github");
+      const paths: string[] = Array.isArray(args.paths) ? args.paths.slice(0, 25) : [];
+      const ref = args.ref ? `?ref=${encodeURIComponent(args.ref)}` : "";
+      const headers = { Authorization: `Bearer ${tok}`, Accept: "application/vnd.github.v3+json", "User-Agent": "Vintel-IA" };
+      const files = await Promise.all(paths.map(async (p) => {
+        try {
+          const r = await fetch(`https://api.github.com/repos/${args.repo}/contents/${p}${ref}`, { headers });
+          const data = await r.json();
+          if (!r.ok) return { path: p, error: data.message || `HTTP ${r.status}` };
+          const content = data.content ? atob(String(data.content).replace(/\n/g, "")) : "";
+          return { path: data.path, size: data.size, content: content.slice(0, 4000) };
+        } catch (e) {
+          return { path: p, error: e instanceof Error ? e.message : "erro" };
+        }
+      }));
+      return { files };
+    }
     if (name === "google_drive_list") {
       const tok = await t("google");
       const params = new URLSearchParams({
