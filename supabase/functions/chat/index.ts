@@ -266,7 +266,60 @@ function buildToolsForProviders(providers: Set<string>) {
         },
       },
     });
+    tools.push({
+      type: "function",
+      function: {
+        name: "github_commit_file",
+        description: "Cria ou atualiza um arquivo no repositório GitHub com um commit direto na branch indicada (padrão: branch default). Faz commit REAL.",
+        parameters: {
+          type: "object",
+          properties: {
+            repo: { type: "string", description: "dono/nome" },
+            path: { type: "string", description: "Caminho do arquivo, ex: README.md ou src/index.ts" },
+            content: { type: "string", description: "Conteúdo completo do arquivo (texto)." },
+            message: { type: "string", description: "Mensagem do commit." },
+            branch: { type: "string", description: "Branch alvo (opcional; padrão: default branch)." },
+          },
+          required: ["repo", "path", "content", "message"],
+        },
+      },
+    });
+    tools.push({
+      type: "function",
+      function: {
+        name: "github_create_branch",
+        description: "Cria uma nova branch no repositório GitHub a partir de outra branch (padrão: default).",
+        parameters: {
+          type: "object",
+          properties: {
+            repo: { type: "string", description: "dono/nome" },
+            new_branch: { type: "string" },
+            from_branch: { type: "string", description: "Branch de origem (opcional; padrão: default)." },
+          },
+          required: ["repo", "new_branch"],
+        },
+      },
+    });
+    tools.push({
+      type: "function",
+      function: {
+        name: "github_create_pull_request",
+        description: "Abre um Pull Request REAL no GitHub.",
+        parameters: {
+          type: "object",
+          properties: {
+            repo: { type: "string", description: "dono/nome" },
+            title: { type: "string" },
+            head: { type: "string", description: "Branch com as mudanças." },
+            base: { type: "string", description: "Branch alvo (ex: main)." },
+            body: { type: "string" },
+          },
+          required: ["repo", "title", "head", "base"],
+        },
+      },
+    });
   }
+
 
   // Google extras: Drive + Sheets write
   if (providers.has("google")) {
