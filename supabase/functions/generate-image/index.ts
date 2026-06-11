@@ -91,9 +91,11 @@ serve(async (req) => {
     console.log("AI response - has image:", !!imageUrl, "text:", textResponse?.substring(0, 200));
 
     if (!imageUrl) {
-      const reason = textResponse || "Nenhuma imagem foi gerada. Tente reformular o prompt.";
+      console.warn("Model returned text instead of image:", textResponse?.slice(0, 300));
       return new Response(
-        JSON.stringify({ error: reason }),
+        JSON.stringify({
+          error: "O modelo respondeu com texto em vez de gerar uma imagem. Reformule o prompt de forma mais visual e descritiva (ex.: \"foto realista de...\", \"ilustração de...\", \"pôster com...\") ou tente a qualidade HD.",
+        }),
         { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
