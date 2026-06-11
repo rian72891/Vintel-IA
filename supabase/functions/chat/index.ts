@@ -879,11 +879,17 @@ serve(async (req) => {
             convo.push(msg);
 
             if (msg.tool_calls?.length) {
-              for (const tc of msg.tool_calls) {
-                let parsedArgs: any = {};
-                try { parsedArgs = JSON.parse(tc.function.arguments || "{}"); } catch { /* keep empty */ }
-                controller.enqueue(sseChunk(`\n\n🔧 *Executando \`${tc.function.name}\`…*\n`));
-                const result = await executeTool(tc.function.name, parsedArgs, { admin, userId: userId!, tokens });
+              const names = msg.tool_calls.map((tc: any) => `\`${tc.function.name}\``).join(", ");
+              controller.enqueue(sseChunk(`\n\n🔧 *Executando ${msg.tool_calls.length} ferramenta(s) em paralelo: ${names}…*\n`));
+              const results = await Promise.all(
+                msg.tool_calls.map(async (tc: any) => {
+                  let parsedArgs: any = {};
+                  try { parsedArgs = JSON.parse(tc.function.arguments || "{}"); } catch { /* keep empty */ }
+                  const result = await executeTool(tc.function.name, parsedArgs, { admin, userId: userId!, tokens });
+                  return { tc, result };
+                })
+              );
+              for (const { tc, result } of results) {
                 convo.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result).slice(0, 8000) });
               }
               continue;
