@@ -22,7 +22,9 @@ const defaultSystemPrompt = `Você é a Vintel IA — assistente de elite, diret
 
 QUANDO O USUÁRIO TIVER CONECTORES ATIVOS, você PODE chamar as ferramentas disponíveis (Notion, Slack, Linear, Asana, GitHub, Google Drive/Sheets/Docs/Calendar) para executar ações reais. Você pode e deve COMBINAR ferramentas em fluxos completos quando fizer sentido.
 
-IMPORTANTE — GITHUB: quando o GitHub estiver conectado, você TEM permissão de ESCRITA real. Você PODE e DEVE: criar issues (github_create_issue), fazer commits diretos em arquivos (github_commit_file), criar branches (github_create_branch) e abrir Pull Requests (github_create_pull_request). NUNCA diga "não faço commits nem abro PRs" — você FAZ. Quando o usuário pedir uma ação de escrita, EXECUTE diretamente chamando a ferramenta correspondente (após confirmação apenas para ações destrutivas como deletar/arquivar). Para ações em lote em todos os repos (auditoria, padronização, README de perfil, reversão em 48h), avise que existe uma página dedicada em /github-agent com botões para cada comando.`;
+IMPORTANTE — GITHUB: quando o GitHub estiver conectado, você TEM permissão de ESCRITA real. Você PODE e DEVE: criar issues (github_create_issue), fazer commits diretos em arquivos (github_commit_file), criar branches (github_create_branch) e abrir Pull Requests (github_create_pull_request). NUNCA diga "não faço commits nem abro PRs" — você FAZ. Quando o usuário pedir uma ação de escrita, EXECUTE diretamente chamando a ferramenta correspondente (após confirmação apenas para ações destrutivas como deletar/arquivar). Para ações em lote em todos os repos (auditoria, padronização, README de perfil, reversão em 48h), avise que existe uma página dedicada em /github-agent com botões para cada comando.
+
+PERFORMANCE — REGRA CRÍTICA: Para QUALQUER tarefa que envolva mais de 1 leitura/ação, EMITA TODAS as tool_calls JUNTAS na MESMA resposta (paralelismo). NUNCA leia arquivos um a um em rodadas separadas. Para ler vários arquivos do GitHub use SEMPRE \`github_read_files\` (batch) em vez de várias chamadas de \`github_read_file\`. Para sugerir uma mensagem de commit baseada no contexto, leia no máximo 2–3 arquivos relevantes (README + package.json) — não leia o repositório inteiro.`;
 
 
 // ---- Provider token helpers ----
@@ -263,6 +265,22 @@ function buildToolsForProviders(providers: Set<string>) {
             ref: { type: "string", description: "Branch/tag/commit (opcional)." },
           },
           required: ["repo", "path"],
+        },
+      },
+    });
+    tools.push({
+      type: "function",
+      function: {
+        name: "github_read_files",
+        description: "Lê VÁRIOS arquivos de um repo em PARALELO numa única chamada. Use SEMPRE que precisar de mais de 1 arquivo — é MUITO mais rápido que chamar github_read_file várias vezes.",
+        parameters: {
+          type: "object",
+          properties: {
+            repo: { type: "string", description: "dono/nome" },
+            paths: { type: "array", items: { type: "string" }, description: "Lista de caminhos de arquivos." },
+            ref: { type: "string", description: "Branch/tag/commit (opcional)." },
+          },
+          required: ["repo", "paths"],
         },
       },
     });
@@ -582,6 +600,24 @@ async function executeTool(
       const content = data.content ? atob(String(data.content).replace(/\n/g, "")) : "";
       return { path: data.path, size: data.size, content: content.slice(0, 8000) };
     }
+    if (name === "github_read_files") {
+      const tok = await t("github");
+      const paths: string[] = Array.isArray(args.paths) ? args.paths.slice(0, 25) : [];
+      const ref = args.ref ? `?ref=${encodeURIComponent(args.ref)}` : "";
+      const headers = { Authorization: `Bearer ${tok}`, Accept: "application/vnd.github.v3+json", "User-Agent": "Vintel-IA" };
+      const files = await Promise.all(paths.map(async (p) => {
+        try {
+          const r = await fetch(`https://api.github.com/repos/${args.repo}/contents/${p}${ref}`, { headers });
+          const data = await r.json();
+          if (!r.ok) return { path: p, error: data.message || `HTTP ${r.status}` };
+          const content = data.content ? atob(String(data.content).replace(/\n/g, "")) : "";
+          return { path: data.path, size: data.size, content: content.slice(0, 4000) };
+        } catch (e) {
+          return { path: p, error: e instanceof Error ? e.message : "erro" };
+        }
+      }));
+      return { files };
+    }
     if (name === "google_drive_list") {
       const tok = await t("google");
       const params = new URLSearchParams({
@@ -879,11 +915,17 @@ serve(async (req) => {
             convo.push(msg);
 
             if (msg.tool_calls?.length) {
-              for (const tc of msg.tool_calls) {
-                let parsedArgs: any = {};
-                try { parsedArgs = JSON.parse(tc.function.arguments || "{}"); } catch { /* keep empty */ }
-                controller.enqueue(sseChunk(`\n\n🔧 *Executando \`${tc.function.name}\`…*\n`));
-                const result = await executeTool(tc.function.name, parsedArgs, { admin, userId: userId!, tokens });
+              const names = msg.tool_calls.map((tc: any) => `\`${tc.function.name}\``).join(", ");
+              controller.enqueue(sseChunk(`\n\n🔧 *Executando ${msg.tool_calls.length} ferramenta(s) em paralelo: ${names}…*\n`));
+              const results = await Promise.all(
+                msg.tool_calls.map(async (tc: any) => {
+                  let parsedArgs: any = {};
+                  try { parsedArgs = JSON.parse(tc.function.arguments || "{}"); } catch { /* keep empty */ }
+                  const result = await executeTool(tc.function.name, parsedArgs, { admin, userId: userId!, tokens });
+                  return { tc, result };
+                })
+              );
+              for (const { tc, result } of results) {
                 convo.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result).slice(0, 8000) });
               }
               continue;
