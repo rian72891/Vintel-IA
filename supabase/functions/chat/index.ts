@@ -269,6 +269,22 @@ function buildToolsForProviders(providers: Set<string>) {
     tools.push({
       type: "function",
       function: {
+        name: "github_read_files",
+        description: "Lê VÁRIOS arquivos de um repo em PARALELO numa única chamada. Use SEMPRE que precisar de mais de 1 arquivo — é MUITO mais rápido que chamar github_read_file várias vezes.",
+        parameters: {
+          type: "object",
+          properties: {
+            repo: { type: "string", description: "dono/nome" },
+            paths: { type: "array", items: { type: "string" }, description: "Lista de caminhos de arquivos." },
+            ref: { type: "string", description: "Branch/tag/commit (opcional)." },
+          },
+          required: ["repo", "paths"],
+        },
+      },
+    });
+    tools.push({
+      type: "function",
+      function: {
         name: "github_commit_file",
         description: "Cria ou atualiza um arquivo no repositório GitHub com um commit direto na branch indicada (padrão: branch default). Faz commit REAL.",
         parameters: {
