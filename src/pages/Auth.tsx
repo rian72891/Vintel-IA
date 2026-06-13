@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { lovable } from '@/integrations/lovable/index';
 import { Mail, Lock, User, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
@@ -37,10 +38,7 @@ export default function Auth() {
 
   const handleGoogle = async () => {
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: window.location.origin },
-      });
+      const { error } = await lovable.auth.signInWithOAuth('google', { redirect_uri: window.location.origin });
       if (error) {
         console.error('Google OAuth error:', error);
         toast.error('Login com Google indisponível neste domínio. Use email e senha.');
