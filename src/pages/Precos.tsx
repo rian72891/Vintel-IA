@@ -47,7 +47,7 @@ export default function Precos() {
   };
 
   const comparisonFeatures = [
-    { label: 'Modelo IA', starter: 'Gemini Flash', pro: 'Gemini Pro', agency: 'GPT-5' },
+    { label: 'Modelo IA', starter: 'Gemini Flash', pro: 'Gemini Pro', agency: 'GPT-5 + Gemini Pro' },
     { label: 'Mensagens/dia', starter: '50', pro: 'Ilimitado', agency: 'Ilimitado' },
     { label: 'Imagens/mês', starter: '20', pro: '100 (HD)', agency: 'Ilimitado' },
     { label: 'Arquivos/mês', starter: '5 (PDF)', pro: '20 (PDF, ZIP, HTML)', agency: 'Ilimitado' },
