@@ -110,6 +110,7 @@ export const PLANS = {
       'Arquivos ilimitados (todos formatos)',
       'Áudio ilimitado (10h voz)',
       '5 usuários simultâneos',
+      'Todos os conectores + OAuth próprio (white-label)',
       'API access',
       'White-label parcial',
       'Suporte via WhatsApp',
