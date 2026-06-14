@@ -81,6 +81,7 @@ export const PLANS = {
       '2h áudio/mês (transcrição + voz)',
       'Análises ilimitadas de imagem',
       'Geração de código completo',
+      'Todos os conectores (Google, Notion, Slack, Linear, Asana, GitHub)',
       'Suporte prioritário',
       'Acesso antecipado',
     ],
