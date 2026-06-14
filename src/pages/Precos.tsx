@@ -54,6 +54,7 @@ export default function Precos() {
     { label: 'Áudio/mês', starter: '30 min', pro: '2 horas', agency: 'Ilimitado (10h voz)' },
     { label: 'Análises de imagem', starter: '10', pro: 'Ilimitado', agency: 'Ilimitado' },
     { label: 'Geração de código', starter: 'Básico', pro: 'Completo', agency: 'Completo' },
+    { label: 'Conectores (Google, Notion, Slack, Linear, Asana, GitHub)', starter: '2 ativos', pro: 'Todos', agency: 'Todos + OAuth próprio' },
     { label: 'Usuários', starter: '1', pro: '1', agency: '5' },
     { label: 'API access', starter: '✗', pro: '✗', agency: '✓' },
     { label: 'White-label', starter: '✗', pro: '✗', agency: 'Parcial' },
