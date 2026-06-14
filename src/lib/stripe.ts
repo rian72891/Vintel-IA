@@ -51,6 +51,7 @@ export const PLANS = {
       '5 arquivos/mês (PDF)',
       '30 min áudio/mês',
       '10 análises imagem/mês',
+      '2 conectores ativos (Google, Notion, Slack, Linear, Asana ou GitHub)',
       'Suporte por email',
     ],
   },
