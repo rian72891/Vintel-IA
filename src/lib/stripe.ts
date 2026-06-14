@@ -24,6 +24,7 @@ export const PLANS = {
       'Sem áudio',
       'Sem arquivos',
       'Sem análise de imagem',
+      'Sem conectores externos',
     ],
   },
   starter: {
