@@ -45,7 +45,7 @@ export const PLANS = {
       imageAnalysesPerMonth: 10,
     },
     features: [
-      '50 mensagens/dia (GPT-4o mini)',
+      '50 mensagens/dia (Gemini Flash)',
       '20 imagens/mês',
       '5 arquivos/mês (PDF)',
       '30 min áudio/mês',
@@ -73,7 +73,7 @@ export const PLANS = {
       imageAnalysesPerMonth: Infinity,
     },
     features: [
-      'Mensagens ilimitadas (GPT-4o)',
+      'Mensagens ilimitadas (Gemini Pro)',
       '100 imagens/mês (HD)',
       '20 arquivos/mês (PDF, ZIP, HTML)',
       '2h áudio/mês (transcrição + voz)',
