@@ -15,13 +15,14 @@ import { toast } from 'sonner';
 import { useUsage } from '@/hooks/useUsage';
 import { useSubscription } from '@/hooks/useSubscription';
 import { UpgradeModal } from '@/components/UpgradeModal';
+import { useSmoothStream } from '@/hooks/useSmoothStream';
 
 export function ChatView() {
   const { activeConversationId, getActiveConversation, addMessage, temperature, deleteConversation } = useChatStore();
   const conversation = getActiveConversation();
   const bottomRef = useRef<HTMLDivElement>(null);
   const [isStreaming, setIsStreaming] = useState(false);
-  const [streamingContent, setStreamingContent] = useState('');
+  const { displayed: streamingContent, push: pushStream, finish: finishStream, reset: resetStream } = useSmoothStream();
   const [loadingLabel, setLoadingLabel] = useState('');
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const { checkUsage, incrementUsage } = useUsage();
