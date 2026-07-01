@@ -39,11 +39,9 @@ export default function SharedArtifacts() {
   useEffect(() => {
     if (!id) return;
     supabase
-      .from('shared_artifacts')
-      .select('*')
-      .eq('id', id)
-      .single()
-      .then(({ data: row, error: err }) => {
+      .rpc('get_shared_artifact', { p_id: id })
+      .then(({ data: rows, error: err }) => {
+        const row = Array.isArray(rows) ? rows[0] : rows;
         if (err || !row) {
           setError('Artefatos não encontrados ou link inválido.');
         } else {

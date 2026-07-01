@@ -324,7 +324,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_shared_artifact: {
+        Args: { p_id: string }
+        Returns: {
+          artifacts: Json
+          created_at: string
+          id: string
+          title: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
