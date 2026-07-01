@@ -103,7 +103,7 @@ export function ChatView() {
         temperature,
         onDelta: (delta) => {
           fullContent += delta;
-          setStreamingContent(fullContent);
+          pushStream(delta);
         },
         onDone: async () => {
           if (fullContent) {
@@ -355,7 +355,7 @@ export function ChatView() {
         temperature,
         onDelta: (delta) => {
           fullContent += delta;
-          setStreamingContent(fullContent);
+          pushStream(delta);
         },
         onDone: async () => {
           if (fullContent) {
@@ -598,7 +598,7 @@ export function ChatView() {
         temperature,
         onDelta: (delta) => {
           fullContent += delta;
-          setStreamingContent(fullContent);
+          pushStream(delta);
         },
         onDone: async () => {
           if (fullContent) {
