@@ -15,13 +15,14 @@ import { toast } from 'sonner';
 import { useUsage } from '@/hooks/useUsage';
 import { useSubscription } from '@/hooks/useSubscription';
 import { UpgradeModal } from '@/components/UpgradeModal';
+import { useSmoothStream } from '@/hooks/useSmoothStream';
 
 export function ChatView() {
   const { activeConversationId, getActiveConversation, addMessage, temperature, deleteConversation } = useChatStore();
   const conversation = getActiveConversation();
   const bottomRef = useRef<HTMLDivElement>(null);
   const [isStreaming, setIsStreaming] = useState(false);
-  const [streamingContent, setStreamingContent] = useState('');
+  const { displayed: streamingContent, push: pushStream, finish: finishStream, reset: resetStream } = useSmoothStream();
   const [loadingLabel, setLoadingLabel] = useState('');
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const { checkUsage, incrementUsage } = useUsage();
@@ -90,7 +91,7 @@ export function ChatView() {
     }
 
     setIsStreaming(true);
-    setStreamingContent('');
+    resetStream();
     setLoadingLabel('');
 
     let fullContent = '';
@@ -102,9 +103,10 @@ export function ChatView() {
         temperature,
         onDelta: (delta) => {
           fullContent += delta;
-          setStreamingContent(fullContent);
+          pushStream(delta);
         },
         onDone: async () => {
+          await new Promise<void>((r) => finishStream(r));
           if (fullContent) {
             await addMessage(activeConversationId, {
               role: 'assistant',
@@ -113,19 +115,19 @@ export function ChatView() {
             });
           }
           setIsStreaming(false);
-          setStreamingContent('');
+          resetStream();
           await incrementUsage('messages');
         },
         onError: (error) => {
           toast.error(error);
           setIsStreaming(false);
-          setStreamingContent('');
+          resetStream();
         },
       });
     } catch {
       toast.error('Erro ao conectar com a IA. Tente novamente.');
       setIsStreaming(false);
-      setStreamingContent('');
+      resetStream();
     }
   }, [activeConversationId, conversation?.agent, plan, temperature, addMessage, incrementUsage]);
 
@@ -137,7 +139,7 @@ export function ChatView() {
     if (!skipUserMsg) await addMessage(activeConversationId, { role: 'user', content: `🔊 Gerar áudio: ${text}` });
     setIsStreaming(true);
     setLoadingLabel('Gerando áudio...');
-    setStreamingContent('');
+    resetStream();
 
     try {
       const dataUrl = await textToSpeech(text);
@@ -155,7 +157,7 @@ export function ChatView() {
       });
     } finally {
       setIsStreaming(false);
-      setStreamingContent('');
+      resetStream();
       setLoadingLabel('');
     }
   };
@@ -166,7 +168,7 @@ export function ChatView() {
     if (!skipUserMsg) await addMessage(activeConversationId, { role: 'user', content: `🔍 Buscar na web: ${query}` });
     setIsStreaming(true);
     setLoadingLabel('Buscando na web...');
-    setStreamingContent('');
+    resetStream();
 
     try {
       const result = await firecrawlApi.search(query);
@@ -197,7 +199,7 @@ export function ChatView() {
       });
     } finally {
       setIsStreaming(false);
-      setStreamingContent('');
+      resetStream();
       setLoadingLabel('');
     }
   };
@@ -210,7 +212,7 @@ export function ChatView() {
     await addMessage(activeConversationId, { role: 'user', content: `🎨 Gerar imagem ${qualityLabel}: ${prompt}` });
     setIsStreaming(true);
     setLoadingLabel('Gerando imagem...');
-    setStreamingContent('');
+    resetStream();
 
     try {
       const result = await generateImage(prompt, quality);
@@ -229,7 +231,7 @@ export function ChatView() {
       });
     } finally {
       setIsStreaming(false);
-      setStreamingContent('');
+      resetStream();
       setLoadingLabel('');
     }
   };
@@ -254,7 +256,7 @@ export function ChatView() {
     await addMessage(activeConversationId, { role: 'user', content: `🌐 Extrair conteúdo: ${url}` });
     setIsStreaming(true);
     setLoadingLabel('Extraindo conteúdo do site...');
-    setStreamingContent('');
+    resetStream();
 
     try {
       const result = await firecrawlApi.scrape(url);
@@ -282,7 +284,7 @@ export function ChatView() {
       });
     } finally {
       setIsStreaming(false);
-      setStreamingContent('');
+      resetStream();
       setLoadingLabel('');
     }
   };
@@ -305,7 +307,7 @@ export function ChatView() {
     await addMessage(activeConversationId, { role: 'user', content: `${icons[type]} Gerar ${labels[type]}: ${prompt}` });
     setIsStreaming(true);
     setLoadingLabel(loadingLabels[type]);
-    setStreamingContent('');
+    resetStream();
 
     let instruction = '';
     switch (type) {
@@ -354,9 +356,10 @@ export function ChatView() {
         temperature,
         onDelta: (delta) => {
           fullContent += delta;
-          setStreamingContent(fullContent);
+          pushStream(delta);
         },
         onDone: async () => {
+          await new Promise<void>((r) => finishStream(r));
           if (fullContent) {
             try {
               let fileUrl: string;
@@ -407,20 +410,20 @@ export function ChatView() {
             }
           }
           setIsStreaming(false);
-          setStreamingContent('');
+          resetStream();
           setLoadingLabel('');
         },
         onError: (error) => {
           toast.error(error);
           setIsStreaming(false);
-          setStreamingContent('');
+          resetStream();
           setLoadingLabel('');
         },
       });
     } catch (e) {
       toast.error('Erro ao conectar com a IA. Tente novamente.');
       setIsStreaming(false);
-      setStreamingContent('');
+      resetStream();
       setLoadingLabel('');
     }
   };
@@ -496,7 +499,7 @@ export function ChatView() {
       });
       setIsStreaming(true);
       setLoadingLabel('Editando imagem com IA...');
-      setStreamingContent('');
+      resetStream();
 
       try {
         const result = await generateImage(prompt, quality, imageAtt.url);
@@ -515,7 +518,7 @@ export function ChatView() {
         });
       } finally {
         setIsStreaming(false);
-        setStreamingContent('');
+        resetStream();
         setLoadingLabel('');
       }
       return;
@@ -581,7 +584,7 @@ export function ChatView() {
       attachments: processedAttachments.length > 0 ? processedAttachments : undefined
     });
     setIsStreaming(true);
-    setStreamingContent('');
+    resetStream();
     setLoadingLabel('');
 
     const currentConv = getActiveConversation();
@@ -597,9 +600,10 @@ export function ChatView() {
         temperature,
         onDelta: (delta) => {
           fullContent += delta;
-          setStreamingContent(fullContent);
+          pushStream(delta);
         },
         onDone: async () => {
+          await new Promise<void>((r) => finishStream(r));
           if (fullContent) {
             await addMessage(activeConversationId, {
               role: 'assistant',
@@ -608,7 +612,7 @@ export function ChatView() {
             });
           }
           setIsStreaming(false);
-          setStreamingContent('');
+          resetStream();
           await incrementUsage('messages');
           if (hasImageAttachment) {
             await incrementUsage('image_analyses');
@@ -617,13 +621,13 @@ export function ChatView() {
         onError: (error) => {
           toast.error(error);
           setIsStreaming(false);
-          setStreamingContent('');
+          resetStream();
         },
       });
     } catch (e) {
       toast.error('Erro ao conectar com a IA. Tente novamente.');
       setIsStreaming(false);
-      setStreamingContent('');
+      resetStream();
     }
   };
 
