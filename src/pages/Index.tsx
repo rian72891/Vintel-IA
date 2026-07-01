@@ -38,10 +38,10 @@ const Index = () => {
               href="/install-Vintel-IA.html"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 rounded-lg bg-primary/10 border border-primary/20 px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/20 transition-colors"
+              className="btn-shimmer group relative flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/25 transition-all duration-300 ease-out hover:shadow-primary/40 hover:scale-[1.03] active:scale-[0.97]"
             >
-              <Download className="h-4 w-4" />
-              Baixar app
+              <Download className="h-4 w-4 transition-transform duration-300 group-hover:-translate-y-0.5" />
+              <span>Baixar app</span>
             </a>
 
             {/* Right: user avatar */}
