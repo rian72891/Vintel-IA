@@ -106,6 +106,7 @@ export function ChatView() {
           pushStream(delta);
         },
         onDone: async () => {
+          await new Promise<void>((r) => finishStream(r));
           if (fullContent) {
             await addMessage(activeConversationId, {
               role: 'assistant',
@@ -358,6 +359,7 @@ export function ChatView() {
           pushStream(delta);
         },
         onDone: async () => {
+          await new Promise<void>((r) => finishStream(r));
           if (fullContent) {
             try {
               let fileUrl: string;
@@ -601,6 +603,7 @@ export function ChatView() {
           pushStream(delta);
         },
         onDone: async () => {
+          await new Promise<void>((r) => finishStream(r));
           if (fullContent) {
             await addMessage(activeConversationId, {
               role: 'assistant',
