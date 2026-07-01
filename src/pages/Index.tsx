@@ -33,17 +33,16 @@ const Index = () => {
               </button>
             </div>
 
-            {/* Center: brand */}
-            <div className="flex items-center gap-2 group cursor-default">
-              <img
-                src={vintelLogo}
-                alt="Vintel IA"
-                className="h-7 w-7 rounded-lg object-cover transition-transform group-hover:scale-110"
-              />
-              <span className="text-sm font-semibold text-foreground tracking-tight transition-colors group-hover:text-primary">
-                Vintel
-              </span>
-            </div>
+            {/* Center: download */}
+            <a
+              href="/install-Vintel-IA.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 rounded-lg bg-primary/10 border border-primary/20 px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/20 transition-colors"
+            >
+              <Download className="h-4 w-4" />
+              Baixar app
+            </a>
 
             {/* Right: user avatar */}
             <div className="w-10 flex justify-end">
