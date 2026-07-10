@@ -5,6 +5,7 @@ import { Sidebar } from '@/components/chat/Sidebar';
 import { AgentSelector } from '@/components/chat/AgentSelector';
 import { ChatView } from '@/components/chat/ChatView';
 import { AuthModal } from '@/components/AuthModal';
+import { WelcomeModal } from '@/components/WelcomeModal';
 import { useChatStore } from '@/store/chatStore';
 import { useAuth } from '@/hooks/useAuth';
 
