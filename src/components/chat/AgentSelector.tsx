@@ -326,9 +326,13 @@ export function AgentSelector({ onRequireAuth }: AgentSelectorProps) {
           <p className="text-[11px] text-muted-foreground/30 tracking-wide">
             Powered by Gemini Pro & GPT-4o
           </p>
-          <Link to="/precos" className="inline-block text-[11px] text-primary/50 hover:text-primary transition-colors">
-            Ver Planos →
-          </Link>
+          <div className="flex items-center justify-center gap-3 text-[11px] text-muted-foreground/40">
+            <Link to="/precos" className="hover:text-primary transition-colors">Planos</Link>
+            <span className="opacity-40">·</span>
+            <Link to="/termos" className="hover:text-foreground transition-colors">Termos</Link>
+            <span className="opacity-40">·</span>
+            <Link to="/privacidade" className="hover:text-foreground transition-colors">Privacidade</Link>
+          </div>
         </motion.div>
       </div>
     </div>
