@@ -38,7 +38,8 @@ export async function streamChat({
 
   if (!resp.ok) {
     const data = await resp.json().catch(() => ({}));
-    onError(data.error || `Error ${resp.status}`);
+    const friendly = mapErrorMessage(resp.status, data?.error);
+    onError(friendly);
     return;
   }
 
