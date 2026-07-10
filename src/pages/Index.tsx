@@ -67,6 +67,7 @@ const Index = () => {
       </div>
 
       <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />
+      <WelcomeModal userId={user?.id} />
     </div>
   );
 };
