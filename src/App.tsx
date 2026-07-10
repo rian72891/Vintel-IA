@@ -15,6 +15,8 @@ import SharedArtifacts from "./pages/SharedArtifacts";
 import Conectores from "./pages/Conectores";
 import GithubAgent from "./pages/GithubAgent";
 import OAuthCallback from "./pages/OAuthCallback";
+import Termos from "./pages/Termos";
+import Privacidade from "./pages/Privacidade";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -39,6 +41,8 @@ const App = () => (
                 <Route path="/conectores" element={<Conectores />} />
                 <Route path="/github-agent" element={<GithubAgent />} />
                 <Route path="/auth/callback/:provider" element={<OAuthCallback />} />
+                <Route path="/termos" element={<Termos />} />
+                <Route path="/privacidade" element={<Privacidade />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>
