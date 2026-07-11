@@ -792,6 +792,35 @@ serve(async (req) => {
       }
     }
 
+    // Verificar limite de mensagens ANTES de chamar o gateway
+    if (userId) {
+      const { data: usage } = await admin
+        .from("usage_limits")
+        .select("messages_used, plan")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (usage) {
+        const planLimits: Record<string, number> = {
+          free: 10,
+          starter: 50,
+          pro: Infinity,
+          agency: Infinity,
+        };
+        const limit = planLimits[plan] ?? 10;
+        if (limit !== Infinity && usage.messages_used >= limit) {
+          return new Response(
+            JSON.stringify({
+              error: "limite_atingido",
+              message: `Você atingiu o limite de ${limit} mensagens diárias do plano ${plan}. Faça upgrade para continuar.`,
+            }),
+            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
+    }
+
+
     const tokens = new Map<string, TokenRow>();
     const connectedProviders = new Set<string>();
     if (userId) {
