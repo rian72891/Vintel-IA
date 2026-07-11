@@ -10,7 +10,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   google: 'Google Workspace',
   google_drive: 'Google Drive',
   gmail: 'Gmail',
-  notion: 'Notion',
+  lovable: 'Lovable',
   slack: 'Slack',
   linear: 'Linear',
   asana: 'Asana',
