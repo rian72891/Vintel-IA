@@ -665,15 +665,6 @@ async function executeTool(
       );
       return await r.json();
     }
-    if (name === "notion_query_database") {
-      const tok = await t("notion");
-      const r = await fetch(`https://api.notion.com/v1/databases/${args.database_id}/query`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json", "Notion-Version": "2022-06-28" },
-        body: JSON.stringify({ page_size: 20 }),
-      });
-      return await r.json();
-    }
     if (name === "linear_list_projects") {
       const tok = await t("linear");
       const r = await fetch("https://api.linear.app/graphql", {
