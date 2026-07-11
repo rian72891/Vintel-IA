@@ -75,28 +75,42 @@ async function getValidToken(admin: any, userId: string, provider: string, token
 function buildToolsForProviders(providers: Set<string>) {
   const tools: any[] = [];
 
-  if (providers.has("notion")) {
+  if (providers.has("lovable")) {
     tools.push({
       type: "function",
       function: {
-        name: "notion_search",
-        description: "Busca páginas e bancos no Notion do usuário.",
-        parameters: { type: "object", properties: { query: { type: "string" } }, required: ["query"] },
+        name: "lovable_list_projects",
+        description: "Lista todos os projetos Lovable do usuário.",
+        parameters: { type: "object", properties: {} },
       },
     });
     tools.push({
       type: "function",
       function: {
-        name: "notion_create_page",
-        description: "Cria uma nova página no Notion dentro de uma página pai (parent_page_id).",
+        name: "lovable_create_project",
+        description: "Cria um novo projeto no Lovable.",
         parameters: {
           type: "object",
           properties: {
-            parent_page_id: { type: "string", description: "ID da página pai no Notion." },
-            title: { type: "string" },
-            content_markdown: { type: "string", description: "Conteúdo em texto simples (markdown leve)." },
+            title: { type: "string", description: "Nome do projeto." },
+            description: { type: "string", description: "Descrição do projeto." },
           },
-          required: ["parent_page_id", "title"],
+          required: ["title"],
+        },
+      },
+    });
+    tools.push({
+      type: "function",
+      function: {
+        name: "lovable_send_message",
+        description: "Envia uma mensagem ao agente de um projeto Lovable para fazer alterações no código.",
+        parameters: {
+          type: "object",
+          properties: {
+            project_id: { type: "string", description: "ID do projeto Lovable." },
+            message: { type: "string", description: "Instrução para o agente Lovable executar." },
+          },
+          required: ["project_id", "message"],
         },
       },
     });
