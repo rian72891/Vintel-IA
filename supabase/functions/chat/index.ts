@@ -438,28 +438,28 @@ async function executeTool(
   };
 
   try {
-    if (name === "notion_search") {
-      const tok = await t("notion");
-      const r = await fetch("https://api.notion.com/v1/search", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json", "Notion-Version": "2022-06-28" },
-        body: JSON.stringify({ query: args.query, page_size: 10 }),
+    if (name === "lovable_list_projects") {
+      const tok = await t("lovable");
+      const r = await fetch("https://api.lovable.dev/v1/projects", {
+        headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
       });
       return await r.json();
     }
-    if (name === "notion_create_page") {
-      const tok = await t("notion");
-      const r = await fetch("https://api.notion.com/v1/pages", {
+    if (name === "lovable_create_project") {
+      const tok = await t("lovable");
+      const r = await fetch("https://api.lovable.dev/v1/projects", {
         method: "POST",
-        headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json", "Notion-Version": "2022-06-28" },
-        body: JSON.stringify({
-          parent: { page_id: args.parent_page_id },
-          properties: { title: { title: [{ text: { content: args.title } }] } },
-          children: args.content_markdown ? [{
-            object: "block", type: "paragraph",
-            paragraph: { rich_text: [{ type: "text", text: { content: args.content_markdown } }] },
-          }] : [],
-        }),
+        headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ title: args.title, description: args.description ?? "" }),
+      });
+      return await r.json();
+    }
+    if (name === "lovable_send_message") {
+      const tok = await t("lovable");
+      const r = await fetch(`https://api.lovable.dev/v1/projects/${args.project_id}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ message: args.message }),
       });
       return await r.json();
     }
