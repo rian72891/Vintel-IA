@@ -895,7 +895,33 @@ serve(async (req) => {
       pro: "google/gemini-2.5-pro",
       agency: "openai/gpt-5",
     };
-    const model = modelMap[plan] || "google/gemini-2.5-flash";
+
+    // Fallback automático: se uso mensal > 70% do teto estimado, usa modelo mais econômico
+    let model = modelMap[plan] || "google/gemini-2.5-flash";
+    if (userId && (plan === "pro" || plan === "agency")) {
+      try {
+        const { data: usage } = await admin
+          .from("usage_limits")
+          .select("messages_used, reset_date")
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        if (usage) {
+          const resetDate = new Date(usage.reset_date);
+          const now = new Date();
+          const daysInCycle = 30;
+          const daysPassed = Math.floor((now.getTime() - resetDate.getTime()) / (1000 * 60 * 60 * 24));
+          const expectedUsage = (daysPassed / daysInCycle) * 1000;
+          const usageRatio = usage.messages_used / Math.max(expectedUsage, 1);
+
+          if (usageRatio > 0.7) {
+            if (plan === "agency") model = "google/gemini-2.5-pro";
+            if (plan === "pro") model = "google/gemini-2.5-flash";
+            console.log(`[FALLBACK] plan=${plan} ratio=${usageRatio.toFixed(2)} → model=${model}`);
+          }
+        }
+      } catch { /* fallback silencioso */ }
+    }
 
     // Process attachments
     const processed = (messages as any[]).map((m: any) => {
