@@ -62,7 +62,7 @@ const AsanaIcon = () => (
 
 const PROVIDERS: Provider[] = [
   { id: 'google', name: 'Google Workspace', description: 'Drive, Calendar, Sheets e Docs em uma só conexão.', color: '#4285F4', icon: <GoogleIcon /> },
-  { id: 'notion', name: 'Notion', description: 'Crie e busque páginas e bancos de dados.', color: '#FFFFFF', icon: <NotionIcon /> },
+  { id: 'lovable', name: 'Lovable', description: 'Crie e edite projetos Lovable com a IA.', color: '#9b5de5', icon: <LovableIcon /> },
   { id: 'slack', name: 'Slack', description: 'Envie mensagens em canais e DMs.', color: '#4A154B', icon: <SlackIcon /> },
   { id: 'linear', name: 'Linear', description: 'Crie e acompanhe issues do produto.', color: '#5E6AD2', icon: <LinearIcon /> },
   { id: 'asana', name: 'Asana', description: 'Tarefas e projetos sincronizados com a IA.', color: '#F06A6A', icon: <AsanaIcon /> },
