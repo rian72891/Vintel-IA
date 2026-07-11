@@ -34,9 +34,9 @@ const GitHubIcon = () => (
     <path d="M12 .5C5.73.5.5 5.73.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.7-3.88-1.54-3.88-1.54-.52-1.32-1.27-1.67-1.27-1.67-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.02 1.75 2.68 1.24 3.34.95.1-.74.4-1.24.72-1.53-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.46.11-3.05 0 0 .96-.31 3.15 1.18a10.9 10.9 0 015.74 0c2.19-1.49 3.15-1.18 3.15-1.18.62 1.59.23 2.76.11 3.05.74.81 1.18 1.84 1.18 3.1 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14 0 1.55-.02 2.79-.02 3.17 0 .31.21.68.8.56C20.21 21.39 23.5 17.08 23.5 12 23.5 5.73 18.27.5 12 .5z" />
   </svg>
 );
-const NotionIcon = () => (
-  <svg viewBox="0 0 24 24" className="h-7 w-7" fill="currentColor">
-    <path d="M4.46 1.93l13.9-1.03c1.71-.14 2.15-.04 3.22.74l4.43 3.12c.73.54.98.69.98 1.27v17.16c0 1.07-.39 1.71-1.75 1.81l-16.13.98c-1.03.05-1.51-.1-2.05-.78L3.74 21.07c-.59-.78-.83-1.37-.83-2.05V3.6c0-.88.39-1.61 1.55-1.67z" />
+const LovableIcon = () => (
+  <svg viewBox="0 0 24 24" className="h-7 w-7" fill="#9b5de5">
+    <path d="M12 21.593c-5.63-5.539-11-10.297-11-14.402C1 4.144 3.01 2 5.5 2c1.973 0 3.787 1.198 4.5 3 .713-1.802 2.527-3 4.5-3C16.99 2 19 4.144 19 7.191c0 4.105-5.37 8.863-11 14.402z"/>
   </svg>
 );
 const SlackIcon = () => (
@@ -62,7 +62,7 @@ const AsanaIcon = () => (
 
 const PROVIDERS: Provider[] = [
   { id: 'google', name: 'Google Workspace', description: 'Drive, Calendar, Sheets e Docs em uma só conexão.', color: '#4285F4', icon: <GoogleIcon /> },
-  { id: 'notion', name: 'Notion', description: 'Crie e busque páginas e bancos de dados.', color: '#FFFFFF', icon: <NotionIcon /> },
+  { id: 'lovable', name: 'Lovable', description: 'Crie e edite projetos Lovable com a IA.', color: '#9b5de5', icon: <LovableIcon /> },
   { id: 'slack', name: 'Slack', description: 'Envie mensagens em canais e DMs.', color: '#4A154B', icon: <SlackIcon /> },
   { id: 'linear', name: 'Linear', description: 'Crie e acompanhe issues do produto.', color: '#5E6AD2', icon: <LinearIcon /> },
   { id: 'asana', name: 'Asana', description: 'Tarefas e projetos sincronizados com a IA.', color: '#F06A6A', icon: <AsanaIcon /> },

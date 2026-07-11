@@ -37,7 +37,7 @@ Repita Pensamento → Ação → Observação quantas vezes precisar. Só dê a 
 
 # FERRAMENTAS (chame via tool_calls quando o conector estiver ativo)
 - **GitHub** (escrita REAL liberada quando conectado): \`github_create_issue\`, \`github_commit_file\`, \`github_create_branch\`, \`github_create_pull_request\`, \`github_read_file\`, \`github_read_files\` (batch — PREFIRA esta para múltiplos arquivos). NUNCA diga "não faço commits nem abro PRs": você FAZ. Para fluxos em lote (auditoria, padronização, README de perfil, reversão 48h), informe que existe \`/github-agent\` com botões dedicados.
-- **Notion, Slack, Linear, Asana, Google Drive/Sheets/Docs/Calendar**: combine em fluxos completos quando fizer sentido.
+- **Lovable** (quando conectado): \`lovable_list_projects\`, \`lovable_create_project\`, \`lovable_send_message\` — crie e edite projetos Lovable direto pelo chat.
 - Para sugerir mensagem de commit: leia no máximo 2–3 arquivos relevantes (README + package.json), não o repo inteiro.`;
 
 
@@ -75,28 +75,42 @@ async function getValidToken(admin: any, userId: string, provider: string, token
 function buildToolsForProviders(providers: Set<string>) {
   const tools: any[] = [];
 
-  if (providers.has("notion")) {
+  if (providers.has("lovable")) {
     tools.push({
       type: "function",
       function: {
-        name: "notion_search",
-        description: "Busca páginas e bancos no Notion do usuário.",
-        parameters: { type: "object", properties: { query: { type: "string" } }, required: ["query"] },
+        name: "lovable_list_projects",
+        description: "Lista todos os projetos Lovable do usuário.",
+        parameters: { type: "object", properties: {} },
       },
     });
     tools.push({
       type: "function",
       function: {
-        name: "notion_create_page",
-        description: "Cria uma nova página no Notion dentro de uma página pai (parent_page_id).",
+        name: "lovable_create_project",
+        description: "Cria um novo projeto no Lovable.",
         parameters: {
           type: "object",
           properties: {
-            parent_page_id: { type: "string", description: "ID da página pai no Notion." },
-            title: { type: "string" },
-            content_markdown: { type: "string", description: "Conteúdo em texto simples (markdown leve)." },
+            title: { type: "string", description: "Nome do projeto." },
+            description: { type: "string", description: "Descrição do projeto." },
           },
-          required: ["parent_page_id", "title"],
+          required: ["title"],
+        },
+      },
+    });
+    tools.push({
+      type: "function",
+      function: {
+        name: "lovable_send_message",
+        description: "Envia uma mensagem ao agente de um projeto Lovable para fazer alterações no código.",
+        parameters: {
+          type: "object",
+          properties: {
+            project_id: { type: "string", description: "ID do projeto Lovable." },
+            message: { type: "string", description: "Instrução para o agente Lovable executar." },
+          },
+          required: ["project_id", "message"],
         },
       },
     });
@@ -389,16 +403,6 @@ function buildToolsForProviders(providers: Set<string>) {
     });
   }
 
-  if (providers.has("notion")) {
-    tools.push({
-      type: "function",
-      function: {
-        name: "notion_query_database",
-        description: "Consulta um banco de dados do Notion pelo ID.",
-        parameters: { type: "object", properties: { database_id: { type: "string" } }, required: ["database_id"] },
-      },
-    });
-  }
 
   if (providers.has("linear")) {
     tools.push({
@@ -434,28 +438,28 @@ async function executeTool(
   };
 
   try {
-    if (name === "notion_search") {
-      const tok = await t("notion");
-      const r = await fetch("https://api.notion.com/v1/search", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json", "Notion-Version": "2022-06-28" },
-        body: JSON.stringify({ query: args.query, page_size: 10 }),
+    if (name === "lovable_list_projects") {
+      const tok = await t("lovable");
+      const r = await fetch("https://api.lovable.dev/v1/projects", {
+        headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
       });
       return await r.json();
     }
-    if (name === "notion_create_page") {
-      const tok = await t("notion");
-      const r = await fetch("https://api.notion.com/v1/pages", {
+    if (name === "lovable_create_project") {
+      const tok = await t("lovable");
+      const r = await fetch("https://api.lovable.dev/v1/projects", {
         method: "POST",
-        headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json", "Notion-Version": "2022-06-28" },
-        body: JSON.stringify({
-          parent: { page_id: args.parent_page_id },
-          properties: { title: { title: [{ text: { content: args.title } }] } },
-          children: args.content_markdown ? [{
-            object: "block", type: "paragraph",
-            paragraph: { rich_text: [{ type: "text", text: { content: args.content_markdown } }] },
-          }] : [],
-        }),
+        headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ title: args.title, description: args.description ?? "" }),
+      });
+      return await r.json();
+    }
+    if (name === "lovable_send_message") {
+      const tok = await t("lovable");
+      const r = await fetch(`https://api.lovable.dev/v1/projects/${args.project_id}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ message: args.message }),
       });
       return await r.json();
     }
@@ -659,15 +663,6 @@ async function executeTool(
           body: JSON.stringify({ values: args.values }),
         },
       );
-      return await r.json();
-    }
-    if (name === "notion_query_database") {
-      const tok = await t("notion");
-      const r = await fetch(`https://api.notion.com/v1/databases/${args.database_id}/query`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json", "Notion-Version": "2022-06-28" },
-        body: JSON.stringify({ page_size: 20 }),
-      });
       return await r.json();
     }
     if (name === "linear_list_projects") {
