@@ -41,7 +41,7 @@ export function WelcomeModal({ userId }: Props) {
     {
       icon: Plug,
       title: 'Conecte suas ferramentas',
-      desc: 'GitHub, Google, Notion, Slack, Linear e Asana. A IA usa seus dados para agir por você — commits, PRs, planilhas.',
+      desc: 'GitHub, Google, Lovable, Slack, Linear e Asana. A IA usa seus dados para agir por você — commits, PRs, planilhas.',
       cta: { label: 'Ver conectores', to: '/conectores' },
     },
     {

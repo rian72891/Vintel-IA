@@ -23,9 +23,9 @@ const GitHubMini = () => (
   </svg>
 );
 
-const NotionMini = () => (
+const LovableMini = () => (
   <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor">
-    <path d="M4.46 1.93l13.9-1.03c1.71-.14 2.15-.04 3.22.74l4.43 3.12c.73.54.98.69.98 1.27v17.16c0 1.07-.39 1.71-1.75 1.81l-16.13.98c-1.03.05-1.51-.1-2.05-.78L3.74 21.07c-.59-.78-.83-1.37-.83-2.05V3.6c0-.88.39-1.61 1.55-1.67z" />
+    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 
@@ -52,7 +52,7 @@ const AsanaMini = () => (
 const ITEMS: Item[] = [
   { id: 'github', label: 'GitHub', icon: <GitHubMini /> },
   { id: 'google', label: 'Google Workspace', icon: <GoogleMini /> },
-  { id: 'notion', label: 'Notion', icon: <NotionMini /> },
+  { id: 'lovable', label: 'Lovable', icon: <LovableMini /> },
   { id: 'slack', label: 'Slack', icon: <SlackMini /> },
   { id: 'linear', label: 'Linear', icon: <LinearMini /> },
   { id: 'asana', label: 'Asana', icon: <AsanaMini /> },
