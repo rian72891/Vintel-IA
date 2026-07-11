@@ -403,16 +403,6 @@ function buildToolsForProviders(providers: Set<string>) {
     });
   }
 
-  if (providers.has("notion")) {
-    tools.push({
-      type: "function",
-      function: {
-        name: "notion_query_database",
-        description: "Consulta um banco de dados do Notion pelo ID.",
-        parameters: { type: "object", properties: { database_id: { type: "string" } }, required: ["database_id"] },
-      },
-    });
-  }
 
   if (providers.has("linear")) {
     tools.push({
