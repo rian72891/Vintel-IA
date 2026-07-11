@@ -20,11 +20,11 @@ const PROVIDERS: Record<string, Cfg> = {
     extra: { response_type: 'code', access_type: 'offline', prompt: 'consent' },
     clientIdEnv: 'GOOGLE_CLIENT_ID',
   },
-  notion: {
-    authUrl: 'https://api.notion.com/v1/oauth/authorize',
-    scope: '',
-    extra: { response_type: 'code', owner: 'user' },
-    clientIdEnv: 'NOTION_CLIENT_ID',
+  lovable: {
+    authUrl: 'https://app.lovable.dev/oauth/authorize',
+    scope: 'projects:read projects:write',
+    extra: { response_type: 'code' },
+    clientIdEnv: 'LOVABLE_CLIENT_ID',
   },
   slack: {
     authUrl: 'https://slack.com/oauth/v2/authorize',
