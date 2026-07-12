@@ -46,13 +46,13 @@ async function probe(provider: string, token: string): Promise<{ ok: boolean; la
       const d = await r.json();
       return { ok: true, label: d.email };
     }
-    if (provider === "notion") {
-      const r = await fetch("https://api.notion.com/v1/users/me", {
-        headers: { Authorization: `Bearer ${token}`, "Notion-Version": "2022-06-28" },
+    if (provider === "lovable") {
+      const r = await fetch("https://api.lovable.dev/api/v1/me", {
+        headers: { Authorization: `Bearer ${token}` },
       });
-      if (!r.ok) return { ok: false, error: `Notion ${r.status}` };
+      if (!r.ok) return { ok: false, error: `Lovable ${r.status}` };
       const d = await r.json();
-      return { ok: true, label: d?.bot?.owner?.user?.name || d?.name };
+      return { ok: true, label: d?.email || d?.name };
     }
     if (provider === "slack") {
       const r = await fetch("https://slack.com/api/auth.test", {
