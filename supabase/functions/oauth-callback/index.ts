@@ -40,18 +40,18 @@ async function exchangeToken(provider: string, code: string, redirect_uri: strin
     return { access_token: d.access_token, refresh_token: d.refresh_token ?? null, scope: d.scope, token_type: d.token_type, expires_at: expireFrom(d.expires_in) };
   }
 
-  if (provider === 'notion') {
-    const id = env('NOTION_CLIENT_ID'), secret = env('NOTION_CLIENT_SECRET');
-    if (!id || !secret) throw new Error('NOTION_CLIENT_ID / NOTION_CLIENT_SECRET ausentes');
-    const basic = btoa(`${id}:${secret}`);
-    const res = await fetch('https://api.notion.com/v1/oauth/token', {
+  if (provider === 'lovable') {
+    const id = env('LOVABLE_CLIENT_ID'), secret = env('LOVABLE_CLIENT_SECRET');
+    if (!id || !secret) throw new Error('LOVABLE_CLIENT_ID / LOVABLE_CLIENT_SECRET ausentes');
+    const body = new URLSearchParams({ code, client_id: id, client_secret: secret, redirect_uri, grant_type: 'authorization_code' });
+    const res = await fetch('https://app.lovable.dev/oauth/token', {
       method: 'POST',
-      headers: { Authorization: `Basic ${basic}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ grant_type: 'authorization_code', code, redirect_uri }),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
     });
     const d = await res.json();
-    if (!res.ok) throw new Error(d.error_description || d.error || 'Notion token exchange failed');
-    return { access_token: d.access_token, token_type: 'bearer', scope: d.workspace_name ?? null };
+    if (!res.ok) throw new Error(d.error_description || d.error || 'Lovable token exchange failed');
+    return { access_token: d.access_token, token_type: 'bearer', scope: d.scope ?? null };
   }
 
   if (provider === 'slack') {
@@ -176,11 +176,11 @@ Deno.serve(async (req) => {
           headers: { Authorization: `Bearer ${result.access_token}` },
         });
         if (r.ok) { const d = await r.json(); accountLabel = d.email ?? null; }
-      } else if (provider === 'notion') {
-        const r = await fetch('https://api.notion.com/v1/users/me', {
-          headers: { Authorization: `Bearer ${result.access_token}`, 'Notion-Version': '2022-06-28' },
+      } else if (provider === 'lovable') {
+        const r = await fetch('https://api.lovable.dev/api/v1/me', {
+          headers: { Authorization: `Bearer ${result.access_token}` },
         });
-        if (r.ok) { const d = await r.json(); accountLabel = d?.bot?.owner?.user?.name ?? d?.name ?? null; }
+        if (r.ok) { const d = await r.json(); accountLabel = d?.email ?? d?.name ?? null; }
       } else if (provider === 'slack') {
         const r = await fetch('https://slack.com/api/auth.test', {
           headers: { Authorization: `Bearer ${result.access_token}` },
