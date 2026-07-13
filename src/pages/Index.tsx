@@ -6,6 +6,7 @@ import { AgentSelector } from '@/components/chat/AgentSelector';
 import { ChatView } from '@/components/chat/ChatView';
 import { AuthModal } from '@/components/AuthModal';
 import { WelcomeModal } from '@/components/WelcomeModal';
+import { SettingsDialog } from '@/components/chat/SettingsDialog';
 import { useChatStore } from '@/store/chatStore';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -13,6 +14,7 @@ const Index = () => {
   const { activeConversationId, sidebarOpen, setSidebarOpen, createConversation } = useChatStore();
   const { user } = useAuth();
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const userInitial = user?.user_metadata?.full_name?.[0] || user?.email?.[0]?.toUpperCase() || '?';
 
@@ -45,14 +47,17 @@ const Index = () => {
               <span>Baixar app</span>
             </a>
 
-            {/* Right: user avatar */}
+            {/* Right: user avatar → abre Settings */}
             <div className="w-10 flex justify-end">
-              <div className="relative">
+              <button
+                onClick={() => setSettingsOpen(true)}
+                className="relative touch-feedback"
+              >
                 <div className="h-8 w-8 rounded-full bg-primary/15 border border-primary/20 flex items-center justify-center">
                   <span className="text-xs font-semibold text-primary">{userInitial}</span>
                 </div>
                 <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-primary border-2 border-background" />
-              </div>
+              </button>
             </div>
           </header>
         )}
@@ -60,12 +65,13 @@ const Index = () => {
         {activeConversationId && user ? (
           <ChatView />
         ) : (
-          <div className="flex-1 flex flex-col">
+          <div className="flex-1 flex flex-col overflow-y-auto">
             <AgentSelector onRequireAuth={() => setAuthModalOpen(true)} />
           </div>
         )}
       </div>
 
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />
       <WelcomeModal userId={user?.id} />
     </div>
