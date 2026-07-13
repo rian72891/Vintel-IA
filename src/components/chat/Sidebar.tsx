@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, MessageSquare, X, Trash2, Pencil, Check, Settings, LogOut, Menu, Search, Star, User, Plug } from 'lucide-react';
+import { Plus, MessageSquare, X, Trash2, Pencil, Check, Settings, LogOut, Menu, Search, Plug } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useChatStore } from '@/store/chatStore';
 import { cn } from '@/lib/utils';
@@ -7,8 +7,6 @@ import { SettingsDialog } from './SettingsDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { PlanBadge } from '@/components/PlanBadge';
 import { UsageBar } from '@/components/UsageBar';
-
-type FilterType = 'all' | 'starred' | 'mine';
 
 export function Sidebar() {
   const { conversations, activeConversationId, sidebarOpen, setSidebarOpen, setActiveConversation, setSelectedAgent, deleteConversation, renameConversation, loadConversations, loaded } = useChatStore();
@@ -18,7 +16,6 @@ export function Sidebar() {
   const [editTitle, setEditTitle] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filter, setFilter] = useState<FilterType>('all');
 
   useEffect(() => {
     if (!loaded && user) {
@@ -50,10 +47,10 @@ export function Sidebar() {
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || '';
   const userInitial = user?.user_metadata?.full_name?.[0] || user?.email?.[0]?.toUpperCase() || '?';
 
-  const filters: { id: FilterType; label: string; icon: typeof MessageSquare }[] = [
-    { id: 'all', label: 'Todas', icon: MessageSquare },
-    { id: 'starred', label: 'Favoritas', icon: Star },
-    { id: 'mine', label: 'Minhas', icon: User },
+  const navLinks = [
+    { label: 'Novo bate-papo', icon: Plus, onClick: handleNewChat },
+    { label: 'Conversas', icon: MessageSquare, onClick: () => {} },
+    { label: 'Conectores', icon: Plug, onClick: () => navigate('/conectores') },
   ];
 
   return (
@@ -74,17 +71,24 @@ export function Sidebar() {
               >
                 <Menu className="h-5 w-5" />
               </button>
-              <button
-                onClick={handleNewChat}
-                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-feedback"
-                title="Nova conversa"
-              >
-                <Plus className="h-5 w-5" />
-              </button>
+            </div>
+
+            {/* Nav Links - Claude style */}
+            <div className="px-2 pt-1 pb-2 space-y-0.5">
+              {navLinks.map((link) => (
+                <button
+                  key={link.label}
+                  onClick={link.onClick}
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-zinc-300 hover:text-white hover:bg-white/5 text-sm transition-colors touch-feedback"
+                >
+                  <link.icon className="h-4 w-4" />
+                  {link.label}
+                </button>
+              ))}
             </div>
 
             {/* Search */}
-            <div className="px-3 pb-2">
+            <div className="px-3 pb-2 pt-1">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <input
@@ -95,25 +99,6 @@ export function Sidebar() {
                   className="w-full pl-9 pr-3 py-2 bg-muted/50 border-0 rounded-xl text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring/30 transition-all"
                 />
               </div>
-            </div>
-
-            {/* Filters */}
-            <div className="flex items-center gap-1 px-3 pb-2">
-              {filters.map((f) => (
-                <button
-                  key={f.id}
-                  onClick={() => setFilter(f.id)}
-                  className={cn(
-                    'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-colors touch-feedback',
-                    filter === f.id
-                      ? 'bg-muted text-foreground'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
-                  )}
-                >
-                  <f.icon className="h-3 w-3" />
-                  {f.label}
-                </button>
-              ))}
             </div>
 
             {/* Conversations */}
@@ -152,9 +137,8 @@ export function Sidebar() {
                     <>
                       <button
                         onClick={() => setActiveConversation(conv.id)}
-                        className="flex-1 flex items-center gap-2.5 px-3 py-2.5 text-left truncate touch-feedback"
+                        className="flex-1 px-3 py-2.5 text-left truncate touch-feedback"
                       >
-                        <MessageSquare className="h-3.5 w-3.5 shrink-0 opacity-50" />
                         <span className="truncate text-[13px]">{conv.title}</span>
                       </button>
                       <div className="hidden group-hover:flex items-center pr-1.5 gap-0.5">
@@ -178,8 +162,10 @@ export function Sidebar() {
                 <UsageBar type="images" label="Imagens/mês" />
               </div>
 
-              {/* Clean user card */}
-              <div className="flex items-center gap-3 px-2 py-2.5 rounded-xl bg-muted/30">
+              <PlanBadge />
+
+              {/* User card with inline settings + logout (Claude-like) */}
+              <div className="flex items-center gap-2 px-2 py-2 rounded-xl bg-muted/30">
                 <div className="h-9 w-9 rounded-full bg-primary/15 border border-primary/20 flex items-center justify-center shrink-0">
                   <span className="text-xs font-semibold text-primary">{userInitial}</span>
                 </div>
@@ -187,31 +173,19 @@ export function Sidebar() {
                   <p className="text-sm font-medium text-foreground truncate">{userName}</p>
                   <p className="text-[10px] text-muted-foreground/70 truncate">{user?.email}</p>
                 </div>
-              </div>
-
-              <PlanBadge />
-
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => navigate('/conectores')}
-                  className="flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-feedback"
-                  title="Conectores"
-                >
-                  <Plug className="h-3.5 w-3.5" />
-                </button>
                 <button
                   onClick={() => setSettingsOpen(true)}
-                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-feedback"
+                  className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-feedback"
+                  title="Configurações"
                 >
-                  <Settings className="h-3.5 w-3.5" />
-                  Configurações
+                  <Settings className="h-4 w-4" />
                 </button>
                 <button
                   onClick={signOut}
-                  className="flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors touch-feedback"
+                  className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors touch-feedback"
                   title="Sair"
                 >
-                  <LogOut className="h-3.5 w-3.5" />
+                  <LogOut className="h-4 w-4" />
                 </button>
               </div>
             </div>
