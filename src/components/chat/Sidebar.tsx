@@ -62,19 +62,26 @@ export function Sidebar() {
             className="fixed inset-0 bg-black/50 z-40 md:hidden"
           />
 
-          <aside className="fixed md:relative z-50 h-screen w-[280px] flex flex-col bg-sidebar overflow-hidden">
-            {/* Header */}
-            <div className="px-4 pt-4 pb-2 flex items-center justify-between">
+          <aside className="fixed md:relative z-50 h-screen w-[280px] flex flex-col bg-sidebar">
+            {/* Header fixo */}
+            <div className="shrink-0 px-4 pt-4 pb-2 flex items-center justify-between">
               <button
                 onClick={() => setSidebarOpen(false)}
                 className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-feedback"
               >
                 <Menu className="h-5 w-5" />
               </button>
+              <button
+                onClick={() => setSettingsOpen(true)}
+                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-feedback"
+                title="Configurações"
+              >
+                <Settings className="h-5 w-5" />
+              </button>
             </div>
 
-            {/* Nav Links - Claude style */}
-            <div className="px-2 pt-1 pb-2 space-y-0.5">
+            {/* Nav links fixos */}
+            <div className="shrink-0 px-2 pt-1 pb-2 space-y-0.5">
               {navLinks.map((link) => (
                 <button
                   key={link.label}
@@ -87,8 +94,8 @@ export function Sidebar() {
               ))}
             </div>
 
-            {/* Search */}
-            <div className="px-3 pb-2 pt-1">
+            {/* Search fixo */}
+            <div className="shrink-0 px-3 pb-2 pt-1">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <input
@@ -101,8 +108,8 @@ export function Sidebar() {
               </div>
             </div>
 
-            {/* Conversations */}
-            <div className="flex-1 overflow-y-auto scrollbar-thin px-2 py-1 space-y-0.5">
+            {/* Lista de conversas — ocupa espaço restante com scroll */}
+            <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin px-2 py-1 space-y-0.5">
               {filteredConversations.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-12 px-4">
                   <MessageSquare className="h-8 w-8 text-muted-foreground/30 mb-3" />
@@ -155,8 +162,8 @@ export function Sidebar() {
               ))}
             </div>
 
-            {/* Bottom user section */}
-            <div className="p-3 border-t border-sidebar-border space-y-2">
+            {/* Rodapé SEMPRE visível */}
+            <div className="shrink-0 p-3 border-t border-sidebar-border space-y-2">
               <div className="space-y-1.5 px-1">
                 <UsageBar type="messages" label="Mensagens hoje" />
                 <UsageBar type="images" label="Imagens/mês" />
@@ -164,7 +171,7 @@ export function Sidebar() {
 
               <PlanBadge />
 
-              {/* User card with inline settings + logout (Claude-like) */}
+              {/* User card sem engrenagem */}
               <div className="flex items-center gap-2 px-2 py-2 rounded-xl bg-muted/30">
                 <div className="h-9 w-9 rounded-full bg-primary/15 border border-primary/20 flex items-center justify-center shrink-0">
                   <span className="text-xs font-semibold text-primary">{userInitial}</span>
@@ -173,13 +180,6 @@ export function Sidebar() {
                   <p className="text-sm font-medium text-foreground truncate">{userName}</p>
                   <p className="text-[10px] text-muted-foreground/70 truncate">{user?.email}</p>
                 </div>
-                <button
-                  onClick={() => setSettingsOpen(true)}
-                  className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-feedback"
-                  title="Configurações"
-                >
-                  <Settings className="h-4 w-4" />
-                </button>
                 <button
                   onClick={signOut}
                   className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors touch-feedback"
