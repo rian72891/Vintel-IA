@@ -65,7 +65,7 @@ const Index = () => {
         {activeConversationId && user ? (
           <ChatView />
         ) : (
-          <div className="flex-1 flex flex-col overflow-y-auto">
+          <div className="flex-1 flex flex-col overflow-y-auto" style={{ isolation: 'isolate' }}>
             <AgentSelector onRequireAuth={() => setAuthModalOpen(true)} />
           </div>
         )}
