@@ -1083,19 +1083,16 @@ serve(async (req) => {
       ...processed,
     ];
 
-    // If no tools available, behave like before: stream straight from the gateway.
+    // Sem ferramentas: streaming direto da API do Gemini, convertido para o SSE do frontend.
     if (tools.length === 0) {
-      const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model, messages: convo, stream: true, ...(model.startsWith("openai/") ? {} : { temperature: typeof userTemp === "number" ? userTemp : 0.7 }) }),
-      });
-      if (!r.ok) {
+      const r = await callGemini({ apiKey: GEMINI_API_KEY, model, convo, temperature: userTemp, stream: true });
+      if (!r.ok || !r.body) {
+        const txt = await r.text().catch(() => "");
+        console.error("Gemini error:", r.status, txt.slice(0, 500));
         if (r.status === 429) return new Response(JSON.stringify({ error: "Limite de requisições excedido." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        if (r.status === 402) return new Response(JSON.stringify({ error: "Créditos insuficientes." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        return new Response(JSON.stringify({ error: "Erro no gateway de IA" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ error: "Erro no serviço de IA" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-      return new Response(r.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
+      return new Response(geminiStreamToOpenAiSse(r.body), { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
     }
 
     // Tool loop (non-streaming), then stream the final answer.
@@ -1103,19 +1100,25 @@ serve(async (req) => {
       async start(controller) {
         try {
           for (let i = 0; i < 5; i++) {
-            const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-              method: "POST",
-              headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-              body: JSON.stringify({ model, messages: convo, tools, tool_choice: "auto", ...(model.startsWith("openai/") ? {} : { temperature: typeof userTemp === "number" ? userTemp : 0.7 }) }),
-            });
+            const r = await callGemini({ apiKey: GEMINI_API_KEY, model, convo, tools, temperature: userTemp });
             if (!r.ok) {
               const txt = await r.text();
-              controller.enqueue(sseChunk(`\n\n⚠️ Erro no gateway: ${r.status} ${txt.slice(0, 200)}`));
+              const label = r.status === 429 ? "Limite de requisições excedido" : `Erro no serviço de IA: ${r.status}`;
+              controller.enqueue(sseChunk(`\n\n⚠️ ${label} ${txt.slice(0, 200)}`));
               break;
             }
             const data = await r.json();
-            const msg = data.choices?.[0]?.message;
-            if (!msg) { controller.enqueue(sseChunk("\n\n⚠️ Resposta vazia do modelo.")); break; }
+            const parts = data.candidates?.[0]?.content?.parts;
+            if (!parts) { controller.enqueue(sseChunk("\n\n⚠️ Resposta vazia do modelo.")); break; }
+
+            // Converte a resposta do Gemini de volta para o formato OpenAI usado no loop.
+            const text = parts.filter((p: any) => typeof p.text === "string").map((p: any) => p.text).join("");
+            const calls = parts.filter((p: any) => p.functionCall).map((p: any, idx: number) => ({
+              id: `call_${i}_${idx}`,
+              type: "function",
+              function: { name: p.functionCall.name, arguments: JSON.stringify(p.functionCall.args ?? {}) },
+            }));
+            const msg: any = { role: "assistant", content: text, ...(calls.length ? { tool_calls: calls } : {}) };
 
             convo.push(msg);
 
