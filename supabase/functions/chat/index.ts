@@ -1029,16 +1029,16 @@ serve(async (req) => {
       ? `\n\nConectores ativos do usuário: ${[...connectedProviders].join(", ")}. Use as ferramentas disponíveis quando útil.${eagerContext}`
       : `\n\nO usuário não tem conectores ativos no momento.`;
 
-    // Model selection
+    // Model selection (nomes nativos da API do Gemini)
     const modelMap: Record<string, string> = {
-      free: "google/gemini-2.5-flash-lite",
-      starter: "google/gemini-2.5-flash",
-      pro: "google/gemini-2.5-pro",
-      agency: "openai/gpt-5",
+      free: "gemini-2.5-flash-lite",
+      starter: "gemini-2.5-flash",
+      pro: "gemini-2.5-pro",
+      agency: "gemini-2.5-pro",
     };
 
     // Fallback automático: se uso mensal > 70% do teto estimado, usa modelo mais econômico
-    let model = modelMap[plan] || "google/gemini-2.5-flash";
+    let model = modelMap[plan] || "gemini-2.5-flash";
     if (userId && (plan === "pro" || plan === "agency")) {
       try {
         const { data: usage } = await admin
