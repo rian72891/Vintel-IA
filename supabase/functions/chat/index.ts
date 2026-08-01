@@ -1029,16 +1029,17 @@ serve(async (req) => {
       ? `\n\nConectores ativos do usuário: ${[...connectedProviders].join(", ")}. Use as ferramentas disponíveis quando útil.${eagerContext}`
       : `\n\nO usuário não tem conectores ativos no momento.`;
 
-    // Model selection (nomes nativos da API do Gemini)
+    // Model selection (aliases estáveis da API do Gemini)
     const modelMap: Record<string, string> = {
-      free: "gemini-2.5-flash-lite",
-      starter: "gemini-2.5-flash",
-      pro: "gemini-2.5-pro",
-      agency: "gemini-2.5-pro",
+      free: "gemini-flash-lite-latest",
+      starter: "gemini-flash-latest",
+      pro: "gemini-pro-latest",
+      agency: "gemini-pro-latest",
     };
+    const FLASH_FALLBACK = "gemini-flash-latest";
 
     // Fallback automático: se uso mensal > 70% do teto estimado, usa modelo mais econômico
-    let model = modelMap[plan] || "gemini-2.5-flash";
+    let model = modelMap[plan] || FLASH_FALLBACK;
     if (userId && (plan === "pro" || plan === "agency")) {
       try {
         const { data: usage } = await admin
@@ -1056,8 +1057,7 @@ serve(async (req) => {
           const usageRatio = usage.messages_used / Math.max(expectedUsage, 1);
 
           if (usageRatio > 0.7) {
-            if (plan === "agency") model = "gemini-2.5-pro";
-            if (plan === "pro") model = "gemini-2.5-flash";
+            model = FLASH_FALLBACK;
             console.log(`[FALLBACK] plan=${plan} ratio=${usageRatio.toFixed(2)} → model=${model}`);
           }
         }
@@ -1083,9 +1083,21 @@ serve(async (req) => {
       ...processed,
     ];
 
+    // Chamada com retry automático: 429 (quota do modelo Pro) → degrada para Flash.
+    const callWithFallback = async (opts: { tools?: any[]; stream?: boolean }) => {
+      let r = await callGemini({ apiKey: GEMINI_API_KEY, model, convo, tools: opts.tools, temperature: userTemp, stream: opts.stream });
+      if (r.status === 429 && model !== FLASH_FALLBACK) {
+        const txt = await r.text().catch(() => "");
+        console.warn(`[QUOTA] 429 em ${model}, degradando para ${FLASH_FALLBACK}: ${txt.slice(0, 300)}`);
+        model = FLASH_FALLBACK;
+        r = await callGemini({ apiKey: GEMINI_API_KEY, model, convo, tools: opts.tools, temperature: userTemp, stream: opts.stream });
+      }
+      return r;
+    };
+
     // Sem ferramentas: streaming direto da API do Gemini, convertido para o SSE do frontend.
     if (tools.length === 0) {
-      const r = await callGemini({ apiKey: GEMINI_API_KEY, model, convo, temperature: userTemp, stream: true });
+      const r = await callWithFallback({ stream: true });
       if (!r.ok || !r.body) {
         const txt = await r.text().catch(() => "");
         console.error("Gemini error:", r.status, txt.slice(0, 500));
@@ -1100,9 +1112,10 @@ serve(async (req) => {
       async start(controller) {
         try {
           for (let i = 0; i < 5; i++) {
-            const r = await callGemini({ apiKey: GEMINI_API_KEY, model, convo, tools, temperature: userTemp });
+            const r = await callWithFallback({ tools });
             if (!r.ok) {
               const txt = await r.text();
+              console.error("Gemini error:", r.status, txt.slice(0, 500));
               const label = r.status === 429 ? "Limite de requisições excedido" : `Erro no serviço de IA: ${r.status}`;
               controller.enqueue(sseChunk(`\n\n⚠️ ${label} ${txt.slice(0, 200)}`));
               break;
