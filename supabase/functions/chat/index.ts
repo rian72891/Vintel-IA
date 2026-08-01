@@ -1056,8 +1056,8 @@ serve(async (req) => {
           const usageRatio = usage.messages_used / Math.max(expectedUsage, 1);
 
           if (usageRatio > 0.7) {
-            if (plan === "agency") model = "google/gemini-2.5-pro";
-            if (plan === "pro") model = "google/gemini-2.5-flash";
+            if (plan === "agency") model = "gemini-2.5-pro";
+            if (plan === "pro") model = "gemini-2.5-flash";
             console.log(`[FALLBACK] plan=${plan} ratio=${usageRatio.toFixed(2)} → model=${model}`);
           }
         }
