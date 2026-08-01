@@ -752,6 +752,147 @@ function sseChunk(content: string) {
 }
 const SSE_DONE = new TextEncoder().encode("data: [DONE]\n\n");
 
+// ---- Google Gemini (API oficial) ----
+const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
+
+function cleanSchema(s: any): any {
+  if (Array.isArray(s)) return s.map(cleanSchema);
+  if (!s || typeof s !== "object") return s;
+  const out: any = {};
+  for (const [k, v] of Object.entries(s)) {
+    if (["additionalProperties", "$schema", "default", "examples", "exclusiveMinimum", "exclusiveMaximum"].includes(k)) continue;
+    if (k === "properties" && v && typeof v === "object") {
+      out[k] = Object.fromEntries(Object.entries(v as any).map(([pk, pv]) => [pk, cleanSchema(pv)]));
+    } else {
+      out[k] = cleanSchema(v);
+    }
+  }
+  return out;
+}
+
+function toGeminiTools(tools: any[]) {
+  if (!tools?.length) return undefined;
+  return [{
+    functionDeclarations: tools.map((t) => ({
+      name: t.function.name,
+      description: t.function.description,
+      parameters: cleanSchema(t.function.parameters ?? { type: "object", properties: {} }),
+    })),
+  }];
+}
+
+function contentToParts(content: any): any[] {
+  if (typeof content === "string") return content ? [{ text: content }] : [{ text: "" }];
+  if (Array.isArray(content)) {
+    const parts: any[] = [];
+    for (const c of content) {
+      if (c.type === "text") parts.push({ text: c.text });
+      else if (c.type === "image_url") {
+        const url: string = c.image_url?.url ?? "";
+        const m = url.match(/^data:([^;]+);base64,(.+)$/);
+        if (m) parts.push({ inlineData: { mimeType: m[1], data: m[2] } });
+        else parts.push({ text: `[imagem: ${url}]` });
+      }
+    }
+    return parts.length ? parts : [{ text: "" }];
+  }
+  return [{ text: "" }];
+}
+
+/** Converte a conversa em formato OpenAI para o formato do Gemini. */
+function toGeminiRequest(convo: any[]) {
+  let systemInstruction: any = undefined;
+  const contents: any[] = [];
+  const callNames = new Map<string, string>();
+
+  for (const m of convo) {
+    if (m.role === "system") {
+      systemInstruction = { role: "user", parts: contentToParts(m.content) };
+      continue;
+    }
+    if (m.role === "tool") {
+      const name = callNames.get(m.tool_call_id) ?? "tool";
+      let resp: any;
+      try { resp = JSON.parse(m.content); } catch { resp = { result: m.content }; }
+      if (resp === null || typeof resp !== "object" || Array.isArray(resp)) resp = { result: resp };
+      contents.push({ role: "user", parts: [{ functionResponse: { name, response: resp } }] });
+      continue;
+    }
+    if (m.role === "assistant") {
+      const parts: any[] = [];
+      if (m.content) parts.push({ text: typeof m.content === "string" ? m.content : "" });
+      for (const tc of m.tool_calls ?? []) {
+        callNames.set(tc.id, tc.function.name);
+        let args: any = {};
+        try { args = JSON.parse(tc.function.arguments || "{}"); } catch { /* ignore */ }
+        parts.push({ functionCall: { name: tc.function.name, args } });
+      }
+      contents.push({ role: "model", parts: parts.length ? parts : [{ text: "" }] });
+      continue;
+    }
+    contents.push({ role: "user", parts: contentToParts(m.content) });
+  }
+
+  return { systemInstruction, contents };
+}
+
+async function callGemini(opts: {
+  apiKey: string;
+  model: string;
+  convo: any[];
+  tools?: any[];
+  temperature?: number;
+  stream?: boolean;
+}) {
+  const { systemInstruction, contents } = toGeminiRequest(opts.convo);
+  const body: any = {
+    contents,
+    ...(systemInstruction ? { systemInstruction } : {}),
+    ...(opts.tools?.length ? { tools: toGeminiTools(opts.tools) } : {}),
+    generationConfig: { temperature: typeof opts.temperature === "number" ? opts.temperature : 0.7 },
+  };
+  const method = opts.stream ? "streamGenerateContent?alt=sse" : "generateContent";
+  return await fetch(`${GEMINI_BASE}/${opts.model}:${method}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-goog-api-key": opts.apiKey },
+    body: JSON.stringify(body),
+  });
+}
+
+/** Converte o SSE nativo do Gemini para o formato que o frontend espera. */
+function geminiStreamToOpenAiSse(upstream: ReadableStream<Uint8Array>) {
+  const decoder = new TextDecoder();
+  let buffer = "";
+  return new ReadableStream({
+    async start(controller) {
+      const reader = upstream.getReader();
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          let idx: number;
+          while ((idx = buffer.indexOf("\n")) !== -1) {
+            const line = buffer.slice(0, idx).replace(/\r$/, "");
+            buffer = buffer.slice(idx + 1);
+            if (!line.startsWith("data:")) continue;
+            const json = line.slice(5).trim();
+            if (!json || json === "[DONE]") continue;
+            try {
+              const parsed = JSON.parse(json);
+              const parts = parsed.candidates?.[0]?.content?.parts ?? [];
+              const text = parts.map((p: any) => p.text ?? "").join("");
+              if (text) controller.enqueue(sseChunk(text));
+            } catch { /* chunk parcial ignorado */ }
+          }
+        }
+      } catch { /* fim inesperado */ }
+      controller.enqueue(SSE_DONE);
+      controller.close();
+    },
+  });
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
