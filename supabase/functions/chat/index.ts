@@ -1083,9 +1083,21 @@ serve(async (req) => {
       ...processed,
     ];
 
+    // Chamada com retry automático: 429 (quota do modelo Pro) → degrada para Flash.
+    const callWithFallback = async (opts: { tools?: any[]; stream?: boolean }) => {
+      let r = await callGemini({ apiKey: GEMINI_API_KEY, model, convo, tools: opts.tools, temperature: userTemp, stream: opts.stream });
+      if (r.status === 429 && model !== FLASH_FALLBACK) {
+        const txt = await r.text().catch(() => "");
+        console.warn(`[QUOTA] 429 em ${model}, degradando para ${FLASH_FALLBACK}: ${txt.slice(0, 300)}`);
+        model = FLASH_FALLBACK;
+        r = await callGemini({ apiKey: GEMINI_API_KEY, model, convo, tools: opts.tools, temperature: userTemp, stream: opts.stream });
+      }
+      return r;
+    };
+
     // Sem ferramentas: streaming direto da API do Gemini, convertido para o SSE do frontend.
     if (tools.length === 0) {
-      const r = await callGemini({ apiKey: GEMINI_API_KEY, model, convo, temperature: userTemp, stream: true });
+      const r = await callWithFallback({ stream: true });
       if (!r.ok || !r.body) {
         const txt = await r.text().catch(() => "");
         console.error("Gemini error:", r.status, txt.slice(0, 500));
@@ -1100,9 +1112,10 @@ serve(async (req) => {
       async start(controller) {
         try {
           for (let i = 0; i < 5; i++) {
-            const r = await callGemini({ apiKey: GEMINI_API_KEY, model, convo, tools, temperature: userTemp });
+            const r = await callWithFallback({ tools });
             if (!r.ok) {
               const txt = await r.text();
+              console.error("Gemini error:", r.status, txt.slice(0, 500));
               const label = r.status === 429 ? "Limite de requisições excedido" : `Erro no serviço de IA: ${r.status}`;
               controller.enqueue(sseChunk(`\n\n⚠️ ${label} ${txt.slice(0, 200)}`));
               break;
