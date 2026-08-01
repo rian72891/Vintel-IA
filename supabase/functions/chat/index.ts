@@ -752,13 +752,154 @@ function sseChunk(content: string) {
 }
 const SSE_DONE = new TextEncoder().encode("data: [DONE]\n\n");
 
+// ---- Google Gemini (API oficial) ----
+const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
+
+function cleanSchema(s: any): any {
+  if (Array.isArray(s)) return s.map(cleanSchema);
+  if (!s || typeof s !== "object") return s;
+  const out: any = {};
+  for (const [k, v] of Object.entries(s)) {
+    if (["additionalProperties", "$schema", "default", "examples", "exclusiveMinimum", "exclusiveMaximum"].includes(k)) continue;
+    if (k === "properties" && v && typeof v === "object") {
+      out[k] = Object.fromEntries(Object.entries(v as any).map(([pk, pv]) => [pk, cleanSchema(pv)]));
+    } else {
+      out[k] = cleanSchema(v);
+    }
+  }
+  return out;
+}
+
+function toGeminiTools(tools: any[]) {
+  if (!tools?.length) return undefined;
+  return [{
+    functionDeclarations: tools.map((t) => ({
+      name: t.function.name,
+      description: t.function.description,
+      parameters: cleanSchema(t.function.parameters ?? { type: "object", properties: {} }),
+    })),
+  }];
+}
+
+function contentToParts(content: any): any[] {
+  if (typeof content === "string") return content ? [{ text: content }] : [{ text: "" }];
+  if (Array.isArray(content)) {
+    const parts: any[] = [];
+    for (const c of content) {
+      if (c.type === "text") parts.push({ text: c.text });
+      else if (c.type === "image_url") {
+        const url: string = c.image_url?.url ?? "";
+        const m = url.match(/^data:([^;]+);base64,(.+)$/);
+        if (m) parts.push({ inlineData: { mimeType: m[1], data: m[2] } });
+        else parts.push({ text: `[imagem: ${url}]` });
+      }
+    }
+    return parts.length ? parts : [{ text: "" }];
+  }
+  return [{ text: "" }];
+}
+
+/** Converte a conversa em formato OpenAI para o formato do Gemini. */
+function toGeminiRequest(convo: any[]) {
+  let systemInstruction: any = undefined;
+  const contents: any[] = [];
+  const callNames = new Map<string, string>();
+
+  for (const m of convo) {
+    if (m.role === "system") {
+      systemInstruction = { role: "user", parts: contentToParts(m.content) };
+      continue;
+    }
+    if (m.role === "tool") {
+      const name = callNames.get(m.tool_call_id) ?? "tool";
+      let resp: any;
+      try { resp = JSON.parse(m.content); } catch { resp = { result: m.content }; }
+      if (resp === null || typeof resp !== "object" || Array.isArray(resp)) resp = { result: resp };
+      contents.push({ role: "user", parts: [{ functionResponse: { name, response: resp } }] });
+      continue;
+    }
+    if (m.role === "assistant") {
+      const parts: any[] = [];
+      if (m.content) parts.push({ text: typeof m.content === "string" ? m.content : "" });
+      for (const tc of m.tool_calls ?? []) {
+        callNames.set(tc.id, tc.function.name);
+        let args: any = {};
+        try { args = JSON.parse(tc.function.arguments || "{}"); } catch { /* ignore */ }
+        parts.push({ functionCall: { name: tc.function.name, args } });
+      }
+      contents.push({ role: "model", parts: parts.length ? parts : [{ text: "" }] });
+      continue;
+    }
+    contents.push({ role: "user", parts: contentToParts(m.content) });
+  }
+
+  return { systemInstruction, contents };
+}
+
+async function callGemini(opts: {
+  apiKey: string;
+  model: string;
+  convo: any[];
+  tools?: any[];
+  temperature?: number;
+  stream?: boolean;
+}) {
+  const { systemInstruction, contents } = toGeminiRequest(opts.convo);
+  const body: any = {
+    contents,
+    ...(systemInstruction ? { systemInstruction } : {}),
+    ...(opts.tools?.length ? { tools: toGeminiTools(opts.tools) } : {}),
+    generationConfig: { temperature: typeof opts.temperature === "number" ? opts.temperature : 0.7 },
+  };
+  const method = opts.stream ? "streamGenerateContent?alt=sse" : "generateContent";
+  return await fetch(`${GEMINI_BASE}/${opts.model}:${method}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-goog-api-key": opts.apiKey },
+    body: JSON.stringify(body),
+  });
+}
+
+/** Converte o SSE nativo do Gemini para o formato que o frontend espera. */
+function geminiStreamToOpenAiSse(upstream: ReadableStream<Uint8Array>) {
+  const decoder = new TextDecoder();
+  let buffer = "";
+  return new ReadableStream({
+    async start(controller) {
+      const reader = upstream.getReader();
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          let idx: number;
+          while ((idx = buffer.indexOf("\n")) !== -1) {
+            const line = buffer.slice(0, idx).replace(/\r$/, "");
+            buffer = buffer.slice(idx + 1);
+            if (!line.startsWith("data:")) continue;
+            const json = line.slice(5).trim();
+            if (!json || json === "[DONE]") continue;
+            try {
+              const parsed = JSON.parse(json);
+              const parts = parsed.candidates?.[0]?.content?.parts ?? [];
+              const text = parts.map((p: any) => p.text ?? "").join("");
+              if (text) controller.enqueue(sseChunk(text));
+            } catch { /* chunk parcial ignorado */ }
+          }
+        }
+      } catch { /* fim inesperado */ }
+      controller.enqueue(SSE_DONE);
+      controller.close();
+    },
+  });
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const { messages, agent, temperature: userTemp } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not configured");
 
     // Identify user (optional) to load their oauth tokens for tool calling.
     let userId: string | null = null;
@@ -888,16 +1029,16 @@ serve(async (req) => {
       ? `\n\nConectores ativos do usuário: ${[...connectedProviders].join(", ")}. Use as ferramentas disponíveis quando útil.${eagerContext}`
       : `\n\nO usuário não tem conectores ativos no momento.`;
 
-    // Model selection
+    // Model selection (nomes nativos da API do Gemini)
     const modelMap: Record<string, string> = {
-      free: "google/gemini-2.5-flash-lite",
-      starter: "google/gemini-2.5-flash",
-      pro: "google/gemini-2.5-pro",
-      agency: "openai/gpt-5",
+      free: "gemini-2.5-flash-lite",
+      starter: "gemini-2.5-flash",
+      pro: "gemini-2.5-pro",
+      agency: "gemini-2.5-pro",
     };
 
     // Fallback automático: se uso mensal > 70% do teto estimado, usa modelo mais econômico
-    let model = modelMap[plan] || "google/gemini-2.5-flash";
+    let model = modelMap[plan] || "gemini-2.5-flash";
     if (userId && (plan === "pro" || plan === "agency")) {
       try {
         const { data: usage } = await admin
@@ -915,8 +1056,8 @@ serve(async (req) => {
           const usageRatio = usage.messages_used / Math.max(expectedUsage, 1);
 
           if (usageRatio > 0.7) {
-            if (plan === "agency") model = "google/gemini-2.5-pro";
-            if (plan === "pro") model = "google/gemini-2.5-flash";
+            if (plan === "agency") model = "gemini-2.5-pro";
+            if (plan === "pro") model = "gemini-2.5-flash";
             console.log(`[FALLBACK] plan=${plan} ratio=${usageRatio.toFixed(2)} → model=${model}`);
           }
         }
@@ -942,19 +1083,16 @@ serve(async (req) => {
       ...processed,
     ];
 
-    // If no tools available, behave like before: stream straight from the gateway.
+    // Sem ferramentas: streaming direto da API do Gemini, convertido para o SSE do frontend.
     if (tools.length === 0) {
-      const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model, messages: convo, stream: true, ...(model.startsWith("openai/") ? {} : { temperature: typeof userTemp === "number" ? userTemp : 0.7 }) }),
-      });
-      if (!r.ok) {
+      const r = await callGemini({ apiKey: GEMINI_API_KEY, model, convo, temperature: userTemp, stream: true });
+      if (!r.ok || !r.body) {
+        const txt = await r.text().catch(() => "");
+        console.error("Gemini error:", r.status, txt.slice(0, 500));
         if (r.status === 429) return new Response(JSON.stringify({ error: "Limite de requisições excedido." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        if (r.status === 402) return new Response(JSON.stringify({ error: "Créditos insuficientes." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        return new Response(JSON.stringify({ error: "Erro no gateway de IA" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ error: "Erro no serviço de IA" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-      return new Response(r.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
+      return new Response(geminiStreamToOpenAiSse(r.body), { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
     }
 
     // Tool loop (non-streaming), then stream the final answer.
@@ -962,19 +1100,25 @@ serve(async (req) => {
       async start(controller) {
         try {
           for (let i = 0; i < 5; i++) {
-            const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-              method: "POST",
-              headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-              body: JSON.stringify({ model, messages: convo, tools, tool_choice: "auto", ...(model.startsWith("openai/") ? {} : { temperature: typeof userTemp === "number" ? userTemp : 0.7 }) }),
-            });
+            const r = await callGemini({ apiKey: GEMINI_API_KEY, model, convo, tools, temperature: userTemp });
             if (!r.ok) {
               const txt = await r.text();
-              controller.enqueue(sseChunk(`\n\n⚠️ Erro no gateway: ${r.status} ${txt.slice(0, 200)}`));
+              const label = r.status === 429 ? "Limite de requisições excedido" : `Erro no serviço de IA: ${r.status}`;
+              controller.enqueue(sseChunk(`\n\n⚠️ ${label} ${txt.slice(0, 200)}`));
               break;
             }
             const data = await r.json();
-            const msg = data.choices?.[0]?.message;
-            if (!msg) { controller.enqueue(sseChunk("\n\n⚠️ Resposta vazia do modelo.")); break; }
+            const parts = data.candidates?.[0]?.content?.parts;
+            if (!parts) { controller.enqueue(sseChunk("\n\n⚠️ Resposta vazia do modelo.")); break; }
+
+            // Converte a resposta do Gemini de volta para o formato OpenAI usado no loop.
+            const text = parts.filter((p: any) => typeof p.text === "string").map((p: any) => p.text).join("");
+            const calls = parts.filter((p: any) => p.functionCall).map((p: any, idx: number) => ({
+              id: `call_${i}_${idx}`,
+              type: "function",
+              function: { name: p.functionCall.name, arguments: JSON.stringify(p.functionCall.args ?? {}) },
+            }));
+            const msg: any = { role: "assistant", content: text, ...(calls.length ? { tool_calls: calls } : {}) };
 
             convo.push(msg);
 
