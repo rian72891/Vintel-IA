@@ -116,8 +116,10 @@ export async function streamChat({
       if (jsonStr === '[DONE]') continue;
       try {
         const parsed = JSON.parse(jsonStr);
+        if (parsed?.type === 'step') { onStep?.(parsed as TraceStep); continue; }
         const content = parsed.choices?.[0]?.delta?.content as string | undefined;
         if (content) onDelta(content);
+
       } catch { /* ignore */ }
     }
   }
