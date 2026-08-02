@@ -124,6 +124,7 @@ export function ChatView() {
 
     setIsStreaming(true);
     resetStream();
+    resetSteps();
     setLoadingLabel('');
 
     let fullContent = '';
@@ -133,6 +134,7 @@ export function ChatView() {
         agent: conversation?.agent,
         plan,
         temperature,
+        onStep: handleStep,
         onDelta: (delta) => {
           fullContent += delta;
           pushStream(delta);
@@ -148,20 +150,24 @@ export function ChatView() {
           }
           setIsStreaming(false);
           resetStream();
+          persistTrace();
           await incrementUsage('messages');
         },
         onError: (error) => {
           toast.error(error);
           setIsStreaming(false);
           resetStream();
+          resetSteps();
         },
       });
     } catch {
       toast.error('Erro ao conectar com a IA. Tente novamente.');
       setIsStreaming(false);
       resetStream();
+      resetSteps();
     }
-  }, [activeConversationId, conversation?.agent, plan, temperature, addMessage, incrementUsage]);
+  }, [activeConversationId, conversation?.agent, plan, temperature, addMessage, incrementUsage, handleStep, resetSteps, persistTrace]);
+
 
   // Internal handlers that skip adding user message (already exists)
   const handleTTSInternal = async (text: string, skipUserMsg: boolean) => {
