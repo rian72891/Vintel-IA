@@ -128,7 +128,25 @@
   }
 }
 
+/* Ocultar badge "Edit with Lovable" */
+#lovable-badge,
+#lovable-badge-root,
+.lovable-badge,
+[id^="lovable-badge"],
+[class*="lovable-badge"],
+[data-lovable-badge],
+a[href*="lovable.dev/projects"],
+a[href*="lovable.app/projects"],
+a[href*="lovable.dev?utm"],
+a[href*="gpteng.co"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
 @layer utilities {
+
   .scrollbar-thin {
     scrollbar-width: thin;
     scrollbar-color: hsl(var(--border)) transparent;
