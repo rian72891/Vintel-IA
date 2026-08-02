@@ -3,7 +3,9 @@ import { useChatStore } from '@/store/chatStore';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { agents } from '@/data/agents';
-import { streamChat } from '@/lib/streamChat';
+import { streamChat, type TraceStep } from '@/lib/streamChat';
+import { AgentTrace } from './AgentTrace';
+
 import { generateImage, ImageQuality } from '@/lib/generateImage';
 import { textToSpeech } from '@/lib/api/elevenlabs';
 import { firecrawlApi } from '@/lib/api/firecrawl';
@@ -32,6 +34,36 @@ export function ChatView() {
   const [editingMessage, setEditingMessage] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const autoTriggeredRef = useRef<string | null>(null);
+
+  // Trace visual do raciocínio do agente
+  const [steps, setSteps] = useState<TraceStep[]>([]);
+  const [traces, setTraces] = useState<Record<string, TraceStep[]>>({});
+  const stepsRef = useRef<TraceStep[]>([]);
+
+  const handleStep = useCallback((step: TraceStep) => {
+    setSteps((prev) => {
+      const idx = prev.findIndex((s) => s.id === step.id);
+      const next = idx === -1 ? [...prev, step] : prev.map((s, i) => (i === idx ? step : s));
+      stepsRef.current = next;
+      return next;
+    });
+  }, []);
+
+  const resetSteps = useCallback(() => {
+    stepsRef.current = [];
+    setSteps([]);
+  }, []);
+
+  /** Anexa o trace concluído à última mensagem do assistente. */
+  const persistTrace = useCallback(() => {
+    const collected = stepsRef.current;
+    if (!collected.length) return;
+    const msgs = getActiveConversation()?.messages ?? [];
+    const last = [...msgs].reverse().find((m) => m.role === 'assistant');
+    if (last) setTraces((prev) => ({ ...prev, [last.id]: collected }));
+    resetSteps();
+  }, [getActiveConversation, resetSteps]);
+
 
   // Simulate real progress feedback when a heavy task is running
   useEffect(() => {
@@ -92,6 +124,7 @@ export function ChatView() {
 
     setIsStreaming(true);
     resetStream();
+    resetSteps();
     setLoadingLabel('');
 
     let fullContent = '';
@@ -101,6 +134,7 @@ export function ChatView() {
         agent: conversation?.agent,
         plan,
         temperature,
+        onStep: handleStep,
         onDelta: (delta) => {
           fullContent += delta;
           pushStream(delta);
@@ -116,20 +150,24 @@ export function ChatView() {
           }
           setIsStreaming(false);
           resetStream();
+          persistTrace();
           await incrementUsage('messages');
         },
         onError: (error) => {
           toast.error(error);
           setIsStreaming(false);
           resetStream();
+          resetSteps();
         },
       });
     } catch {
       toast.error('Erro ao conectar com a IA. Tente novamente.');
       setIsStreaming(false);
       resetStream();
+      resetSteps();
     }
-  }, [activeConversationId, conversation?.agent, plan, temperature, addMessage, incrementUsage]);
+  }, [activeConversationId, conversation?.agent, plan, temperature, addMessage, incrementUsage, handleStep, resetSteps, persistTrace]);
+
 
   // Internal handlers that skip adding user message (already exists)
   const handleTTSInternal = async (text: string, skipUserMsg: boolean) => {
@@ -585,6 +623,7 @@ export function ChatView() {
     });
     setIsStreaming(true);
     resetStream();
+    resetSteps();
     setLoadingLabel('');
 
     const currentConv = getActiveConversation();
@@ -598,6 +637,7 @@ export function ChatView() {
         agent: conversation?.agent,
         plan,
         temperature,
+        onStep: handleStep,
         onDelta: (delta) => {
           fullContent += delta;
           pushStream(delta);
@@ -613,6 +653,7 @@ export function ChatView() {
           }
           setIsStreaming(false);
           resetStream();
+          persistTrace();
           await incrementUsage('messages');
           if (hasImageAttachment) {
             await incrementUsage('image_analyses');
@@ -622,13 +663,16 @@ export function ChatView() {
           toast.error(error);
           setIsStreaming(false);
           resetStream();
+          resetSteps();
         },
       });
     } catch (e) {
       toast.error('Erro ao conectar com a IA. Tente novamente.');
       setIsStreaming(false);
       resetStream();
+      resetSteps();
     }
+
   };
 
   return (
@@ -681,17 +725,28 @@ export function ChatView() {
           </div>
         )}
         {conversation?.messages.map((msg) => (
-          <ChatMessage
-            key={msg.id}
-            message={msg}
-            audioUrl={msg.content.startsWith('🔊 Áudio gerado') ? audioUrl : undefined}
-            onEdit={msg.role === 'user' ? (content) => {
-              setEditingMessage(msg.id);
-              // Pass the content to the input
-              handleEditSubmit(content);
-            } : undefined}
-          />
+          <div key={msg.id}>
+            {traces[msg.id] && (
+              <div className="px-4 max-w-4xl mx-auto w-full pt-2">
+                <AgentTrace steps={traces[msg.id]} />
+              </div>
+            )}
+            <ChatMessage
+              message={msg}
+              audioUrl={msg.content.startsWith('🔊 Áudio gerado') ? audioUrl : undefined}
+              onEdit={msg.role === 'user' ? (content) => {
+                setEditingMessage(msg.id);
+                // Pass the content to the input
+                handleEditSubmit(content);
+              } : undefined}
+            />
+          </div>
         ))}
+        {isStreaming && steps.length > 0 && (
+          <div className="px-4 max-w-4xl mx-auto w-full pt-2">
+            <AgentTrace steps={steps} live />
+          </div>
+        )}
         {isStreaming && streamingContent && (
           <ChatMessage
             message={{
@@ -703,7 +758,8 @@ export function ChatView() {
             isStreaming
           />
         )}
-        {isStreaming && !streamingContent && (
+        {isStreaming && !streamingContent && steps.length === 0 && (
+
           <div className="flex gap-3 px-4 py-3 max-w-4xl mx-auto w-full">
             <div className="h-7 w-7 rounded-full bg-primary/10 border border-primary/15 flex items-center justify-center shrink-0">
               {loadingLabel.includes('imagem') ? (

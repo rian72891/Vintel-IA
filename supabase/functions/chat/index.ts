@@ -750,7 +750,25 @@ function sseChunk(content: string) {
   const payload = { choices: [{ delta: { content } }] };
   return new TextEncoder().encode(`data: ${JSON.stringify(payload)}\n\n`);
 }
+/** Evento de progresso (trace visual) — ignorado por clients que só leem `choices`. */
+function sseStep(step: { id: string; status: "running" | "done" | "error"; label: string; detail?: string }) {
+  return new TextEncoder().encode(`data: ${JSON.stringify({ type: "step", ...step })}\n\n`);
+}
 const SSE_DONE = new TextEncoder().encode("data: [DONE]\n\n");
+
+/** Rótulo legível por ferramenta, para a timeline. */
+function toolLabel(name: string, args: any): string {
+  const svc = name.split("_")[0];
+  const map: Record<string, string> = {
+    github: "GitHub", google: "Google Workspace", gmail: "Gmail", slack: "Slack",
+    linear: "Linear", asana: "Asana", lovable: "Lovable", firecrawl: "Web",
+  };
+  const service = map[svc] ?? svc;
+  const target = args?.repo || args?.query || args?.path || args?.channel || args?.title || args?.url || args?.name || "";
+  const action = name.replace(`${svc}_`, "").replace(/_/g, " ");
+  return `${service}: ${action}${target ? ` — ${String(target).slice(0, 60)}` : ""}`;
+}
+
 
 // ---- Google Gemini (API oficial) ----
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
@@ -1185,17 +1203,25 @@ serve(async (req) => {
       async start(controller) {
         try {
           for (let i = 0; i < 5; i++) {
+            const thinkId = `think_${i}`;
+            controller.enqueue(sseStep({ id: thinkId, status: "running", label: i === 0 ? "Pensando…" : "Analisando resultados…" }));
             const r = await callWithFallback({ tools });
             if (!r.ok) {
               const txt = await r.text();
               console.error("Gemini error:", r.status, txt.slice(0, 500));
               const label = r.status === 429 ? "Limite de requisições excedido" : `Erro no serviço de IA: ${r.status}`;
+              controller.enqueue(sseStep({ id: thinkId, status: "error", label, detail: txt.slice(0, 200) }));
               controller.enqueue(sseChunk(`\n\n⚠️ ${label} ${txt.slice(0, 200)}`));
               break;
             }
             const data = await r.json();
             const parts = data.candidates?.[0]?.content?.parts;
-            if (!parts) { controller.enqueue(sseChunk("\n\n⚠️ Resposta vazia do modelo.")); break; }
+            if (!parts) {
+              controller.enqueue(sseStep({ id: thinkId, status: "error", label: "Resposta vazia do modelo" }));
+              controller.enqueue(sseChunk("\n\n⚠️ Resposta vazia do modelo."));
+              break;
+            }
+            controller.enqueue(sseStep({ id: thinkId, status: "done", label: i === 0 ? "Raciocínio concluído" : "Resultados analisados" }));
 
             // Converte a resposta do Gemini de volta para o formato OpenAI usado no loop.
             const text = parts.filter((p: any) => typeof p.text === "string").map((p: any) => p.text).join("");
@@ -1209,13 +1235,20 @@ serve(async (req) => {
             convo.push(msg);
 
             if (msg.tool_calls?.length) {
-              const names = msg.tool_calls.map((tc: any) => `\`${tc.function.name}\``).join(", ");
-              controller.enqueue(sseChunk(`\n\n🔧 *Executando ${msg.tool_calls.length} ferramenta(s) em paralelo: ${names}…*\n`));
               const results = await Promise.all(
                 msg.tool_calls.map(async (tc: any) => {
                   let parsedArgs: any = {};
                   try { parsedArgs = JSON.parse(tc.function.arguments || "{}"); } catch { /* keep empty */ }
+                  const label = toolLabel(tc.function.name, parsedArgs);
+                  controller.enqueue(sseStep({ id: tc.id, status: "running", label, detail: tc.function.name }));
                   const result = await executeTool(tc.function.name, parsedArgs, { admin, userId: userId!, tokens });
+                  const failed = result && typeof result === "object" && "error" in (result as any);
+                  controller.enqueue(sseStep({
+                    id: tc.id,
+                    status: failed ? "error" : "done",
+                    label,
+                    detail: failed ? String((result as any).error).slice(0, 160) : tc.function.name,
+                  }));
                   return { tc, result };
                 })
               );
@@ -1227,10 +1260,13 @@ serve(async (req) => {
 
             // Final text — stream as one chunk so the frontend renders it.
             // `convo` mantém o texto original (com <thinking>); só filtramos a exibição.
+            controller.enqueue(sseStep({ id: "final", status: "running", label: "Escrevendo resposta…" }));
             const content = stripThinking(msg.content || "");
             if (content) controller.enqueue(sseChunk(content));
+            controller.enqueue(sseStep({ id: "final", status: "done", label: "Resposta pronta" }));
             break;
           }
+
           controller.enqueue(SSE_DONE);
           controller.close();
         } catch (e) {

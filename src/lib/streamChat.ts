@@ -12,12 +12,20 @@ function mapErrorMessage(status: number, raw?: string): string {
   return raw || 'Não foi possível processar sua mensagem. Tente novamente.';
 }
 
+export type TraceStep = {
+  id: string;
+  status: 'running' | 'done' | 'error';
+  label: string;
+  detail?: string;
+};
+
 export async function streamChat({
   messages,
   agent,
   plan,
   temperature,
   onDelta,
+  onStep,
   onDone,
   onError,
 }: {
@@ -26,9 +34,11 @@ export async function streamChat({
   plan?: string;
   temperature?: number;
   onDelta: (text: string) => void;
+  onStep?: (step: TraceStep) => void;
   onDone: () => void;
   onError: (error: string) => void;
 }) {
+
   // Prefer the user's session JWT so the edge function can identify them
   // and load their oauth_tokens for tool calling. Falls back to the
   // publishable key for anonymous chats.
@@ -84,8 +94,10 @@ export async function streamChat({
 
       try {
         const parsed = JSON.parse(jsonStr);
+        if (parsed?.type === 'step') { onStep?.(parsed as TraceStep); continue; }
         const content = parsed.choices?.[0]?.delta?.content as string | undefined;
         if (content) onDelta(content);
+
       } catch {
         buffer = line + '\n' + buffer;
         break;
@@ -104,8 +116,10 @@ export async function streamChat({
       if (jsonStr === '[DONE]') continue;
       try {
         const parsed = JSON.parse(jsonStr);
+        if (parsed?.type === 'step') { onStep?.(parsed as TraceStep); continue; }
         const content = parsed.choices?.[0]?.delta?.content as string | undefined;
         if (content) onDelta(content);
+
       } catch { /* ignore */ }
     }
   }
