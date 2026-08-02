@@ -1226,7 +1226,8 @@ serve(async (req) => {
             }
 
             // Final text — stream as one chunk so the frontend renders it.
-            const content = msg.content || "";
+            // `convo` mantém o texto original (com <thinking>); só filtramos a exibição.
+            const content = stripThinking(msg.content || "");
             if (content) controller.enqueue(sseChunk(content));
             break;
           }
