@@ -23,8 +23,8 @@ export default function Cancelar() {
       setShowOffer(true);
       return;
     }
-    // Redirect to Gumroad management
-    window.open('https://app.gumroad.com/subscriptions', '_blank');
+    // Redirect to the Stripe customer portal
+    window.location.href = '/upgrade';
   };
 
   return (

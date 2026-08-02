@@ -24,7 +24,7 @@ export default function Privacidade() {
               <li><strong className="text-foreground">Conteúdo:</strong> mensagens, arquivos e artefatos gerados durante o uso.</li>
               <li><strong className="text-foreground">Tokens OAuth:</strong> tokens de acesso a serviços conectados (GitHub, Google, Lovable, Slack, Linear, Asana), armazenados de forma criptografada.</li>
               <li><strong className="text-foreground">Dados de uso:</strong> métricas anônimas de navegação (via analytics).</li>
-              <li><strong className="text-foreground">Dados de pagamento:</strong> processados diretamente pelo Gumroad; não armazenamos dados de cartão.</li>
+              <li><strong className="text-foreground">Dados de pagamento:</strong> processados diretamente pela Stripe; não armazenamos dados de cartão.</li>
             </ul>
           </section>
 
@@ -43,7 +43,7 @@ export default function Privacidade() {
             <ul className="list-disc pl-5 space-y-1">
               <li>Provedores de IA (Google Gemini, OpenAI) — para processar suas mensagens.</li>
               <li>Supabase — infraestrutura de banco e autenticação.</li>
-              <li>Gumroad — processamento de pagamentos.</li>
+              <li>Stripe — processamento de pagamentos.</li>
               <li>Serviços conectados por você (GitHub, Google Drive, etc.) — apenas conforme suas ações explícitas.</li>
             </ul>
             <p>Não vendemos seus dados a terceiros.</p>

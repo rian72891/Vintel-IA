@@ -34,7 +34,7 @@ export default function Termos() {
 
           <section>
             <h2 className="text-lg font-semibold text-foreground">5. Planos e Pagamentos</h2>
-            <p>Planos pagos são processados via Gumroad. Cobranças recorrentes ocorrem no ciclo contratado. Cancelamentos podem ser feitos a qualquer momento e valem para o próximo ciclo. Não realizamos reembolsos de créditos já consumidos.</p>
+            <p>Planos pagos são processados via Stripe. Cobranças recorrentes ocorrem no ciclo contratado. Cancelamentos podem ser feitos a qualquer momento e valem para o próximo ciclo. Não realizamos reembolsos de créditos já consumidos.</p>
           </section>
 
           <section>

@@ -859,10 +859,77 @@ async function callGemini(opts: {
   });
 }
 
+/**
+ * Filtro incremental de blocos <thinking>…</thinking>.
+ * Bufferiza texto quando uma tag pode estar quebrada entre chunks,
+ * garantindo que nenhum pedaço do raciocínio vaze para o usuário.
+ */
+const OPEN_TAG = "<thinking>";
+const CLOSE_TAG = "</thinking>";
+
+function createThinkingFilter() {
+  let pending = "";
+  let inside = false;
+
+  /** Maior sufixo de `s` que é prefixo de `tag` (tag possivelmente quebrada). */
+  const partialTail = (s: string, tag: string) => {
+    const max = Math.min(s.length, tag.length - 1);
+    for (let n = max; n > 0; n--) {
+      if (tag.startsWith(s.slice(s.length - n))) return n;
+    }
+    return 0;
+  };
+
+  return {
+    push(chunk: string): string {
+      pending += chunk;
+      let out = "";
+      while (pending.length) {
+        if (!inside) {
+          const i = pending.indexOf(OPEN_TAG);
+          if (i !== -1) {
+            out += pending.slice(0, i);
+            pending = pending.slice(i + OPEN_TAG.length);
+            inside = true;
+            continue;
+          }
+          const hold = partialTail(pending, OPEN_TAG);
+          out += pending.slice(0, pending.length - hold);
+          pending = pending.slice(pending.length - hold);
+          break;
+        } else {
+          const j = pending.indexOf(CLOSE_TAG);
+          if (j !== -1) {
+            pending = pending.slice(j + CLOSE_TAG.length);
+            inside = false;
+            continue;
+          }
+          const hold = partialTail(pending, CLOSE_TAG);
+          pending = pending.slice(pending.length - hold);
+          break;
+        }
+      }
+      return out;
+    },
+    flush(): string {
+      const rest = inside ? "" : pending;
+      pending = "";
+      return rest;
+    },
+  };
+}
+
+/** Remove blocos <thinking> de um texto completo (não-streaming). */
+function stripThinking(text: string): string {
+  const f = createThinkingFilter();
+  return (f.push(text) + f.flush()).replace(/^\s+/, "");
+}
+
 /** Converte o SSE nativo do Gemini para o formato que o frontend espera. */
 function geminiStreamToOpenAiSse(upstream: ReadableStream<Uint8Array>) {
   const decoder = new TextDecoder();
   let buffer = "";
+  const filter = createThinkingFilter();
   return new ReadableStream({
     async start(controller) {
       const reader = upstream.getReader();
@@ -882,16 +949,22 @@ function geminiStreamToOpenAiSse(upstream: ReadableStream<Uint8Array>) {
               const parsed = JSON.parse(json);
               const parts = parsed.candidates?.[0]?.content?.parts ?? [];
               const text = parts.map((p: any) => p.text ?? "").join("");
-              if (text) controller.enqueue(sseChunk(text));
+              if (text) {
+                const visible = filter.push(text);
+                if (visible) controller.enqueue(sseChunk(visible));
+              }
             } catch { /* chunk parcial ignorado */ }
           }
         }
       } catch { /* fim inesperado */ }
+      const tail = filter.flush();
+      if (tail) controller.enqueue(sseChunk(tail));
       controller.enqueue(SSE_DONE);
       controller.close();
     },
   });
 }
+
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -1153,7 +1226,8 @@ serve(async (req) => {
             }
 
             // Final text — stream as one chunk so the frontend renders it.
-            const content = msg.content || "";
+            // `convo` mantém o texto original (com <thinking>); só filtramos a exibição.
+            const content = stripThinking(msg.content || "");
             if (content) controller.enqueue(sseChunk(content));
             break;
           }

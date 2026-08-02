@@ -3,7 +3,7 @@ import { Check, Crown, Zap, Building2, ArrowLeft, Shield, CreditCard, RotateCcw,
 import { useSubscription } from '@/hooks/useSubscription';
 import { PLANS, PlanKey } from '@/lib/stripe';
 import { Button } from '@/components/ui/button';
-import { GumroadCheckout } from '@/components/GumroadCheckout';
+import { StripeCheckout } from '@/components/StripeCheckout';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -19,7 +19,7 @@ const faqItems = [
   },
   {
     q: 'Precisa de cartão internacional?',
-    a: 'Não! Aceitamos cartões nacionais (Visa, Mastercard, Elo, Amex) e também Pix e boleto via Gumroad.',
+    a: 'Não! Aceitamos cartões nacionais (Visa, Mastercard, Elo, Amex) com pagamento seguro via Stripe.',
   },
   {
     q: 'Posso cancelar quando quiser?',
@@ -120,7 +120,7 @@ export default function Precos() {
             const monthlyPrice = isYearly
               ? (plan.priceYearly / 12).toFixed(2).replace('.', ',')
               : String(plan.priceMonthly).replace('.', ',');
-            const gumroadUrl = isYearly ? plan.gumroadYearlyUrl : plan.gumroadUrl;
+            const stripePriceId = isYearly ? plan.stripePriceIdYearly : plan.stripePriceId;
             const badge = (plan as any).badge as string | undefined;
 
             return (
@@ -181,10 +181,9 @@ export default function Precos() {
                   ))}
                 </ul>
 
-                {!isCurrent && gumroadUrl && (
-                  <GumroadCheckout
-                    productUrl={gumroadUrl}
-                    expectedPlan={key}
+                {!isCurrent && key !== 'free' && (
+                  <StripeCheckout
+                    priceId={stripePriceId}
                     buttonText={isPro ? '🔥 Assinar Pro agora' : `Assinar ${plan.name}`}
                     variant={isPro ? 'default' : 'outline'}
                     className={cn(
