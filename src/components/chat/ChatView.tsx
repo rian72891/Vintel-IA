@@ -35,6 +35,36 @@ export function ChatView() {
   const [progress, setProgress] = useState(0);
   const autoTriggeredRef = useRef<string | null>(null);
 
+  // Trace visual do raciocínio do agente
+  const [steps, setSteps] = useState<TraceStep[]>([]);
+  const [traces, setTraces] = useState<Record<string, TraceStep[]>>({});
+  const stepsRef = useRef<TraceStep[]>([]);
+
+  const handleStep = useCallback((step: TraceStep) => {
+    setSteps((prev) => {
+      const idx = prev.findIndex((s) => s.id === step.id);
+      const next = idx === -1 ? [...prev, step] : prev.map((s, i) => (i === idx ? step : s));
+      stepsRef.current = next;
+      return next;
+    });
+  }, []);
+
+  const resetSteps = useCallback(() => {
+    stepsRef.current = [];
+    setSteps([]);
+  }, []);
+
+  /** Anexa o trace concluído à última mensagem do assistente. */
+  const persistTrace = useCallback(() => {
+    const collected = stepsRef.current;
+    if (!collected.length) return;
+    const msgs = getActiveConversation()?.messages ?? [];
+    const last = [...msgs].reverse().find((m) => m.role === 'assistant');
+    if (last) setTraces((prev) => ({ ...prev, [last.id]: collected }));
+    resetSteps();
+  }, [getActiveConversation, resetSteps]);
+
+
   // Simulate real progress feedback when a heavy task is running
   useEffect(() => {
     if (!loadingLabel) {
