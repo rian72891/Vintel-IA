@@ -3,7 +3,9 @@ import { useChatStore } from '@/store/chatStore';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { agents } from '@/data/agents';
-import { streamChat } from '@/lib/streamChat';
+import { streamChat, type TraceStep } from '@/lib/streamChat';
+import { AgentTrace } from './AgentTrace';
+
 import { generateImage, ImageQuality } from '@/lib/generateImage';
 import { textToSpeech } from '@/lib/api/elevenlabs';
 import { firecrawlApi } from '@/lib/api/firecrawl';
