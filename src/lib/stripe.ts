@@ -1,4 +1,4 @@
-// Vintel IA - Plans configuration (Gumroad-based)
+// Vintel IA - Plans configuration (Stripe-based)
 
 export const PLANS = {
   free: {
@@ -6,8 +6,8 @@ export const PLANS = {
     price: 'R$ 0',
     priceMonthly: 0,
     priceYearly: 0,
-    gumroadUrl: null,
-    gumroadYearlyUrl: null,
+    stripePriceId: null as string | null,
+    stripePriceIdYearly: null as string | null,
     productId: null,
     model: 'google/gemini-2.5-flash-lite',
     maxTokens: 2000,
@@ -33,8 +33,8 @@ export const PLANS = {
     price: 'R$ 19,90/mês',
     priceMonthly: 19.90,
     priceYearly: 191,
-    gumroadUrl: 'https://gumroad.com/l/vintel-starter',
-    gumroadYearlyUrl: 'https://gumroad.com/l/vintel-starter-anual',
+    stripePriceId: null as string | null,
+    stripePriceIdYearly: null as string | null,
     productId: 'vintel-starter',
     model: 'google/gemini-2.5-flash',
     maxTokens: 4000,
@@ -61,8 +61,8 @@ export const PLANS = {
     price: 'R$ 39,90/mês',
     priceMonthly: 39.90,
     priceYearly: 383,
-    gumroadUrl: 'https://gumroad.com/l/vintel-pro',
-    gumroadYearlyUrl: 'https://gumroad.com/l/vintel-pro-anual',
+    stripePriceId: null as string | null,
+    stripePriceIdYearly: null as string | null,
     productId: 'vintel-pro',
     popular: true,
     model: 'google/gemini-2.5-pro',
@@ -92,8 +92,8 @@ export const PLANS = {
     price: 'R$ 97/mês',
     priceMonthly: 97,
     priceYearly: 931,
-    gumroadUrl: 'https://gumroad.com/l/vintel-agency',
-    gumroadYearlyUrl: 'https://gumroad.com/l/vintel-agency-anual',
+    stripePriceId: null as string | null,
+    stripePriceIdYearly: null as string | null,
     productId: 'vintel-agency',
     model: 'openai/gpt-5',
     maxTokens: 16000,
