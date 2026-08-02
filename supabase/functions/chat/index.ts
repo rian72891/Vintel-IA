@@ -750,7 +750,25 @@ function sseChunk(content: string) {
   const payload = { choices: [{ delta: { content } }] };
   return new TextEncoder().encode(`data: ${JSON.stringify(payload)}\n\n`);
 }
+/** Evento de progresso (trace visual) — ignorado por clients que só leem `choices`. */
+function sseStep(step: { id: string; status: "running" | "done" | "error"; label: string; detail?: string }) {
+  return new TextEncoder().encode(`data: ${JSON.stringify({ type: "step", ...step })}\n\n`);
+}
 const SSE_DONE = new TextEncoder().encode("data: [DONE]\n\n");
+
+/** Rótulo legível por ferramenta, para a timeline. */
+function toolLabel(name: string, args: any): string {
+  const svc = name.split("_")[0];
+  const map: Record<string, string> = {
+    github: "GitHub", google: "Google Workspace", gmail: "Gmail", slack: "Slack",
+    linear: "Linear", asana: "Asana", lovable: "Lovable", firecrawl: "Web",
+  };
+  const service = map[svc] ?? svc;
+  const target = args?.repo || args?.query || args?.path || args?.channel || args?.title || args?.url || args?.name || "";
+  const action = name.replace(`${svc}_`, "").replace(/_/g, " ");
+  return `${service}: ${action}${target ? ` — ${String(target).slice(0, 60)}` : ""}`;
+}
+
 
 // ---- Google Gemini (API oficial) ----
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
