@@ -725,17 +725,28 @@ export function ChatView() {
           </div>
         )}
         {conversation?.messages.map((msg) => (
-          <ChatMessage
-            key={msg.id}
-            message={msg}
-            audioUrl={msg.content.startsWith('🔊 Áudio gerado') ? audioUrl : undefined}
-            onEdit={msg.role === 'user' ? (content) => {
-              setEditingMessage(msg.id);
-              // Pass the content to the input
-              handleEditSubmit(content);
-            } : undefined}
-          />
+          <div key={msg.id}>
+            {traces[msg.id] && (
+              <div className="px-4 max-w-4xl mx-auto w-full pt-2">
+                <AgentTrace steps={traces[msg.id]} />
+              </div>
+            )}
+            <ChatMessage
+              message={msg}
+              audioUrl={msg.content.startsWith('🔊 Áudio gerado') ? audioUrl : undefined}
+              onEdit={msg.role === 'user' ? (content) => {
+                setEditingMessage(msg.id);
+                // Pass the content to the input
+                handleEditSubmit(content);
+              } : undefined}
+            />
+          </div>
         ))}
+        {isStreaming && steps.length > 0 && (
+          <div className="px-4 max-w-4xl mx-auto w-full pt-2">
+            <AgentTrace steps={steps} live />
+          </div>
+        )}
         {isStreaming && streamingContent && (
           <ChatMessage
             message={{
@@ -747,7 +758,8 @@ export function ChatView() {
             isStreaming
           />
         )}
-        {isStreaming && !streamingContent && (
+        {isStreaming && !streamingContent && steps.length === 0 && (
+
           <div className="flex gap-3 px-4 py-3 max-w-4xl mx-auto w-full">
             <div className="h-7 w-7 rounded-full bg-primary/10 border border-primary/15 flex items-center justify-center shrink-0">
               {loadingLabel.includes('imagem') ? (
