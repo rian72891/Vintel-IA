@@ -623,6 +623,7 @@ export function ChatView() {
     });
     setIsStreaming(true);
     resetStream();
+    resetSteps();
     setLoadingLabel('');
 
     const currentConv = getActiveConversation();
@@ -636,6 +637,7 @@ export function ChatView() {
         agent: conversation?.agent,
         plan,
         temperature,
+        onStep: handleStep,
         onDelta: (delta) => {
           fullContent += delta;
           pushStream(delta);
@@ -651,6 +653,7 @@ export function ChatView() {
           }
           setIsStreaming(false);
           resetStream();
+          persistTrace();
           await incrementUsage('messages');
           if (hasImageAttachment) {
             await incrementUsage('image_analyses');
@@ -660,13 +663,16 @@ export function ChatView() {
           toast.error(error);
           setIsStreaming(false);
           resetStream();
+          resetSteps();
         },
       });
     } catch (e) {
       toast.error('Erro ao conectar com a IA. Tente novamente.');
       setIsStreaming(false);
       resetStream();
+      resetSteps();
     }
+
   };
 
   return (
