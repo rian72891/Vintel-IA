@@ -3,8 +3,9 @@ import { useChatStore } from '@/store/chatStore';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { agents } from '@/data/agents';
-import { streamChat, type TraceStep } from '@/lib/streamChat';
+import { streamChat, type TraceStep, type ConfirmRequest, type ApprovalMap } from '@/lib/streamChat';
 import { AgentTrace } from './AgentTrace';
+import { ConfirmActionCard } from './ConfirmActionCard';
 
 import { generateImage, ImageQuality } from '@/lib/generateImage';
 import { textToSpeech } from '@/lib/api/elevenlabs';
@@ -40,6 +41,24 @@ export function ChatView() {
   const [traces, setTraces] = useState<Record<string, TraceStep[]>>({});
   const stepsRef = useRef<TraceStep[]>([]);
 
+  // Confirmação de ações irreversíveis
+  const [pendingConfirms, setPendingConfirms] = useState<ConfirmRequest[]>([]);
+  const pendingRef = useRef<ConfirmRequest[]>([]);
+  const approvalsRef = useRef<ApprovalMap>({});
+
+  const handleConfirmRequest = useCallback((req: ConfirmRequest) => {
+    setPendingConfirms((prev) => {
+      const next = prev.some((p) => p.id === req.id) ? prev : [...prev, req];
+      pendingRef.current = next;
+      return next;
+    });
+  }, []);
+
+  const clearPending = useCallback(() => {
+    pendingRef.current = [];
+    setPendingConfirms([]);
+  }, []);
+
   const handleStep = useCallback((step: TraceStep) => {
     setSteps((prev) => {
       const idx = prev.findIndex((s) => s.id === step.id);
@@ -58,6 +77,7 @@ export function ChatView() {
   const persistTrace = useCallback(() => {
     const collected = stepsRef.current;
     if (!collected.length) return;
+    if (pendingRef.current.length) return; // mantém a timeline viva enquanto aguarda confirmação
     const msgs = getActiveConversation()?.messages ?? [];
     const last = [...msgs].reverse().find((m) => m.role === 'assistant');
     if (last) setTraces((prev) => ({ ...prev, [last.id]: collected }));
@@ -134,7 +154,9 @@ export function ChatView() {
         agent: conversation?.agent,
         plan,
         temperature,
+        approvals: approvalsRef.current,
         onStep: handleStep,
+        onConfirm: handleConfirmRequest,
         onDelta: (delta) => {
           fullContent += delta;
           pushStream(delta);
@@ -637,7 +659,9 @@ export function ChatView() {
         agent: conversation?.agent,
         plan,
         temperature,
+        approvals: approvalsRef.current,
         onStep: handleStep,
+        onConfirm: handleConfirmRequest,
         onDelta: (delta) => {
           fullContent += delta;
           pushStream(delta);
