@@ -1314,19 +1314,41 @@ serve(async (req) => {
             convo.push(msg);
 
             if (msg.tool_calls?.length) {
+              let awaitingConfirmation = false;
+
               const results = await Promise.all(
                 msg.tool_calls.map(async (tc: any) => {
                   let parsedArgs: any = {};
                   try { parsedArgs = JSON.parse(tc.function.arguments || "{}"); } catch { /* keep empty */ }
-                  const label = toolLabel(tc.function.name, parsedArgs);
-                  controller.enqueue(sseStep({ id: tc.id, status: "running", label, detail: tc.function.name }));
-                  const result = await executeTool(tc.function.name, parsedArgs, { admin, userId: userId!, tokens });
+                  const name = tc.function.name;
+                  const label = toolLabel(name, parsedArgs);
+
+                  if (isIrreversible(name)) {
+                    const key = actionKey(name, parsedArgs);
+                    const decision = decisions[key];
+
+                    if (decision === "cancelled") {
+                      controller.enqueue(sseStep({ id: tc.id, status: "error", label, detail: "Cancelado pelo usuário" }));
+                      return { tc, result: { cancelled: true, reason: "Ação cancelada pelo usuário. Não execute novamente; siga sem ela e comente brevemente." } };
+                    }
+
+                    if (decision !== "approved") {
+                      awaitingConfirmation = true;
+                      const human = actionLabel(name, parsedArgs);
+                      controller.enqueue(sseStep({ id: tc.id, status: "waiting", label: `Aguardando confirmação — ${label}`, detail: human }));
+                      controller.enqueue(sseConfirm({ id: key, tool: name, args: parsedArgs, label: human }));
+                      return { tc, result: { pending_user_confirmation: true, action: human } };
+                    }
+                  }
+
+                  controller.enqueue(sseStep({ id: tc.id, status: "running", label, detail: name }));
+                  const result = await executeTool(name, parsedArgs, { admin, userId: userId!, tokens });
                   const failed = result && typeof result === "object" && "error" in (result as any);
                   controller.enqueue(sseStep({
                     id: tc.id,
                     status: failed ? "error" : "done",
                     label,
-                    detail: failed ? String((result as any).error).slice(0, 160) : tc.function.name,
+                    detail: failed ? String((result as any).error).slice(0, 160) : name,
                   }));
                   return { tc, result };
                 })
@@ -1334,8 +1356,12 @@ serve(async (req) => {
               for (const { tc, result } of results) {
                 convo.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result).slice(0, 8000) });
               }
+
+              // Pausa o turno: o usuário precisa confirmar as ações irreversíveis pendentes.
+              if (awaitingConfirmation) break;
               continue;
             }
+
 
             // Final text — stream as one chunk so the frontend renders it.
             // `convo` mantém o texto original (com <thinking>); só filtramos a exibição.
