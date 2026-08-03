@@ -1063,7 +1063,11 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages, agent, temperature: userTemp } = await req.json();
+    const { messages, agent, temperature: userTemp, approvals } = await req.json();
+    /** Decisões do usuário sobre ações irreversíveis: { [actionKey]: "approved" | "cancelled" } */
+    const decisions: Record<string, "approved" | "cancelled"> =
+      (approvals && typeof approvals === "object") ? approvals : {};
+
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not configured");
 
