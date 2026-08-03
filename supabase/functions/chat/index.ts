@@ -775,6 +775,75 @@ function toolLabel(name: string, args: any): string {
   return `${service}: ${action}${target ? ` — ${String(target).slice(0, 60)}` : ""}`;
 }
 
+/** Ferramentas que criam/editam/deletam algo em serviços externos → exigem confirmação. */
+const IRREVERSIBLE_TOOLS = new Set([
+  "github_create_issue",
+  "github_commit_file",
+  "github_create_branch",
+  "github_create_pull_request",
+  "github_archive_repos",
+  "google_calendar_create_event",
+  "google_calendar_update_event",
+  "google_docs_create",
+  "google_sheets_write",
+  "google_drive_move",
+  "slack_send_message",
+  "linear_create_issue",
+  "linear_update_issue",
+  "asana_create_task",
+  "asana_update_task",
+  "lovable_create_project",
+  "lovable_send_message",
+]);
+
+function isIrreversible(name: string) {
+  if (IRREVERSIBLE_TOOLS.has(name)) return true;
+  return /_(create|update|write|delete|send|commit|archive|move|edit)(_|$)/.test(name);
+}
+
+/** Chave determinística (mesma ação → mesma chave entre requisições). */
+function actionKey(name: string, args: any): string {
+  const stable = JSON.stringify(args ?? {}, Object.keys(args ?? {}).sort());
+  const raw = `${name}|${stable}`;
+  let h = 5381;
+  for (let i = 0; i < raw.length; i++) h = ((h << 5) + h + raw.charCodeAt(i)) >>> 0;
+  return `act_${h.toString(36)}`;
+}
+
+/** Descrição legível da ação irreversível, mostrada no card de confirmação. */
+function actionLabel(name: string, args: any): string {
+  const t = (v: unknown) => String(v ?? "").slice(0, 120);
+  switch (name) {
+    case "github_create_issue":
+      return `Abrir uma issue no GitHub em ${t(args.repo)} com o título: "${t(args.title)}"`;
+    case "github_commit_file":
+      return `Fazer commit do arquivo ${t(args.path)} em ${t(args.repo)}`;
+    case "github_create_branch":
+      return `Criar a branch "${t(args.branch)}" em ${t(args.repo)}`;
+    case "github_create_pull_request":
+      return `Abrir um pull request em ${t(args.repo)}: "${t(args.title)}"`;
+    case "google_calendar_create_event":
+      return `Criar o evento "${t(args.summary || args.title)}" no Google Agenda`;
+    case "google_docs_create":
+      return `Criar o documento "${t(args.title)}" no Google Docs`;
+    case "google_sheets_write":
+      return `Escrever dados na planilha ${t(args.spreadsheetId)} (${t(args.range)})`;
+    case "slack_send_message":
+      return `Enviar mensagem no Slack (${t(args.channel)}): "${t(args.text)}"`;
+    case "linear_create_issue":
+      return `Criar uma issue no Linear: "${t(args.title)}"`;
+    case "asana_create_task":
+      return `Criar a tarefa "${t(args.name || args.title)}" no Asana`;
+    case "lovable_create_project":
+      return `Criar o projeto "${t(args.name)}" na Lovable`;
+    case "lovable_send_message":
+      return `Enviar mensagem para o projeto ${t(args.projectId)} na Lovable`;
+    default:
+      return `Executar ação: ${toolLabel(name, args)}`;
+  }
+}
+
+
 
 // ---- Google Gemini (API oficial) ----
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
