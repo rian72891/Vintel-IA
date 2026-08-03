@@ -145,6 +145,8 @@ export function ChatView() {
     setIsStreaming(true);
     resetStream();
     resetSteps();
+    clearPending();
+    approvalsRef.current = {};
     setLoadingLabel('');
 
     let fullContent = '';
@@ -190,6 +192,64 @@ export function ChatView() {
     }
   }, [activeConversationId, conversation?.agent, plan, temperature, addMessage, incrementUsage, handleStep, resetSteps, persistTrace]);
 
+
+  /** Reexecuta o turno após decisão do usuário sobre ações irreversíveis. */
+  const resumeAfterDecision = useCallback(async (req: ConfirmRequest, decision: 'approved' | 'cancelled') => {
+    if (!activeConversationId) return;
+    approvalsRef.current = { ...approvalsRef.current, [req.id]: decision };
+    setPendingConfirms((prev) => {
+      const next = prev.filter((p) => p.id !== req.id);
+      pendingRef.current = next;
+      return next;
+    });
+    if (pendingRef.current.length) return; // ainda há outras ações aguardando decisão
+
+    const history = getActiveConversation()?.messages ?? [];
+    setIsStreaming(true);
+    resetStream();
+    resetSteps();
+
+    let fullContent = '';
+    try {
+      await streamChat({
+        messages: history,
+        agent: conversation?.agent,
+        plan,
+        temperature,
+        approvals: approvalsRef.current,
+        onStep: handleStep,
+        onConfirm: handleConfirmRequest,
+        onDelta: (delta) => {
+          fullContent += delta;
+          pushStream(delta);
+        },
+        onDone: async () => {
+          await new Promise<void>((r) => finishStream(r));
+          if (fullContent) {
+            await addMessage(activeConversationId, {
+              role: 'assistant',
+              content: fullContent,
+              agent: conversation?.agent,
+            });
+          }
+          setIsStreaming(false);
+          resetStream();
+          persistTrace();
+        },
+        onError: (error) => {
+          toast.error(error);
+          setIsStreaming(false);
+          resetStream();
+          resetSteps();
+        },
+      });
+    } catch {
+      toast.error('Erro ao continuar a ação. Tente novamente.');
+      setIsStreaming(false);
+      resetStream();
+      resetSteps();
+    }
+  }, [activeConversationId, conversation?.agent, plan, temperature, addMessage, getActiveConversation, handleStep, handleConfirmRequest, persistTrace, resetSteps, resetStream, pushStream, finishStream]);
 
   // Internal handlers that skip adding user message (already exists)
   const handleTTSInternal = async (text: string, skipUserMsg: boolean) => {
@@ -646,6 +706,8 @@ export function ChatView() {
     setIsStreaming(true);
     resetStream();
     resetSteps();
+    clearPending();
+    approvalsRef.current = {};
     setLoadingLabel('');
 
     const currentConv = getActiveConversation();
@@ -766,9 +828,22 @@ export function ChatView() {
             />
           </div>
         ))}
-        {isStreaming && steps.length > 0 && (
+        {(isStreaming || pendingConfirms.length > 0) && steps.length > 0 && (
           <div className="px-4 max-w-4xl mx-auto w-full pt-2">
             <AgentTrace steps={steps} live />
+          </div>
+        )}
+        {pendingConfirms.length > 0 && (
+          <div className="px-4 max-w-4xl mx-auto w-full pt-2 space-y-2">
+            {pendingConfirms.map((req) => (
+              <ConfirmActionCard
+                key={req.id}
+                request={req}
+                busy={isStreaming}
+                onConfirm={(r) => resumeAfterDecision(r, 'approved')}
+                onCancel={(r) => resumeAfterDecision(r, 'cancelled')}
+              />
+            ))}
           </div>
         )}
         {isStreaming && streamingContent && (
