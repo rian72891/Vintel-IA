@@ -751,9 +751,15 @@ function sseChunk(content: string) {
   return new TextEncoder().encode(`data: ${JSON.stringify(payload)}\n\n`);
 }
 /** Evento de progresso (trace visual) — ignorado por clients que só leem `choices`. */
-function sseStep(step: { id: string; status: "running" | "done" | "error"; label: string; detail?: string }) {
+function sseStep(step: { id: string; status: "running" | "done" | "error" | "waiting"; label: string; detail?: string }) {
   return new TextEncoder().encode(`data: ${JSON.stringify({ type: "step", ...step })}\n\n`);
 }
+
+/** Evento de confirmação de ação irreversível. */
+function sseConfirm(c: { id: string; tool: string; args: any; label: string }) {
+  return new TextEncoder().encode(`data: ${JSON.stringify({ type: "confirm", ...c })}\n\n`);
+}
+
 const SSE_DONE = new TextEncoder().encode("data: [DONE]\n\n");
 
 /** Rótulo legível por ferramenta, para a timeline. */
