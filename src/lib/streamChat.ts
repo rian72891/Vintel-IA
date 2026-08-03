@@ -66,7 +66,7 @@ export async function streamChat({
       Authorization: `Bearer ${accessToken}`,
       apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
     },
-    body: JSON.stringify({ messages, agent, plan, temperature }),
+    body: JSON.stringify({ messages, agent, plan, temperature, approvals }),
   });
 
   if (!resp.ok) {
@@ -109,6 +109,7 @@ export async function streamChat({
       try {
         const parsed = JSON.parse(jsonStr);
         if (parsed?.type === 'step') { onStep?.(parsed as TraceStep); continue; }
+        if (parsed?.type === 'confirm') { onConfirm?.(parsed as ConfirmRequest); continue; }
         const content = parsed.choices?.[0]?.delta?.content as string | undefined;
         if (content) onDelta(content);
 
@@ -131,6 +132,7 @@ export async function streamChat({
       try {
         const parsed = JSON.parse(jsonStr);
         if (parsed?.type === 'step') { onStep?.(parsed as TraceStep); continue; }
+        if (parsed?.type === 'confirm') { onConfirm?.(parsed as ConfirmRequest); continue; }
         const content = parsed.choices?.[0]?.delta?.content as string | undefined;
         if (content) onDelta(content);
 
