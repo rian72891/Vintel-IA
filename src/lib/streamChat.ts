@@ -14,18 +14,29 @@ function mapErrorMessage(status: number, raw?: string): string {
 
 export type TraceStep = {
   id: string;
-  status: 'running' | 'done' | 'error';
+  status: 'running' | 'done' | 'error' | 'waiting';
   label: string;
   detail?: string;
 };
+
+export type ConfirmRequest = {
+  id: string;
+  tool: string;
+  args: Record<string, unknown>;
+  label: string;
+};
+
+export type ApprovalMap = Record<string, 'approved' | 'cancelled'>;
 
 export async function streamChat({
   messages,
   agent,
   plan,
   temperature,
+  approvals,
   onDelta,
   onStep,
+  onConfirm,
   onDone,
   onError,
 }: {
@@ -33,11 +44,14 @@ export async function streamChat({
   agent?: AgentType;
   plan?: string;
   temperature?: number;
+  approvals?: ApprovalMap;
   onDelta: (text: string) => void;
   onStep?: (step: TraceStep) => void;
+  onConfirm?: (req: ConfirmRequest) => void;
   onDone: () => void;
   onError: (error: string) => void;
 }) {
+
 
   // Prefer the user's session JWT so the edge function can identify them
   // and load their oauth_tokens for tool calling. Falls back to the
@@ -52,7 +66,7 @@ export async function streamChat({
       Authorization: `Bearer ${accessToken}`,
       apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
     },
-    body: JSON.stringify({ messages, agent, plan, temperature }),
+    body: JSON.stringify({ messages, agent, plan, temperature, approvals }),
   });
 
   if (!resp.ok) {
@@ -95,6 +109,7 @@ export async function streamChat({
       try {
         const parsed = JSON.parse(jsonStr);
         if (parsed?.type === 'step') { onStep?.(parsed as TraceStep); continue; }
+        if (parsed?.type === 'confirm') { onConfirm?.(parsed as ConfirmRequest); continue; }
         const content = parsed.choices?.[0]?.delta?.content as string | undefined;
         if (content) onDelta(content);
 
@@ -117,6 +132,7 @@ export async function streamChat({
       try {
         const parsed = JSON.parse(jsonStr);
         if (parsed?.type === 'step') { onStep?.(parsed as TraceStep); continue; }
+        if (parsed?.type === 'confirm') { onConfirm?.(parsed as ConfirmRequest); continue; }
         const content = parsed.choices?.[0]?.delta?.content as string | undefined;
         if (content) onDelta(content);
 

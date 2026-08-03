@@ -751,9 +751,15 @@ function sseChunk(content: string) {
   return new TextEncoder().encode(`data: ${JSON.stringify(payload)}\n\n`);
 }
 /** Evento de progresso (trace visual) — ignorado por clients que só leem `choices`. */
-function sseStep(step: { id: string; status: "running" | "done" | "error"; label: string; detail?: string }) {
+function sseStep(step: { id: string; status: "running" | "done" | "error" | "waiting"; label: string; detail?: string }) {
   return new TextEncoder().encode(`data: ${JSON.stringify({ type: "step", ...step })}\n\n`);
 }
+
+/** Evento de confirmação de ação irreversível. */
+function sseConfirm(c: { id: string; tool: string; args: any; label: string }) {
+  return new TextEncoder().encode(`data: ${JSON.stringify({ type: "confirm", ...c })}\n\n`);
+}
+
 const SSE_DONE = new TextEncoder().encode("data: [DONE]\n\n");
 
 /** Rótulo legível por ferramenta, para a timeline. */
@@ -768,6 +774,75 @@ function toolLabel(name: string, args: any): string {
   const action = name.replace(`${svc}_`, "").replace(/_/g, " ");
   return `${service}: ${action}${target ? ` — ${String(target).slice(0, 60)}` : ""}`;
 }
+
+/** Ferramentas que criam/editam/deletam algo em serviços externos → exigem confirmação. */
+const IRREVERSIBLE_TOOLS = new Set([
+  "github_create_issue",
+  "github_commit_file",
+  "github_create_branch",
+  "github_create_pull_request",
+  "github_archive_repos",
+  "google_calendar_create_event",
+  "google_calendar_update_event",
+  "google_docs_create",
+  "google_sheets_write",
+  "google_drive_move",
+  "slack_send_message",
+  "linear_create_issue",
+  "linear_update_issue",
+  "asana_create_task",
+  "asana_update_task",
+  "lovable_create_project",
+  "lovable_send_message",
+]);
+
+function isIrreversible(name: string) {
+  if (IRREVERSIBLE_TOOLS.has(name)) return true;
+  return /_(create|update|write|delete|send|commit|archive|move|edit)(_|$)/.test(name);
+}
+
+/** Chave determinística (mesma ação → mesma chave entre requisições). */
+function actionKey(name: string, args: any): string {
+  const stable = JSON.stringify(args ?? {}, Object.keys(args ?? {}).sort());
+  const raw = `${name}|${stable}`;
+  let h = 5381;
+  for (let i = 0; i < raw.length; i++) h = ((h << 5) + h + raw.charCodeAt(i)) >>> 0;
+  return `act_${h.toString(36)}`;
+}
+
+/** Descrição legível da ação irreversível, mostrada no card de confirmação. */
+function actionLabel(name: string, args: any): string {
+  const t = (v: unknown) => String(v ?? "").slice(0, 120);
+  switch (name) {
+    case "github_create_issue":
+      return `Abrir uma issue no GitHub em ${t(args.repo)} com o título: "${t(args.title)}"`;
+    case "github_commit_file":
+      return `Fazer commit do arquivo ${t(args.path)} em ${t(args.repo)}`;
+    case "github_create_branch":
+      return `Criar a branch "${t(args.branch)}" em ${t(args.repo)}`;
+    case "github_create_pull_request":
+      return `Abrir um pull request em ${t(args.repo)}: "${t(args.title)}"`;
+    case "google_calendar_create_event":
+      return `Criar o evento "${t(args.summary || args.title)}" no Google Agenda`;
+    case "google_docs_create":
+      return `Criar o documento "${t(args.title)}" no Google Docs`;
+    case "google_sheets_write":
+      return `Escrever dados na planilha ${t(args.spreadsheetId)} (${t(args.range)})`;
+    case "slack_send_message":
+      return `Enviar mensagem no Slack (${t(args.channel)}): "${t(args.text)}"`;
+    case "linear_create_issue":
+      return `Criar uma issue no Linear: "${t(args.title)}"`;
+    case "asana_create_task":
+      return `Criar a tarefa "${t(args.name || args.title)}" no Asana`;
+    case "lovable_create_project":
+      return `Criar o projeto "${t(args.name)}" na Lovable`;
+    case "lovable_send_message":
+      return `Enviar mensagem para o projeto ${t(args.projectId)} na Lovable`;
+    default:
+      return `Executar ação: ${toolLabel(name, args)}`;
+  }
+}
+
 
 
 // ---- Google Gemini (API oficial) ----
@@ -988,7 +1063,11 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages, agent, temperature: userTemp } = await req.json();
+    const { messages, agent, temperature: userTemp, approvals } = await req.json();
+    /** Decisões do usuário sobre ações irreversíveis: { [actionKey]: "approved" | "cancelled" } */
+    const decisions: Record<string, "approved" | "cancelled"> =
+      (approvals && typeof approvals === "object") ? approvals : {};
+
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not configured");
 
@@ -1235,19 +1314,41 @@ serve(async (req) => {
             convo.push(msg);
 
             if (msg.tool_calls?.length) {
+              let awaitingConfirmation = false;
+
               const results = await Promise.all(
                 msg.tool_calls.map(async (tc: any) => {
                   let parsedArgs: any = {};
                   try { parsedArgs = JSON.parse(tc.function.arguments || "{}"); } catch { /* keep empty */ }
-                  const label = toolLabel(tc.function.name, parsedArgs);
-                  controller.enqueue(sseStep({ id: tc.id, status: "running", label, detail: tc.function.name }));
-                  const result = await executeTool(tc.function.name, parsedArgs, { admin, userId: userId!, tokens });
+                  const name = tc.function.name;
+                  const label = toolLabel(name, parsedArgs);
+
+                  if (isIrreversible(name)) {
+                    const key = actionKey(name, parsedArgs);
+                    const decision = decisions[key];
+
+                    if (decision === "cancelled") {
+                      controller.enqueue(sseStep({ id: tc.id, status: "error", label, detail: "Cancelado pelo usuário" }));
+                      return { tc, result: { cancelled: true, reason: "Ação cancelada pelo usuário. Não execute novamente; siga sem ela e comente brevemente." } };
+                    }
+
+                    if (decision !== "approved") {
+                      awaitingConfirmation = true;
+                      const human = actionLabel(name, parsedArgs);
+                      controller.enqueue(sseStep({ id: tc.id, status: "waiting", label: `Aguardando confirmação — ${label}`, detail: human }));
+                      controller.enqueue(sseConfirm({ id: key, tool: name, args: parsedArgs, label: human }));
+                      return { tc, result: { pending_user_confirmation: true, action: human } };
+                    }
+                  }
+
+                  controller.enqueue(sseStep({ id: tc.id, status: "running", label, detail: name }));
+                  const result = await executeTool(name, parsedArgs, { admin, userId: userId!, tokens });
                   const failed = result && typeof result === "object" && "error" in (result as any);
                   controller.enqueue(sseStep({
                     id: tc.id,
                     status: failed ? "error" : "done",
                     label,
-                    detail: failed ? String((result as any).error).slice(0, 160) : tc.function.name,
+                    detail: failed ? String((result as any).error).slice(0, 160) : name,
                   }));
                   return { tc, result };
                 })
@@ -1255,8 +1356,12 @@ serve(async (req) => {
               for (const { tc, result } of results) {
                 convo.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result).slice(0, 8000) });
               }
+
+              // Pausa o turno: o usuário precisa confirmar as ações irreversíveis pendentes.
+              if (awaitingConfirmation) break;
               continue;
             }
+
 
             // Final text — stream as one chunk so the frontend renders it.
             // `convo` mantém o texto original (com <thinking>); só filtramos a exibição.
