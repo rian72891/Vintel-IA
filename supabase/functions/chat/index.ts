@@ -1311,8 +1311,10 @@ serve(async (req) => {
             const calls = parts.filter((p: any) => p.functionCall).map((p: any, idx: number) => ({
               id: `call_${i}_${idx}`,
               type: "function",
+              thought_signature: p.thoughtSignature ?? p.thought_signature ?? null,
               function: { name: p.functionCall.name, arguments: JSON.stringify(p.functionCall.args ?? {}) },
             }));
+
             const msg: any = { role: "assistant", content: text, ...(calls.length ? { tool_calls: calls } : {}) };
 
             convo.push(msg);
