@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Menu, Download } from 'lucide-react';
-import vintelLogo from '@/assets/vintel-logo.png';
+import { Menu } from 'lucide-react';
+import { InstallAppButton } from '@/components/InstallAppButton';
+
 import { Sidebar } from '@/components/chat/Sidebar';
 import { AgentSelector } from '@/components/chat/AgentSelector';
 import { ChatView } from '@/components/chat/ChatView';
