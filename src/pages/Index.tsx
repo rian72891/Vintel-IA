@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Menu, Download } from 'lucide-react';
-import vintelLogo from '@/assets/vintel-logo.png';
+import { Menu } from 'lucide-react';
+import { InstallAppButton } from '@/components/InstallAppButton';
+
 import { Sidebar } from '@/components/chat/Sidebar';
 import { AgentSelector } from '@/components/chat/AgentSelector';
 import { ChatView } from '@/components/chat/ChatView';
@@ -36,16 +37,9 @@ const Index = () => {
               </button>
             </div>
 
-            {/* Center: download */}
-            <a
-              href="/install-Vintel-IA.html"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-shimmer group relative flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/25 transition-all duration-300 ease-out hover:shadow-primary/40 hover:scale-[1.03] active:scale-[0.97]"
-            >
-              <Download className="h-4 w-4 transition-transform duration-300 group-hover:-translate-y-0.5" />
-              <span>Baixar app</span>
-            </a>
+            {/* Center: instalar app (PWA) */}
+            <InstallAppButton />
+
 
             {/* Right: user avatar → abre Settings */}
             <div className="w-10 flex justify-end">

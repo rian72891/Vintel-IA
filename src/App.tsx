@@ -15,6 +15,8 @@ import SharedArtifacts from "./pages/SharedArtifacts";
 import Conectores from "./pages/Conectores";
 import GithubAgent from "./pages/GithubAgent";
 import OAuthCallback from "./pages/OAuthCallback";
+import Auth from "./pages/Auth";
+
 import Termos from "./pages/Termos";
 import Privacidade from "./pages/Privacidade";
 import NotFound from "./pages/NotFound";
@@ -40,7 +42,9 @@ const App = () => (
                 <Route path="/shared/:id" element={<SharedArtifacts />} />
                 <Route path="/conectores" element={<Conectores />} />
                 <Route path="/github-agent" element={<GithubAgent />} />
+                <Route path="/auth" element={<Auth />} />
                 <Route path="/auth/callback/:provider" element={<OAuthCallback />} />
+
                 <Route path="/termos" element={<Termos />} />
                 <Route path="/privacidade" element={<Privacidade />} />
                 <Route path="*" element={<NotFound />} />

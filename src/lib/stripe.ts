@@ -95,7 +95,7 @@ export const PLANS = {
     stripePriceId: null as string | null,
     stripePriceIdYearly: null as string | null,
     productId: 'vintel-agency',
-    model: 'openai/gpt-5',
+    model: 'google/gemini-2.5-pro',
     maxTokens: 16000,
     limits: {
       messagesPerDay: Infinity,
@@ -105,7 +105,7 @@ export const PLANS = {
       imageAnalysesPerMonth: Infinity,
     },
     features: [
-      'Tudo ilimitado (GPT-5 + Gemini Pro)',
+      'Tudo ilimitado (Gemini Pro)',
       'Imagens ilimitadas (HD)',
       'Arquivos ilimitados (todos formatos)',
       'Áudio ilimitado (10h voz)',

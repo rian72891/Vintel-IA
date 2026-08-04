@@ -57,12 +57,13 @@ export default function GithubAgent() {
   useEffect(() => {
     if (!user) return;
     supabase
-      .from("oauth_tokens")
-      .select("access_token, scope")
+      .from("user_connectors")
+      .select("status")
       .eq("user_id", user.id)
       .eq("provider", "github")
       .maybeSingle()
-      .then(({ data }) => setConnected(!!data?.access_token));
+      .then(({ data }) => setConnected(data?.status === "connected"));
+
     supabase
       .from("user_connectors")
       .select("account_label")

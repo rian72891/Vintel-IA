@@ -31,20 +31,20 @@ Adicione as seguintes variáveis de ambiente no Vercel:
 
 #### Para Slack
 ```
-SLACK_CLIENT_ID = 11354122515878.11384540248880
-SLACK_CLIENT_SECRET = f4fd55bb8aec80fc459b28431bf8c9b8
+SLACK_CLIENT_ID = your_slack_client_id
+SLACK_CLIENT_SECRET = your_slack_client_secret
 ```
 
 #### Para Linear
 ```
-LINEAR_CLIENT_ID = bc676d9de8eb9fd06f8257ba07615262
-LINEAR_CLIENT_SECRET = ecf1e203bbcd28823828fb8076e03598
+LINEAR_CLIENT_ID = your_linear_client_id
+LINEAR_CLIENT_SECRET = your_linear_client_secret
 ```
 
 #### Para Asana
 ```
-ASANA_CLIENT_ID = 1215692219702623
-ASANA_CLIENT_SECRET = 9bb73ce3fe182c0a5c7147e8d5300a29
+ASANA_CLIENT_ID = your_asana_client_id
+ASANA_CLIENT_SECRET = your_asana_client_secret
 ```
 
 ### Passo 3: Configurar no Supabase (Funções Edge)
@@ -58,12 +58,12 @@ Se você estiver usando Supabase, as variáveis de ambiente também precisam est
 
 Ou via CLI:
 ```bash
-supabase secrets set SLACK_CLIENT_ID=11354122515878.11384540248880
-supabase secrets set SLACK_CLIENT_SECRET=f4fd55bb8aec80fc459b28431bf8c9b8
-supabase secrets set LINEAR_CLIENT_ID=bc676d9de8eb9fd06f8257ba07615262
-supabase secrets set LINEAR_CLIENT_SECRET=ecf1e203bbcd28823828fb8076e03598
-supabase secrets set ASANA_CLIENT_ID=1215692219702623
-supabase secrets set ASANA_CLIENT_SECRET=9bb73ce3fe182c0a5c7147e8d5300a29
+supabase secrets set SLACK_CLIENT_ID=your_slack_client_id
+supabase secrets set SLACK_CLIENT_SECRET=your_slack_client_secret
+supabase secrets set LINEAR_CLIENT_ID=your_linear_client_id
+supabase secrets set LINEAR_CLIENT_SECRET=your_linear_client_secret
+supabase secrets set ASANA_CLIENT_ID=your_asana_client_id
+supabase secrets set ASANA_CLIENT_SECRET=your_asana_client_secret
 ```
 
 ### Passo 4: Redeploy
