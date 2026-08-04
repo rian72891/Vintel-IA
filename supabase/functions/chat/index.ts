@@ -918,8 +918,12 @@ function toGeminiRequest(convo: any[]) {
         callNames.set(tc.id, tc.function.name);
         let args: any = {};
         try { args = JSON.parse(tc.function.arguments || "{}"); } catch { /* ignore */ }
-        parts.push({ functionCall: { name: tc.function.name, args } });
+        const part: any = { functionCall: { name: tc.function.name, args } };
+        // Gemini exige que a assinatura de pensamento volte inalterada na mesma part.
+        if (tc.thought_signature) part.thoughtSignature = tc.thought_signature;
+        parts.push(part);
       }
+
       contents.push({ role: "model", parts: parts.length ? parts : [{ text: "" }] });
       continue;
     }
