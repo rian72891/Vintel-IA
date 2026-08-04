@@ -15,6 +15,8 @@ import SharedArtifacts from "./pages/SharedArtifacts";
 import Conectores from "./pages/Conectores";
 import GithubAgent from "./pages/GithubAgent";
 import OAuthCallback from "./pages/OAuthCallback";
+import Auth from "./pages/Auth";
+
 import Termos from "./pages/Termos";
 import Privacidade from "./pages/Privacidade";
 import NotFound from "./pages/NotFound";
