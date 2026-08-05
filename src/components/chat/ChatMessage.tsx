@@ -43,7 +43,7 @@ const getFileIcon = (filename: string) => {
   }
 };
 
-export function ChatMessage({ message, audioUrl, isStreaming, onEdit }: ChatMessageProps) {
+function ChatMessageBase({ message, audioUrl, isStreaming, onEdit, onRegenerate }: ChatMessageProps) {
   const isUser = message.role === 'user';
   const isVoiceMessage = isUser && message.content.startsWith('🎤 ');
   const [copiedBlock, setCopiedBlock] = useState<number | null>(null);
@@ -54,7 +54,10 @@ export function ChatMessage({ message, audioUrl, isStreaming, onEdit }: ChatMess
   const [isSharing, setIsSharing] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState('');
+  const [copiedResponse, setCopiedResponse] = useState(false);
+  const [feedbackValue, setFeedbackValue] = useState<Feedback | null>(() => getFeedback(message.id));
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
 
   const { cleanContent, artifacts } = useMemo(() => {
     if (isUser) return { cleanContent: message.content, artifacts: [] };
