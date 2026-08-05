@@ -369,79 +369,38 @@ export function ChatMessage({ message, audioUrl, isStreaming, onEdit }: ChatMess
             <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{isVoiceMessage ? message.content.replace('🎤 ', '') : message.content}</p>
           )
         ) : cleanContent ? (
-          <div className="prose prose-sm dark:prose-invert max-w-none
-            prose-p:text-[15px] prose-p:leading-[1.7] prose-p:my-2 prose-p:text-foreground
-            prose-headings:text-foreground prose-headings:font-semibold prose-headings:tracking-tight prose-headings:my-3
-            prose-h1:text-lg prose-h2:text-base prose-h3:text-[15px]
-            prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5 prose-li:text-[15px] prose-li:leading-[1.7]
-            prose-strong:text-foreground prose-strong:font-semibold
-            prose-a:text-primary prose-a:no-underline hover:prose-a:underline
-            prose-blockquote:border-primary/25 prose-blockquote:text-muted-foreground prose-blockquote:not-italic prose-blockquote:pl-4
-            prose-pre:p-0 prose-pre:bg-transparent prose-pre:border-0
-            [&>*:first-child]:mt-0 [&>*:last-child]:mb-0
-          ">
-            <ReactMarkdown
-              components={{
-                code({ className, children, ...props }) {
-                  const match = /language-(\w+)/.exec(className || '');
-                  const isBlock = match || (typeof children === 'string' && children.includes('\n'));
-                  if (isBlock) {
-                    const currentIdx = codeBlockIdx++;
-                    const codeStr = String(children).replace(/\n$/, '');
-                    const lang = match?.[1];
-                    const showPreview = isHTMLContent(codeStr, lang);
-                    const previewKey = `code-${currentIdx}`;
-                    const open = previewOpen[previewKey];
-                    return (
-                      <div className="relative group/code my-3 rounded-xl overflow-hidden border border-border/40 bg-[hsl(var(--background))]">
-                        <div className="flex items-center justify-between bg-muted/60 px-4 py-1.5 text-[11px] text-muted-foreground border-b border-border/30">
-                          <span className="font-medium uppercase tracking-wider text-[10px]">{lang || 'code'}</span>
-                          <div className="flex items-center gap-3">
-                            {showPreview && (
-                              <button onClick={() => togglePreview(previewKey)} className="flex items-center gap-1.5 text-[11px] hover:text-foreground transition-colors">
-                                {open ? <><EyeOff className="h-3 w-3" /> Código</> : <><Eye className="h-3 w-3" /> Preview</>}
-                              </button>
-                            )}
-                            <button onClick={() => copyCode(codeStr, currentIdx)} className="flex items-center gap-1.5 text-[11px] hover:text-foreground transition-colors">
-                              {copiedBlock === currentIdx ? (<><Check className="h-3 w-3 text-green-500" /> Copiado</>) : (<><Copy className="h-3 w-3" /> Copiar</>)}
-                            </button>
-                          </div>
-                        </div>
-                        {showPreview && open ? (
-                          <iframe
-                            srcDoc={buildPreviewSrcDoc(codeStr)}
-                            title="HTML preview"
-                            sandbox="allow-scripts"
-                            className="w-full h-[420px] border-0 bg-white"
-                          />
-                        ) : (
-                          <pre className="p-4 overflow-x-auto text-[13px] leading-[1.6] font-mono">
-                            <code className={className} {...props}>{children}</code>
-                          </pre>
-                        )}
-                      </div>
-                    );
-                  }
-                  return <code className="px-1 py-0.5 bg-muted/60 rounded text-[13px] text-foreground font-mono" {...props}>{children}</code>;
-                },
-                img({ src, alt }) {
-                  return (
-                    <div className="my-3 group/img relative inline-block">
-                      <img src={src} alt={alt || ''} className="rounded-xl max-h-96 object-contain cursor-pointer hover:opacity-95 transition-opacity" onClick={() => src && window.open(src, '_blank')} />
-                      <button onClick={(e) => { e.stopPropagation(); if (src) downloadImage(src, alt || undefined); }} className="absolute bottom-2 right-2 p-1.5 bg-background/80 backdrop-blur-sm border border-border/50 rounded-lg opacity-0 group-hover/img:opacity-100 transition-all hover:bg-background" title="Baixar imagem">
-                        <Download className="h-3.5 w-3.5 text-foreground" />
-                      </button>
-                    </div>
-                  );
-                },
-              }}
-            >
-              {cleanContent}
-            </ReactMarkdown>
-            {isStreaming && (
-              <span className="inline-block w-[2px] h-[1em] bg-primary animate-blink align-text-bottom ml-0.5" />
+          <>
+            <MarkdownMessage content={cleanContent} isStreaming={isStreaming} />
+            {!isStreaming && (
+              <div className="mt-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                <button onClick={copyResponse} title="Copiar resposta" className={actionBtn}>
+                  {copiedResponse ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+                </button>
+                {onRegenerate && (
+                  <button onClick={onRegenerate} title="Regenerar resposta" className={actionBtn}>
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                <button
+                  onClick={() => setFeedbackValue(saveFeedback(message.id, 'up'))}
+                  title="Boa resposta"
+                  className={cn(actionBtn, feedbackValue === 'up' && 'text-primary bg-primary/10')}
+                >
+                  <ThumbsUp className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={() => setFeedbackValue(saveFeedback(message.id, 'down'))}
+                  title="Resposta ruim"
+                  className={cn(actionBtn, feedbackValue === 'down' && 'text-destructive bg-destructive/10')}
+                >
+                  <ThumbsDown className="h-3.5 w-3.5" />
+                </button>
+                <button onClick={shareResponse} title="Compartilhar resposta" className={actionBtn}>
+                  <Share2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
             )}
-          </div>
+          </>
         ) : null}
       </div>
       {isUser && (
@@ -452,3 +411,14 @@ export function ChatMessage({ message, audioUrl, isStreaming, onEdit }: ChatMess
     </motion.div>
   );
 }
+
+export const ChatMessage = memo(ChatMessageBase, (prev, next) =>
+  prev.message.id === next.message.id &&
+  prev.message.content === next.message.content &&
+  prev.message.attachments === next.message.attachments &&
+  prev.audioUrl === next.audioUrl &&
+  prev.isStreaming === next.isStreaming &&
+  prev.onEdit === next.onEdit &&
+  prev.onRegenerate === next.onRegenerate
+);
+
