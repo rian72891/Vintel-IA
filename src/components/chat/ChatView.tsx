@@ -21,7 +21,7 @@ import { UpgradeModal } from '@/components/UpgradeModal';
 import { useSmoothStream } from '@/hooks/useSmoothStream';
 
 export function ChatView() {
-  const { activeConversationId, getActiveConversation, addMessage, temperature, deleteConversation } = useChatStore();
+  const { activeConversationId, getActiveConversation, addMessage, temperature, deleteConversation, editMessage, truncateFrom } = useChatStore();
   const conversation = getActiveConversation();
   const bottomRef = useRef<HTMLDivElement>(null);
   const [isStreaming, setIsStreaming] = useState(false);
