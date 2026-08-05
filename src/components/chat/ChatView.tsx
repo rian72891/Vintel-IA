@@ -829,7 +829,12 @@ export function ChatView() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto scrollbar-thin py-6">
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto overflow-anchor-none scrollbar-thin py-6 [overflow-anchor:none]"
+      >
+
         {conversation?.messages.length === 0 && !isStreaming && (
           <div className="flex flex-col items-center justify-center h-full gap-5 text-center px-4">
             <div className="h-14 w-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
