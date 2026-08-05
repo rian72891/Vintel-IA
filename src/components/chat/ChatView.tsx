@@ -820,23 +820,16 @@ export function ChatView() {
           </div>
         )}
         {conversation?.messages.map((msg) => (
-          <div key={msg.id}>
-            {traces[msg.id] && (
-              <div className="px-4 max-w-4xl mx-auto w-full pt-2">
-                <AgentTrace steps={traces[msg.id]} />
-              </div>
-            )}
-            <ChatMessage
-              message={msg}
-              audioUrl={msg.content.startsWith('🔊 Áudio gerado') ? audioUrl : undefined}
-              onEdit={msg.role === 'user' ? (content) => {
-                setEditingMessage(msg.id);
-                // Pass the content to the input
-                handleEditSubmit(content);
-              } : undefined}
-            />
-          </div>
+          <MessageRow
+            key={msg.id}
+            msg={msg}
+            trace={traces[msg.id]}
+            audioUrl={msg.content.startsWith('🔊 Áudio gerado') ? audioUrl : undefined}
+            onEdit={handleEditSubmit}
+            onRegenerate={handleRegenerate}
+          />
         ))}
+
         {(isStreaming || pendingConfirms.length > 0) && steps.length > 0 && (
           <div className="px-4 max-w-4xl mx-auto w-full pt-2">
             <AgentTrace steps={steps} live />
