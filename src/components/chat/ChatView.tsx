@@ -1,5 +1,7 @@
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback, memo } from 'react';
 import { useChatStore } from '@/store/chatStore';
+import type { Message } from '@/types/agent';
+
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { agents } from '@/data/agents';
@@ -20,8 +22,45 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { UpgradeModal } from '@/components/UpgradeModal';
 import { useSmoothStream } from '@/hooks/useSmoothStream';
 
+/**
+ * Linha de mensagem isolada e memoizada: garante que mensagens já
+ * renderizadas não re-renderizem (nem remontem) a cada chunk do streaming.
+ */
+const MessageRow = memo(function MessageRow({
+  msg,
+  trace,
+  audioUrl,
+  onEdit,
+  onRegenerate,
+}: {
+  msg: Message;
+  trace?: TraceStep[];
+  audioUrl?: string | null;
+  onEdit: (id: string, content: string) => void;
+  onRegenerate: (id: string) => void;
+}) {
+  const edit = useCallback((content: string) => onEdit(msg.id, content), [onEdit, msg.id]);
+  const regenerate = useCallback(() => onRegenerate(msg.id), [onRegenerate, msg.id]);
+  return (
+    <div>
+      {trace && (
+        <div className="px-4 max-w-4xl mx-auto w-full pt-2">
+          <AgentTrace steps={trace} />
+        </div>
+      )}
+      <ChatMessage
+        message={msg}
+        audioUrl={audioUrl}
+        onEdit={msg.role === 'user' ? edit : undefined}
+        onRegenerate={msg.role === 'assistant' ? regenerate : undefined}
+      />
+    </div>
+  );
+});
+
 export function ChatView() {
-  const { activeConversationId, getActiveConversation, addMessage, temperature, deleteConversation } = useChatStore();
+
+  const { activeConversationId, getActiveConversation, addMessage, temperature, deleteConversation, editMessage, truncateFrom } = useChatStore();
   const conversation = getActiveConversation();
   const bottomRef = useRef<HTMLDivElement>(null);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -104,9 +143,25 @@ export function ChatView() {
     return () => clearInterval(interval);
   }, [loadingLabel]);
 
+  // Auto-scroll que não briga com o streaming: só acompanha se o usuário
+  // já estiver perto do fim; rolagem instantânea durante o stream evita
+  // animações concorrentes (tremedeira).
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const stickRef = useRef(true);
+
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+  }, []);
+
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (!stickRef.current) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
   }, [conversation?.messages.length, streamingContent]);
+
 
   // Auto-trigger AI response when landing page sends a message
   useEffect(() => {
@@ -549,30 +604,23 @@ export function ChatView() {
   };
 
   // Handle message editing
-  const handleEditMessage = (messageId: string, content: string) => {
-    setEditingMessage(messageId);
-    // The ChatInput will receive the content via the editContent prop
-  };
+  /** Edita a mensagem do usuário, descarta tudo depois dela e regenera a resposta. */
+  const handleEditSubmit = useCallback(async (messageId: string, newContent: string) => {
+    if (!activeConversationId || isStreaming) return;
+    const history = await editMessage(activeConversationId, messageId, newContent);
+    if (!history.length) return;
+    await triggerAIResponse(newContent, history);
+  }, [activeConversationId, isStreaming, editMessage]);
 
-  const handleEditSubmit = async (newContent: string) => {
-    if (!activeConversationId || !conversation || !editingMessage) return;
+  /** Refaz a resposta do agente a partir da mesma pergunta. */
+  const handleRegenerate = useCallback(async (messageId: string) => {
+    if (!activeConversationId || isStreaming) return;
+    const history = await truncateFrom(activeConversationId, messageId, true);
+    const lastUser = [...history].reverse().find((m) => m.role === 'user');
+    if (!lastUser) return;
+    await triggerAIResponse(lastUser.content, history);
+  }, [activeConversationId, isStreaming, truncateFrom]);
 
-    // Find the index of the edited message
-    const editIdx = conversation.messages.findIndex(m => m.id === editingMessage);
-    if (editIdx === -1) return;
-
-    // Remove all messages after the edited one (including old AI response)
-    const messagesToKeep = conversation.messages.slice(0, editIdx);
-    
-    // We'll update the store by removing messages after editIdx via the store
-    // and re-sending with new content
-    setEditingMessage(null);
-
-    // Delete the conversation and recreate with kept messages
-    // Simpler approach: just send as a new message with the edited content
-    // The old messages remain for context but user sees the new flow
-    handleSend(newContent);
-  };
 
   const handleSend = async (content: string, attachments?: File[]) => {
     if (!activeConversationId) return;
@@ -781,7 +829,12 @@ export function ChatView() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto scrollbar-thin py-6">
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto scrollbar-thin py-6 [overflow-anchor:none]"
+      >
+
         {conversation?.messages.length === 0 && !isStreaming && (
           <div className="flex flex-col items-center justify-center h-full gap-5 text-center px-4">
             <div className="h-14 w-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
@@ -811,23 +864,16 @@ export function ChatView() {
           </div>
         )}
         {conversation?.messages.map((msg) => (
-          <div key={msg.id}>
-            {traces[msg.id] && (
-              <div className="px-4 max-w-4xl mx-auto w-full pt-2">
-                <AgentTrace steps={traces[msg.id]} />
-              </div>
-            )}
-            <ChatMessage
-              message={msg}
-              audioUrl={msg.content.startsWith('🔊 Áudio gerado') ? audioUrl : undefined}
-              onEdit={msg.role === 'user' ? (content) => {
-                setEditingMessage(msg.id);
-                // Pass the content to the input
-                handleEditSubmit(content);
-              } : undefined}
-            />
-          </div>
+          <MessageRow
+            key={msg.id}
+            msg={msg}
+            trace={traces[msg.id]}
+            audioUrl={msg.content.startsWith('🔊 Áudio gerado') ? audioUrl : undefined}
+            onEdit={handleEditSubmit}
+            onRegenerate={handleRegenerate}
+          />
         ))}
+
         {(isStreaming || pendingConfirms.length > 0) && steps.length > 0 && (
           <div className="px-4 max-w-4xl mx-auto w-full pt-2">
             <AgentTrace steps={steps} live />
@@ -848,6 +894,7 @@ export function ChatView() {
         )}
         {isStreaming && streamingContent && (
           <ChatMessage
+            key="streaming"
             message={{
               id: 'streaming',
               role: 'assistant',
