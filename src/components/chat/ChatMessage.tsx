@@ -1,19 +1,24 @@
 import { motion } from 'framer-motion';
 import { Message } from '@/types/agent';
 import { cn } from '@/lib/utils';
-import { Bot, User, Download, Copy, Check, Volume2, Pause, FileText, Code, FileArchive, File, Mic, FileCode, Share2, Loader2, CheckCircle2, Pencil, Eye, EyeOff } from 'lucide-react';
+import { Bot, User, Download, Copy, Check, Volume2, Pause, FileText, Code, FileArchive, File, Mic, FileCode, Share2, Loader2, CheckCircle2, Pencil, Eye, EyeOff, RefreshCw, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import ReactMarkdown from 'react-markdown';
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useCallback, useRef, useMemo, memo } from 'react';
 import JSZip from 'jszip';
+import { MarkdownMessage } from './MarkdownMessage';
+import { getFeedback, setFeedback as saveFeedback, type Feedback } from '@/lib/messageFeedback';
+
+const actionBtn = 'p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors';
 
 interface ChatMessageProps {
   message: Message;
   audioUrl?: string | null;
   isStreaming?: boolean;
   onEdit?: (content: string) => void;
+  onRegenerate?: () => void;
 }
+
 
 interface Artifact {
   filename: string;
