@@ -172,6 +172,26 @@ function ChatMessageBase({ message, audioUrl, isStreaming, onEdit, onRegenerate 
     }
   };
 
+  const copyResponse = useCallback(async () => {
+    await navigator.clipboard.writeText(cleanContent);
+    setCopiedResponse(true);
+    toast.success('Resposta copiada!');
+    setTimeout(() => setCopiedResponse(false), 2000);
+  }, [cleanContent]);
+
+  const shareResponse = useCallback(async () => {
+    const formatted = `💡 Resposta do Vintel IA\n\n${cleanContent}\n\n— gerado em ${window.location.origin}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Resposta do Vintel IA', text: formatted });
+        return;
+      } catch { /* usuário cancelou → cai no clipboard */ }
+    }
+    await navigator.clipboard.writeText(formatted);
+    toast.success('Texto formatado copiado para compartilhar!');
+  }, [cleanContent]);
+
+
   const startEdit = () => {
     setEditText(message.content);
     setIsEditing(true);
