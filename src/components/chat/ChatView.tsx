@@ -1,5 +1,7 @@
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback, memo } from 'react';
 import { useChatStore } from '@/store/chatStore';
+import type { Message } from '@/types/agent';
+
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { agents } from '@/data/agents';
