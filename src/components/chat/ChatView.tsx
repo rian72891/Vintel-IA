@@ -894,6 +894,7 @@ export function ChatView() {
         )}
         {isStreaming && streamingContent && (
           <ChatMessage
+            key="streaming"
             message={{
               id: 'streaming',
               role: 'assistant',
