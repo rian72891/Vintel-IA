@@ -42,9 +42,10 @@ export default defineConfig(({ mode }) => ({
           },
           {
             urlPattern: ({ url, request }) =>
-              url.origin === self.location.origin &&
+              url.origin === globalThis.location.origin &&
               ["style", "script", "font", "image"].includes(request.destination),
             handler: "CacheFirst",
+
             options: {
               cacheName: "vintel-assets",
               expiration: { maxEntries: 120, maxAgeSeconds: 60 * 60 * 24 * 30 },
