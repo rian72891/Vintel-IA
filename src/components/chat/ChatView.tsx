@@ -565,30 +565,23 @@ export function ChatView() {
   };
 
   // Handle message editing
-  const handleEditMessage = (messageId: string, content: string) => {
-    setEditingMessage(messageId);
-    // The ChatInput will receive the content via the editContent prop
-  };
+  /** Edita a mensagem do usuário, descarta tudo depois dela e regenera a resposta. */
+  const handleEditSubmit = useCallback(async (messageId: string, newContent: string) => {
+    if (!activeConversationId || isStreaming) return;
+    const history = await editMessage(activeConversationId, messageId, newContent);
+    if (!history.length) return;
+    await triggerAIResponse(newContent, history);
+  }, [activeConversationId, isStreaming, editMessage]);
 
-  const handleEditSubmit = async (newContent: string) => {
-    if (!activeConversationId || !conversation || !editingMessage) return;
+  /** Refaz a resposta do agente a partir da mesma pergunta. */
+  const handleRegenerate = useCallback(async (messageId: string) => {
+    if (!activeConversationId || isStreaming) return;
+    const history = await truncateFrom(activeConversationId, messageId, true);
+    const lastUser = [...history].reverse().find((m) => m.role === 'user');
+    if (!lastUser) return;
+    await triggerAIResponse(lastUser.content, history);
+  }, [activeConversationId, isStreaming, truncateFrom]);
 
-    // Find the index of the edited message
-    const editIdx = conversation.messages.findIndex(m => m.id === editingMessage);
-    if (editIdx === -1) return;
-
-    // Remove all messages after the edited one (including old AI response)
-    const messagesToKeep = conversation.messages.slice(0, editIdx);
-    
-    // We'll update the store by removing messages after editIdx via the store
-    // and re-sending with new content
-    setEditingMessage(null);
-
-    // Delete the conversation and recreate with kept messages
-    // Simpler approach: just send as a new message with the edited content
-    // The old messages remain for context but user sees the new flow
-    handleSend(newContent);
-  };
 
   const handleSend = async (content: string, attachments?: File[]) => {
     if (!activeConversationId) return;
