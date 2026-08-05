@@ -104,9 +104,25 @@ export function ChatView() {
     return () => clearInterval(interval);
   }, [loadingLabel]);
 
+  // Auto-scroll que não briga com o streaming: só acompanha se o usuário
+  // já estiver perto do fim; rolagem instantânea durante o stream evita
+  // animações concorrentes (tremedeira).
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const stickRef = useRef(true);
+
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+  }, []);
+
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (!stickRef.current) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
   }, [conversation?.messages.length, streamingContent]);
+
 
   // Auto-trigger AI response when landing page sends a message
   useEffect(() => {
