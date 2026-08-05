@@ -20,7 +20,44 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { UpgradeModal } from '@/components/UpgradeModal';
 import { useSmoothStream } from '@/hooks/useSmoothStream';
 
+/**
+ * Linha de mensagem isolada e memoizada: garante que mensagens já
+ * renderizadas não re-renderizem (nem remontem) a cada chunk do streaming.
+ */
+const MessageRow = memo(function MessageRow({
+  msg,
+  trace,
+  audioUrl,
+  onEdit,
+  onRegenerate,
+}: {
+  msg: Message;
+  trace?: TraceStep[];
+  audioUrl?: string | null;
+  onEdit: (id: string, content: string) => void;
+  onRegenerate: (id: string) => void;
+}) {
+  const edit = useCallback((content: string) => onEdit(msg.id, content), [onEdit, msg.id]);
+  const regenerate = useCallback(() => onRegenerate(msg.id), [onRegenerate, msg.id]);
+  return (
+    <div>
+      {trace && (
+        <div className="px-4 max-w-4xl mx-auto w-full pt-2">
+          <AgentTrace steps={trace} />
+        </div>
+      )}
+      <ChatMessage
+        message={msg}
+        audioUrl={audioUrl}
+        onEdit={msg.role === 'user' ? edit : undefined}
+        onRegenerate={msg.role === 'assistant' ? regenerate : undefined}
+      />
+    </div>
+  );
+});
+
 export function ChatView() {
+
   const { activeConversationId, getActiveConversation, addMessage, temperature, deleteConversation, editMessage, truncateFrom } = useChatStore();
   const conversation = getActiveConversation();
   const bottomRef = useRef<HTMLDivElement>(null);
