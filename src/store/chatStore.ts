@@ -22,6 +22,11 @@ interface ChatState {
   createConversation: (agent?: AgentType) => Promise<string | null>;
   setActiveConversation: (id: string | null) => void;
   addMessage: (conversationId: string, message: Omit<Message, 'id' | 'timestamp'>) => Promise<void>;
+  /** Edita o texto de uma mensagem e descarta tudo que vem depois dela. Retorna o novo histórico. */
+  editMessage: (conversationId: string, messageId: string, content: string) => Promise<Message[]>;
+  /** Remove a mensagem indicada (opcionalmente) e tudo depois dela. Retorna o novo histórico. */
+  truncateFrom: (conversationId: string, messageId: string, inclusive?: boolean) => Promise<Message[]>;
+
   getActiveConversation: () => Conversation | undefined;
   deleteConversation: (id: string) => void;
   renameConversation: (id: string, title: string) => void;
