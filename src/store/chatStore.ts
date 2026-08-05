@@ -209,6 +209,49 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
+  editMessage: async (conversationId, messageId, content) => {
+    const conv = get().conversations.find((c) => c.id === conversationId);
+    if (!conv) return [];
+    const idx = conv.messages.findIndex((m) => m.id === messageId);
+    if (idx === -1) return conv.messages;
+
+    const removed = conv.messages.slice(idx + 1);
+    const next = [...conv.messages.slice(0, idx), { ...conv.messages[idx], content }];
+
+    await supabase.from('messages').update({ content }).eq('id', messageId);
+    if (removed.length) {
+      await supabase.from('messages').delete().in('id', removed.map((m) => m.id));
+    }
+
+    set((state) => ({
+      conversations: state.conversations.map((c) =>
+        c.id === conversationId ? { ...c, messages: next } : c
+      ),
+    }));
+    return next;
+  },
+
+  truncateFrom: async (conversationId, messageId, inclusive = true) => {
+    const conv = get().conversations.find((c) => c.id === conversationId);
+    if (!conv) return [];
+    const idx = conv.messages.findIndex((m) => m.id === messageId);
+    if (idx === -1) return conv.messages;
+
+    const cut = inclusive ? idx : idx + 1;
+    const removed = conv.messages.slice(cut);
+    const next = conv.messages.slice(0, cut);
+    if (removed.length) {
+      await supabase.from('messages').delete().in('id', removed.map((m) => m.id));
+    }
+    set((state) => ({
+      conversations: state.conversations.map((c) =>
+        c.id === conversationId ? { ...c, messages: next } : c
+      ),
+    }));
+    return next;
+  },
+
+
   deleteConversation: async (id) => {
     await supabase.from('conversations').delete().eq('id', id);
     set((state) => ({
