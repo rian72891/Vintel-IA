@@ -1062,6 +1062,128 @@ function geminiStreamToOpenAiSse(upstream: ReadableStream<Uint8Array>) {
   });
 }
 
+/* ============================ MEMÓRIA PERSISTENTE ============================ */
+
+type MemoryRow = { id: string; content: string };
+
+/** Carrega as memórias duráveis do usuário para injetar no system prompt. */
+async function loadMemories(admin: any, userId: string): Promise<MemoryRow[]> {
+  try {
+    const { data } = await admin
+      .from("user_memories")
+      .select("id, content")
+      .eq("user_id", userId)
+      .order("updated_at", { ascending: false })
+      .limit(40);
+    return (data ?? []) as MemoryRow[];
+  } catch {
+    return [];
+  }
+}
+
+const SENSITIVE_HINTS = [
+  "saúde", "saude", "doença", "doenca", "diagnóstico", "diagnostico", "remédio", "remedio",
+  "religi", "igreja", "deus", "política", "politica", "partido", "voto", "eleição", "eleicao",
+  "orientação sexual", "orientacao sexual", "gay", "hétero", "hetero", "lésbic", "lesbic", "bissexual",
+  "senha", "password", "token", "api key", "api_key", "chave secreta", "cpf", "cartão", "cartao",
+  "conta bancária", "conta bancaria", "salário", "salario", "renda",
+];
+
+function isSensitive(text: string): boolean {
+  const t = text.toLowerCase();
+  return SENSITIVE_HINTS.some((h) => t.includes(h));
+}
+
+/**
+ * Extrai fatos duráveis sobre o usuário a partir do turno atual e
+ * salva/atualiza em `user_memories`, evitando duplicatas.
+ * Roda em background (waitUntil) — falhas são silenciosas.
+ */
+async function extractAndSaveMemories(opts: {
+  apiKey: string;
+  admin: any;
+  userId: string;
+  convo: any[];
+  existing: MemoryRow[];
+}) {
+  const { apiKey, admin, userId, convo, existing } = opts;
+  try {
+    const transcript = convo
+      .filter((m) => m.role === "user" || m.role === "assistant")
+      .slice(-8)
+      .map((m) => `${m.role}: ${typeof m.content === "string" ? m.content : JSON.stringify(m.content)}`)
+      .join("\n")
+      .slice(0, 12000);
+
+    if (!transcript.trim()) return;
+
+    const existingList = existing.map((m, i) => `${i + 1}. [${m.id}] ${m.content}`).join("\n") || "(nenhuma)";
+
+    const prompt = `Você extrai FATOS DURÁVEIS sobre o usuário a partir de uma conversa, para memória de longo prazo.
+
+REGRAS ESTRITAS:
+- Só registre fatos que o PRÓPRIO USUÁRIO contou sobre si (preferências, contexto de trabalho, stack, projetos, objetivos, forma de trabalhar).
+- NUNCA registre: saúde, orientação sexual, religião, política, dados financeiros detalhados, credenciais, tokens ou chaves.
+- Nada de fatos efêmeros ("pediu para corrigir um bug agora").
+- Se um fato já existe e mudou, use "update" com o id existente. Se já existe igual, ignore.
+- Se não houver nada relevante, devolva listas vazias.
+
+MEMÓRIAS EXISTENTES:
+${existingList}
+
+CONVERSA:
+${transcript}
+
+Responda SOMENTE com JSON válido no formato:
+{"new":["fato 1","fato 2"],"update":[{"id":"uuid","content":"fato atualizado"}]}`;
+
+    const r = await fetch(`${GEMINI_BASE}/gemini-flash-lite-latest:generateContent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0, responseMimeType: "application/json" },
+      }),
+    });
+    if (!r.ok) return;
+    const data = await r.json();
+    const raw = (data.candidates?.[0]?.content?.parts ?? [])
+      .map((p: any) => p.text || "").join("").trim();
+    if (!raw) return;
+
+    let parsed: any;
+    try { parsed = JSON.parse(raw); } catch { return; }
+
+    const existingLower = new Set(existing.map((m) => m.content.trim().toLowerCase()));
+
+    const inserts: { user_id: string; content: string }[] = [];
+    for (const fact of Array.isArray(parsed.new) ? parsed.new : []) {
+      if (typeof fact !== "string") continue;
+      const clean = fact.trim();
+      if (clean.length < 8 || clean.length > 400) continue;
+      if (isSensitive(clean)) continue;
+      if (existingLower.has(clean.toLowerCase())) continue;
+      existingLower.add(clean.toLowerCase());
+      inserts.push({ user_id: userId, content: clean });
+    }
+    if (inserts.length) {
+      await admin.from("user_memories").insert(inserts.slice(0, 10));
+    }
+
+    for (const up of Array.isArray(parsed.update) ? parsed.update : []) {
+      if (!up?.id || typeof up.content !== "string") continue;
+      const clean = up.content.trim();
+      if (!clean || isSensitive(clean)) continue;
+      if (!existing.some((m) => m.id === up.id)) continue;
+      await admin.from("user_memories")
+        .update({ content: clean.slice(0, 400) })
+        .eq("id", up.id).eq("user_id", userId);
+    }
+  } catch (e) {
+    console.warn("[memory] extração falhou:", e instanceof Error ? e.message : e);
+  }
+}
+
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
