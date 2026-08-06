@@ -7,6 +7,7 @@ import { ChatInput } from './ChatInput';
 import { agents } from '@/data/agents';
 import { streamChat, type TraceStep, type ConfirmRequest, type ApprovalMap } from '@/lib/streamChat';
 import { AgentTrace } from './AgentTrace';
+import { useBackgroundTasks, type BackgroundTask } from '@/hooks/useBackgroundTasks';
 import { ConfirmActionCard } from './ConfirmActionCard';
 
 import { generateImage, ImageQuality } from '@/lib/generateImage';
@@ -248,6 +249,27 @@ export function ChatView() {
     }
   }, [activeConversationId, conversation?.agent, plan, temperature, addMessage, incrementUsage, handleStep, resetSteps, persistTrace]);
 
+
+  /**
+   * Tarefas do agente que continuam rodando na nuvem mesmo com o app fechado.
+   * Ao concluir, o resultado entra na conversa mesmo que tenha sido gerado offline.
+   */
+  const handleTaskCompleted = useCallback(async (task: BackgroundTask) => {
+    const content = task?.result?.content;
+    if (task.status === 'failed') {
+      toast.error('Uma tarefa em segundo plano falhou.');
+      return;
+    }
+    if (!content || !task.conversation_id) return;
+    const convo = getActiveConversation();
+    if (!convo || convo.id !== task.conversation_id) return;
+    const last = convo.messages[convo.messages.length - 1];
+    if (last?.role === 'assistant' && last.content.trim() === String(content).trim()) return;
+    await addMessage(task.conversation_id, { role: 'assistant', content: String(content), agent: convo.agent });
+    toast.success('Vintel IA concluiu uma tarefa em segundo plano.');
+  }, [addMessage, getActiveConversation]);
+
+  const { hasRunning: hasBackgroundTask } = useBackgroundTasks(activeConversationId, handleTaskCompleted);
 
   /** Reexecuta o turno após decisão do usuário sobre ações irreversíveis. */
   const resumeAfterDecision = useCallback(async (req: ConfirmRequest, decision: 'approved' | 'cancelled') => {
@@ -877,6 +899,15 @@ export function ChatView() {
             onRegenerate={handleRegenerate}
           />
         ))}
+
+        {hasBackgroundTask && !isStreaming && (
+          <div className="px-4 max-w-4xl mx-auto w-full pt-2">
+            <div className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-primary">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Vintel IA ainda está trabalhando nisso...
+            </div>
+          </div>
+        )}
 
         {(isStreaming || pendingConfirms.length > 0) && steps.length > 0 && (
           <div className="px-4 max-w-4xl mx-auto w-full pt-2">
