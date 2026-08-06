@@ -12,7 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import {
   ChevronRight, ChevronLeft, User, CreditCard, Zap, Plug, Moon, Type, Mic, Vibrate,
   Shield, Link as LinkIcon, Thermometer, LogOut, Check, Sun, Monitor, Crown, RefreshCw,
-  Loader2, Copy, Trash2,
+  Loader2, Copy, Trash2, Brain,
 } from 'lucide-react';
 import { PLANS, PlanKey } from '@/lib/stripe';
 import { supabase } from '@/integrations/supabase/client';
@@ -26,7 +26,7 @@ interface SettingsDialogProps {
 
 type Section =
   | 'root' | 'profile' | 'billing' | 'capabilities' | 'theme'
-  | 'font' | 'voice' | 'shared' | 'creativity';
+  | 'font' | 'voice' | 'shared' | 'creativity' | 'memory';
 
 const CAP_KEYS = [
   { key: 'cap_images', label: 'Geração de imagens' },
@@ -80,6 +80,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   // Shared
   const [sharedItems, setSharedItems] = useState<any[]>([]);
   const [loadingShared, setLoadingShared] = useState(false);
+
+  // Memória persistente entre conversas
+  const [memories, setMemories] = useState<any[]>([]);
+  const [loadingMemories, setLoadingMemories] = useState(false);
 
   const planData = PLANS[plan as PlanKey] || PLANS.free;
 
@@ -205,7 +209,41 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     }
   };
 
+  const loadMemories = async () => {
+    if (!user) return;
+    setLoadingMemories(true);
+    try {
+      const { data, error } = await supabase
+        .from('user_memories')
+        .select('id, content, updated_at')
+        .eq('user_id', user.id)
+        .order('updated_at', { ascending: false });
+      if (error) throw error;
+      setMemories(data || []);
+    } catch (e: any) {
+      toast.error(e?.message || 'Erro ao carregar memórias');
+    } finally {
+      setLoadingMemories(false);
+    }
+  };
+
+  const deleteMemory = async (id: string) => {
+    const { error } = await supabase.from('user_memories').delete().eq('id', id);
+    if (error) return toast.error(error.message);
+    setMemories((prev) => prev.filter((m) => m.id !== id));
+    toast.success('Memória apagada');
+  };
+
+  const clearMemories = async () => {
+    if (!user) return;
+    const { error } = await supabase.from('user_memories').delete().eq('user_id', user.id);
+    if (error) return toast.error(error.message);
+    setMemories([]);
+    toast.success('Todas as memórias foram apagadas');
+  };
+
   useEffect(() => {
+    if (section === 'memory') loadMemories();
     if (section === 'shared') loadShared();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [section]);
@@ -313,6 +351,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               </div>
               <div className="border-t border-border py-1">
                 <Row icon={Shield} label="Privacidade" onClick={() => { onOpenChange(false); navigate('/privacidade'); }} />
+                <Row icon={Brain} label="Memória" onClick={() => setSection('memory')} />
                 <Row icon={LinkIcon} label="Links compartilhados" onClick={() => setSection('shared')} />
                 <Row icon={Thermometer} label="Criatividade da IA" subtitle={`${temperature.toFixed(1)}`} onClick={() => setSection('creativity')} />
               </div>
@@ -501,6 +540,41 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                   </button>
                 </div>
               ))}
+            </div>
+          </>
+        )}
+
+        {section === 'memory' && (
+          <>
+            <BackHeader title="Memória" />
+            <div className="p-3 space-y-2 overflow-y-auto scrollbar-thin">
+              <p className="text-xs text-muted-foreground px-1 pb-1">
+                Fatos que o Vintel IA lembra sobre você entre conversas diferentes.
+              </p>
+              {loadingMemories && (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              )}
+              {!loadingMemories && memories.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-8">Nenhuma memória salva ainda</p>
+              )}
+              {memories.map((m) => (
+                <div key={m.id} className="flex items-start gap-2 p-3 rounded-lg bg-muted/30 border border-border">
+                  <span className="flex-1 text-sm leading-relaxed">{m.content}</span>
+                  <button onClick={() => deleteMemory(m.id)} className="p-1.5 rounded hover:bg-destructive/10 text-destructive transition-colors" title="Apagar">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+              {memories.length > 0 && (
+                <button
+                  onClick={clearMemories}
+                  className="w-full mt-2 py-2.5 rounded-lg border border-destructive/30 text-destructive text-sm hover:bg-destructive/10 transition-colors"
+                >
+                  Apagar tudo
+                </button>
+              )}
             </div>
           </>
         )}

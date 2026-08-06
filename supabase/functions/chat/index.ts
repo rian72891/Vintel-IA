@@ -1062,12 +1062,134 @@ function geminiStreamToOpenAiSse(upstream: ReadableStream<Uint8Array>) {
   });
 }
 
+/* ============================ MEMÓRIA PERSISTENTE ============================ */
+
+type MemoryRow = { id: string; content: string };
+
+/** Carrega as memórias duráveis do usuário para injetar no system prompt. */
+async function loadMemories(admin: any, userId: string): Promise<MemoryRow[]> {
+  try {
+    const { data } = await admin
+      .from("user_memories")
+      .select("id, content")
+      .eq("user_id", userId)
+      .order("updated_at", { ascending: false })
+      .limit(40);
+    return (data ?? []) as MemoryRow[];
+  } catch {
+    return [];
+  }
+}
+
+const SENSITIVE_HINTS = [
+  "saúde", "saude", "doença", "doenca", "diagnóstico", "diagnostico", "remédio", "remedio",
+  "religi", "igreja", "deus", "política", "politica", "partido", "voto", "eleição", "eleicao",
+  "orientação sexual", "orientacao sexual", "gay", "hétero", "hetero", "lésbic", "lesbic", "bissexual",
+  "senha", "password", "token", "api key", "api_key", "chave secreta", "cpf", "cartão", "cartao",
+  "conta bancária", "conta bancaria", "salário", "salario", "renda",
+];
+
+function isSensitive(text: string): boolean {
+  const t = text.toLowerCase();
+  return SENSITIVE_HINTS.some((h) => t.includes(h));
+}
+
+/**
+ * Extrai fatos duráveis sobre o usuário a partir do turno atual e
+ * salva/atualiza em `user_memories`, evitando duplicatas.
+ * Roda em background (waitUntil) — falhas são silenciosas.
+ */
+async function extractAndSaveMemories(opts: {
+  apiKey: string;
+  admin: any;
+  userId: string;
+  convo: any[];
+  existing: MemoryRow[];
+}) {
+  const { apiKey, admin, userId, convo, existing } = opts;
+  try {
+    const transcript = convo
+      .filter((m) => m.role === "user" || m.role === "assistant")
+      .slice(-8)
+      .map((m) => `${m.role}: ${typeof m.content === "string" ? m.content : JSON.stringify(m.content)}`)
+      .join("\n")
+      .slice(0, 12000);
+
+    if (!transcript.trim()) return;
+
+    const existingList = existing.map((m, i) => `${i + 1}. [${m.id}] ${m.content}`).join("\n") || "(nenhuma)";
+
+    const prompt = `Você extrai FATOS DURÁVEIS sobre o usuário a partir de uma conversa, para memória de longo prazo.
+
+REGRAS ESTRITAS:
+- Só registre fatos que o PRÓPRIO USUÁRIO contou sobre si (preferências, contexto de trabalho, stack, projetos, objetivos, forma de trabalhar).
+- NUNCA registre: saúde, orientação sexual, religião, política, dados financeiros detalhados, credenciais, tokens ou chaves.
+- Nada de fatos efêmeros ("pediu para corrigir um bug agora").
+- Se um fato já existe e mudou, use "update" com o id existente. Se já existe igual, ignore.
+- Se não houver nada relevante, devolva listas vazias.
+
+MEMÓRIAS EXISTENTES:
+${existingList}
+
+CONVERSA:
+${transcript}
+
+Responda SOMENTE com JSON válido no formato:
+{"new":["fato 1","fato 2"],"update":[{"id":"uuid","content":"fato atualizado"}]}`;
+
+    const r = await fetch(`${GEMINI_BASE}/gemini-flash-lite-latest:generateContent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0, responseMimeType: "application/json" },
+      }),
+    });
+    if (!r.ok) return;
+    const data = await r.json();
+    const raw = (data.candidates?.[0]?.content?.parts ?? [])
+      .map((p: any) => p.text || "").join("").trim();
+    if (!raw) return;
+
+    let parsed: any;
+    try { parsed = JSON.parse(raw); } catch { return; }
+
+    const existingLower = new Set(existing.map((m) => m.content.trim().toLowerCase()));
+
+    const inserts: { user_id: string; content: string }[] = [];
+    for (const fact of Array.isArray(parsed.new) ? parsed.new : []) {
+      if (typeof fact !== "string") continue;
+      const clean = fact.trim();
+      if (clean.length < 8 || clean.length > 400) continue;
+      if (isSensitive(clean)) continue;
+      if (existingLower.has(clean.toLowerCase())) continue;
+      existingLower.add(clean.toLowerCase());
+      inserts.push({ user_id: userId, content: clean });
+    }
+    if (inserts.length) {
+      await admin.from("user_memories").insert(inserts.slice(0, 10));
+    }
+
+    for (const up of Array.isArray(parsed.update) ? parsed.update : []) {
+      if (!up?.id || typeof up.content !== "string") continue;
+      const clean = up.content.trim();
+      if (!clean || isSensitive(clean)) continue;
+      if (!existing.some((m) => m.id === up.id)) continue;
+      await admin.from("user_memories")
+        .update({ content: clean.slice(0, 400) })
+        .eq("id", up.id).eq("user_id", userId);
+    }
+  } catch (e) {
+    console.warn("[memory] extração falhou:", e instanceof Error ? e.message : e);
+  }
+}
+
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages, agent, temperature: userTemp, approvals } = await req.json();
+    const { messages, agent, temperature: userTemp, approvals, conversationId } = await req.json();
     /** Decisões do usuário sobre ações irreversíveis: { [actionKey]: "approved" | "cancelled" } */
     const decisions: Record<string, "approved" | "cancelled"> =
       (approvals && typeof approvals === "object") ? approvals : {};
@@ -1252,8 +1374,14 @@ serve(async (req) => {
       return { role: m.role, content: m.content };
     });
 
+    // Memória persistente entre conversas
+    const memories = userId ? await loadMemories(admin, userId) : [];
+    const memoryNote = memories.length
+      ? `\n\nMemória de longo prazo sobre o usuário (fatos que ele já contou em conversas anteriores — use com naturalidade, nunca liste isso de volta sem motivo):\n${memories.map((m) => `- ${m.content}`).join("\n")}`
+      : "";
+
     const convo: any[] = [
-      { role: "system", content: systemPrompt + connectedNote },
+      { role: "system", content: systemPrompt + connectedNote + memoryNote },
       ...processed,
     ];
 
@@ -1269,6 +1397,12 @@ serve(async (req) => {
       return r;
     };
 
+    const scheduleMemory = () => {
+      if (!userId) return;
+      const p = extractAndSaveMemories({ apiKey: GEMINI_API_KEY, admin, userId, convo: [...convo], existing: memories });
+      try { (globalThis as any).EdgeRuntime?.waitUntil?.(p); } catch { /* noop */ }
+    };
+
     // Sem ferramentas: streaming direto da API do Gemini, convertido para o SSE do frontend.
     if (tools.length === 0) {
       const r = await callWithFallback({ stream: true });
@@ -1278,115 +1412,193 @@ serve(async (req) => {
         if (r.status === 429) return new Response(JSON.stringify({ error: "Limite de requisições excedido." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         return new Response(JSON.stringify({ error: "Erro no serviço de IA" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
+      scheduleMemory();
       return new Response(geminiStreamToOpenAiSse(r.body), { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
     }
 
-    // Tool loop (non-streaming), then stream the final answer.
-    const stream = new ReadableStream({
-      async start(controller) {
-        try {
-          for (let i = 0; i < 5; i++) {
-            const thinkId = `think_${i}`;
-            controller.enqueue(sseStep({ id: thinkId, status: "running", label: i === 0 ? "Pensando…" : "Analisando resultados…" }));
-            const r = await callWithFallback({ tools });
-            if (!r.ok) {
-              const txt = await r.text();
-              console.error("Gemini error:", r.status, txt.slice(0, 500));
-              const label = r.status === 429 ? "Limite de requisições excedido" : `Erro no serviço de IA: ${r.status}`;
-              controller.enqueue(sseStep({ id: thinkId, status: "error", label, detail: txt.slice(0, 200) }));
-              controller.enqueue(sseChunk(`\n\n⚠️ ${label} ${txt.slice(0, 200)}`));
-              break;
-            }
-            const data = await r.json();
-            const parts = data.candidates?.[0]?.content?.parts;
-            if (!parts) {
-              controller.enqueue(sseStep({ id: thinkId, status: "error", label: "Resposta vazia do modelo" }));
-              controller.enqueue(sseChunk("\n\n⚠️ Resposta vazia do modelo."));
-              break;
-            }
-            controller.enqueue(sseStep({ id: thinkId, status: "done", label: i === 0 ? "Raciocínio concluído" : "Resultados analisados" }));
+    /* ================= EXECUÇÃO EM SEGUNDO PLANO =================
+       O loop do agente roda desacoplado da conexão HTTP: se o usuário
+       fechar o app, o `EdgeRuntime.waitUntil` mantém o processamento vivo
+       e o progresso/resultado é persistido em `background_tasks`.       */
 
-            // Converte a resposta do Gemini de volta para o formato OpenAI usado no loop.
-            const text = parts.filter((p: any) => typeof p.text === "string").map((p: any) => p.text).join("");
-            const calls = parts.filter((p: any) => p.functionCall).map((p: any, idx: number) => ({
-              id: `call_${i}_${idx}`,
-              type: "function",
-              thought_signature: p.thoughtSignature ?? p.thought_signature ?? null,
-              function: { name: p.functionCall.name, arguments: JSON.stringify(p.functionCall.args ?? {}) },
-            }));
+    let ctrl: ReadableStreamDefaultController<Uint8Array> | null = null;
+    let clientOpen = true;
+    const emit = (chunk: Uint8Array) => {
+      if (!clientOpen || !ctrl) return;
+      try { ctrl.enqueue(chunk); } catch { clientOpen = false; }
+    };
 
-            const msg: any = { role: "assistant", content: text, ...(calls.length ? { tool_calls: calls } : {}) };
+    let taskId: string | null = null;
+    const steps: any[] = [];
 
-            convo.push(msg);
+    const ensureTask = async () => {
+      if (taskId || !userId) return;
+      const { data, error } = await admin
+        .from("background_tasks")
+        .insert({
+          user_id: userId,
+          conversation_id: conversationId ?? null,
+          status: "running",
+          input: { agent: agent ?? null, prompt: String(messages?.[messages.length - 1]?.content ?? "").slice(0, 4000) },
+        })
+        .select("id")
+        .single();
+      if (error) { console.warn("[bg] insert falhou:", error.message); return; }
+      taskId = data.id;
+    };
 
-            if (msg.tool_calls?.length) {
-              let awaitingConfirmation = false;
+    const patchTask = async (patch: Record<string, unknown>) => {
+      if (!taskId) return;
+      const { error } = await admin.from("background_tasks").update(patch).eq("id", taskId);
+      if (error) console.warn("[bg] update falhou:", error.message);
+    };
 
-              const results = await Promise.all(
-                msg.tool_calls.map(async (tc: any) => {
-                  let parsedArgs: any = {};
-                  try { parsedArgs = JSON.parse(tc.function.arguments || "{}"); } catch { /* keep empty */ }
-                  const name = tc.function.name;
-                  const label = toolLabel(name, parsedArgs);
+    const step = (s: { id: string; status: "running" | "done" | "error" | "waiting"; label: string; detail?: string }) => {
+      steps.push(s);
+      emit(sseStep(s));
+    };
 
-                  if (isIrreversible(name)) {
-                    const key = actionKey(name, parsedArgs);
-                    const decision = decisions[key];
+    const runAgent = async () => {
+      let finalContent = "";
+      let finished = false;
+      try {
+        for (let i = 0; i < 5; i++) {
+          const thinkId = `think_${i}`;
+          step({ id: thinkId, status: "running", label: i === 0 ? "Pensando…" : "Analisando resultados…" });
+          const r = await callWithFallback({ tools });
+          if (!r.ok) {
+            const txt = await r.text();
+            console.error("Gemini error:", r.status, txt.slice(0, 500));
+            const label = r.status === 429 ? "Limite de requisições excedido" : `Erro no serviço de IA: ${r.status}`;
+            step({ id: thinkId, status: "error", label, detail: txt.slice(0, 200) });
+            finalContent = `\n\n⚠️ ${label} ${txt.slice(0, 200)}`;
+            emit(sseChunk(finalContent));
+            await patchTask({ status: "failed", result: { error: label, steps } });
+            return;
+          }
+          const data = await r.json();
+          const parts = data.candidates?.[0]?.content?.parts;
+          if (!parts) {
+            step({ id: thinkId, status: "error", label: "Resposta vazia do modelo" });
+            finalContent = "\n\n⚠️ Resposta vazia do modelo.";
+            emit(sseChunk(finalContent));
+            await patchTask({ status: "failed", result: { error: "Resposta vazia do modelo", steps } });
+            return;
+          }
+          step({ id: thinkId, status: "done", label: i === 0 ? "Raciocínio concluído" : "Resultados analisados" });
 
-                    if (decision === "cancelled") {
-                      controller.enqueue(sseStep({ id: tc.id, status: "error", label, detail: "Cancelado pelo usuário" }));
-                      return { tc, result: { cancelled: true, reason: "Ação cancelada pelo usuário. Não execute novamente; siga sem ela e comente brevemente." } };
-                    }
+          // Converte a resposta do Gemini de volta para o formato OpenAI usado no loop.
+          const text = parts.filter((p: any) => typeof p.text === "string").map((p: any) => p.text).join("");
+          const calls = parts.filter((p: any) => p.functionCall).map((p: any, idx: number) => ({
+            id: `call_${i}_${idx}`,
+            type: "function",
+            thought_signature: p.thoughtSignature ?? p.thought_signature ?? null,
+            function: { name: p.functionCall.name, arguments: JSON.stringify(p.functionCall.args ?? {}) },
+          }));
 
-                    if (decision !== "approved") {
-                      awaitingConfirmation = true;
-                      const human = actionLabel(name, parsedArgs);
-                      controller.enqueue(sseStep({ id: tc.id, status: "waiting", label: `Aguardando confirmação — ${label}`, detail: human }));
-                      controller.enqueue(sseConfirm({ id: key, tool: name, args: parsedArgs, label: human }));
-                      return { tc, result: { pending_user_confirmation: true, action: human } };
-                    }
+          const msg: any = { role: "assistant", content: text, ...(calls.length ? { tool_calls: calls } : {}) };
+          convo.push(msg);
+
+          if (msg.tool_calls?.length) {
+            // Fluxo de agente: registra a tarefa para sobreviver à queda da conexão.
+            await ensureTask();
+            let awaitingConfirmation = false;
+
+            const results = await Promise.all(
+              msg.tool_calls.map(async (tc: any) => {
+                let parsedArgs: any = {};
+                try { parsedArgs = JSON.parse(tc.function.arguments || "{}"); } catch { /* keep empty */ }
+                const name = tc.function.name;
+                const label = toolLabel(name, parsedArgs);
+
+                if (isIrreversible(name)) {
+                  const key = actionKey(name, parsedArgs);
+                  const decision = decisions[key];
+
+                  if (decision === "cancelled") {
+                    step({ id: tc.id, status: "error", label, detail: "Cancelado pelo usuário" });
+                    return { tc, result: { cancelled: true, reason: "Ação cancelada pelo usuário. Não execute novamente; siga sem ela e comente brevemente." } };
                   }
 
-                  controller.enqueue(sseStep({ id: tc.id, status: "running", label, detail: name }));
-                  const result = await executeTool(name, parsedArgs, { admin, userId: userId!, tokens });
-                  const failed = result && typeof result === "object" && "error" in (result as any);
-                  controller.enqueue(sseStep({
-                    id: tc.id,
-                    status: failed ? "error" : "done",
-                    label,
-                    detail: failed ? String((result as any).error).slice(0, 160) : name,
-                  }));
-                  return { tc, result };
-                })
-              );
-              for (const { tc, result } of results) {
-                convo.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result).slice(0, 8000) });
-              }
+                  if (decision !== "approved") {
+                    awaitingConfirmation = true;
+                    const human = actionLabel(name, parsedArgs);
+                    step({ id: tc.id, status: "waiting", label: `Aguardando confirmação — ${label}`, detail: human });
+                    emit(sseConfirm({ id: key, tool: name, args: parsedArgs, label: human }));
+                    return { tc, result: { pending_user_confirmation: true, action: human } };
+                  }
+                }
 
-              // Pausa o turno: o usuário precisa confirmar as ações irreversíveis pendentes.
-              if (awaitingConfirmation) break;
-              continue;
+                step({ id: tc.id, status: "running", label, detail: name });
+                const result = await executeTool(name, parsedArgs, { admin, userId: userId!, tokens });
+                const failed = result && typeof result === "object" && "error" in (result as any);
+                step({
+                  id: tc.id,
+                  status: failed ? "error" : "done",
+                  label,
+                  detail: failed ? String((result as any).error).slice(0, 160) : name,
+                });
+                return { tc, result };
+              })
+            );
+            for (const { tc, result } of results) {
+              convo.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result).slice(0, 8000) });
             }
 
+            await patchTask({ result: { steps, partial: true } });
 
-            // Final text — stream as one chunk so the frontend renders it.
-            // `convo` mantém o texto original (com <thinking>); só filtramos a exibição.
-            controller.enqueue(sseStep({ id: "final", status: "running", label: "Escrevendo resposta…" }));
-            const content = stripThinking(msg.content || "");
-            if (content) controller.enqueue(sseChunk(content));
-            controller.enqueue(sseStep({ id: "final", status: "done", label: "Resposta pronta" }));
-            break;
+            // Pausa o turno: o usuário precisa confirmar as ações irreversíveis pendentes.
+            if (awaitingConfirmation) {
+              await patchTask({ status: "completed", result: { steps, awaiting_confirmation: true } });
+              finished = true;
+              return;
+            }
+            continue;
           }
 
-          controller.enqueue(SSE_DONE);
-          controller.close();
-        } catch (e) {
-          controller.enqueue(sseChunk(`\n\n⚠️ ${e instanceof Error ? e.message : "Erro"}`));
-          controller.enqueue(SSE_DONE);
-          controller.close();
+          // Final text — stream as one chunk so the frontend renders it.
+          // `convo` mantém o texto original (com <thinking>); só filtramos a exibição.
+          step({ id: "final", status: "running", label: "Escrevendo resposta…" });
+          finalContent = stripThinking(msg.content || "");
+          if (finalContent) emit(sseChunk(finalContent));
+          step({ id: "final", status: "done", label: "Resposta pronta" });
+          finished = true;
+          break;
         }
-      },
+
+        if (taskId) {
+          await patchTask({ status: "completed", result: { steps, content: finalContent } });
+          // Se o cliente caiu no meio, persistimos a resposta na conversa
+          // para que ela apareça quando o usuário reabrir o app.
+          if (!clientOpen && conversationId && userId && finalContent) {
+            await admin.from("messages").insert({
+              conversation_id: conversationId,
+              user_id: userId,
+              role: "assistant",
+              content: finalContent,
+              agent: agent ?? null,
+            });
+          }
+        }
+        if (finished) scheduleMemory();
+      } catch (e) {
+        const m = e instanceof Error ? e.message : "Erro";
+        emit(sseChunk(`\n\n⚠️ ${m}`));
+        await patchTask({ status: "failed", result: { error: m, steps } });
+      } finally {
+        if (clientOpen && ctrl) {
+          try { ctrl.enqueue(SSE_DONE); ctrl.close(); } catch { /* já fechado */ }
+        }
+      }
+    };
+
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) { ctrl = controller; },
+      cancel() { clientOpen = false; },
     });
+
+    const runPromise = runAgent();
+    try { (globalThis as any).EdgeRuntime?.waitUntil?.(runPromise); } catch { /* noop */ }
 
     return new Response(stream, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
   } catch (e) {

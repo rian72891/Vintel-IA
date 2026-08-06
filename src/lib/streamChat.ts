@@ -31,6 +31,7 @@ export type ApprovalMap = Record<string, 'approved' | 'cancelled'>;
 export async function streamChat({
   messages,
   agent,
+  conversationId,
   plan,
   temperature,
   approvals,
@@ -42,6 +43,7 @@ export async function streamChat({
 }: {
   messages: Message[];
   agent?: AgentType;
+  conversationId?: string | null;
   plan?: string;
   temperature?: number;
   approvals?: ApprovalMap;
@@ -66,7 +68,7 @@ export async function streamChat({
       Authorization: `Bearer ${accessToken}`,
       apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
     },
-    body: JSON.stringify({ messages, agent, plan, temperature, approvals }),
+    body: JSON.stringify({ messages, agent, plan, temperature, approvals, conversationId }),
   });
 
   if (!resp.ok) {
