@@ -1397,6 +1397,12 @@ serve(async (req) => {
       return r;
     };
 
+    const scheduleMemory = () => {
+      if (!userId) return;
+      const p = extractAndSaveMemories({ apiKey: GEMINI_API_KEY, admin, userId, convo: [...convo], existing: memories });
+      try { (globalThis as any).EdgeRuntime?.waitUntil?.(p); } catch { /* noop */ }
+    };
+
     // Sem ferramentas: streaming direto da API do Gemini, convertido para o SSE do frontend.
     if (tools.length === 0) {
       const r = await callWithFallback({ stream: true });
@@ -1406,115 +1412,193 @@ serve(async (req) => {
         if (r.status === 429) return new Response(JSON.stringify({ error: "Limite de requisições excedido." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         return new Response(JSON.stringify({ error: "Erro no serviço de IA" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
+      scheduleMemory();
       return new Response(geminiStreamToOpenAiSse(r.body), { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
     }
 
-    // Tool loop (non-streaming), then stream the final answer.
-    const stream = new ReadableStream({
-      async start(controller) {
-        try {
-          for (let i = 0; i < 5; i++) {
-            const thinkId = `think_${i}`;
-            controller.enqueue(sseStep({ id: thinkId, status: "running", label: i === 0 ? "Pensando…" : "Analisando resultados…" }));
-            const r = await callWithFallback({ tools });
-            if (!r.ok) {
-              const txt = await r.text();
-              console.error("Gemini error:", r.status, txt.slice(0, 500));
-              const label = r.status === 429 ? "Limite de requisições excedido" : `Erro no serviço de IA: ${r.status}`;
-              controller.enqueue(sseStep({ id: thinkId, status: "error", label, detail: txt.slice(0, 200) }));
-              controller.enqueue(sseChunk(`\n\n⚠️ ${label} ${txt.slice(0, 200)}`));
-              break;
-            }
-            const data = await r.json();
-            const parts = data.candidates?.[0]?.content?.parts;
-            if (!parts) {
-              controller.enqueue(sseStep({ id: thinkId, status: "error", label: "Resposta vazia do modelo" }));
-              controller.enqueue(sseChunk("\n\n⚠️ Resposta vazia do modelo."));
-              break;
-            }
-            controller.enqueue(sseStep({ id: thinkId, status: "done", label: i === 0 ? "Raciocínio concluído" : "Resultados analisados" }));
+    /* ================= EXECUÇÃO EM SEGUNDO PLANO =================
+       O loop do agente roda desacoplado da conexão HTTP: se o usuário
+       fechar o app, o `EdgeRuntime.waitUntil` mantém o processamento vivo
+       e o progresso/resultado é persistido em `background_tasks`.       */
 
-            // Converte a resposta do Gemini de volta para o formato OpenAI usado no loop.
-            const text = parts.filter((p: any) => typeof p.text === "string").map((p: any) => p.text).join("");
-            const calls = parts.filter((p: any) => p.functionCall).map((p: any, idx: number) => ({
-              id: `call_${i}_${idx}`,
-              type: "function",
-              thought_signature: p.thoughtSignature ?? p.thought_signature ?? null,
-              function: { name: p.functionCall.name, arguments: JSON.stringify(p.functionCall.args ?? {}) },
-            }));
+    let ctrl: ReadableStreamDefaultController<Uint8Array> | null = null;
+    let clientOpen = true;
+    const emit = (chunk: Uint8Array) => {
+      if (!clientOpen || !ctrl) return;
+      try { ctrl.enqueue(chunk); } catch { clientOpen = false; }
+    };
 
-            const msg: any = { role: "assistant", content: text, ...(calls.length ? { tool_calls: calls } : {}) };
+    let taskId: string | null = null;
+    const steps: any[] = [];
 
-            convo.push(msg);
+    const ensureTask = async () => {
+      if (taskId || !userId) return;
+      const { data, error } = await admin
+        .from("background_tasks")
+        .insert({
+          user_id: userId,
+          conversation_id: conversationId ?? null,
+          status: "running",
+          input: { agent: agent ?? null, prompt: String(messages?.[messages.length - 1]?.content ?? "").slice(0, 4000) },
+        })
+        .select("id")
+        .single();
+      if (error) { console.warn("[bg] insert falhou:", error.message); return; }
+      taskId = data.id;
+    };
 
-            if (msg.tool_calls?.length) {
-              let awaitingConfirmation = false;
+    const patchTask = async (patch: Record<string, unknown>) => {
+      if (!taskId) return;
+      const { error } = await admin.from("background_tasks").update(patch).eq("id", taskId);
+      if (error) console.warn("[bg] update falhou:", error.message);
+    };
 
-              const results = await Promise.all(
-                msg.tool_calls.map(async (tc: any) => {
-                  let parsedArgs: any = {};
-                  try { parsedArgs = JSON.parse(tc.function.arguments || "{}"); } catch { /* keep empty */ }
-                  const name = tc.function.name;
-                  const label = toolLabel(name, parsedArgs);
+    const step = (s: { id: string; status: "running" | "done" | "error" | "waiting"; label: string; detail?: string }) => {
+      steps.push(s);
+      emit(sseStep(s));
+    };
 
-                  if (isIrreversible(name)) {
-                    const key = actionKey(name, parsedArgs);
-                    const decision = decisions[key];
+    const runAgent = async () => {
+      let finalContent = "";
+      let finished = false;
+      try {
+        for (let i = 0; i < 5; i++) {
+          const thinkId = `think_${i}`;
+          step({ id: thinkId, status: "running", label: i === 0 ? "Pensando…" : "Analisando resultados…" });
+          const r = await callWithFallback({ tools });
+          if (!r.ok) {
+            const txt = await r.text();
+            console.error("Gemini error:", r.status, txt.slice(0, 500));
+            const label = r.status === 429 ? "Limite de requisições excedido" : `Erro no serviço de IA: ${r.status}`;
+            step({ id: thinkId, status: "error", label, detail: txt.slice(0, 200) });
+            finalContent = `\n\n⚠️ ${label} ${txt.slice(0, 200)}`;
+            emit(sseChunk(finalContent));
+            await patchTask({ status: "failed", result: { error: label, steps } });
+            return;
+          }
+          const data = await r.json();
+          const parts = data.candidates?.[0]?.content?.parts;
+          if (!parts) {
+            step({ id: thinkId, status: "error", label: "Resposta vazia do modelo" });
+            finalContent = "\n\n⚠️ Resposta vazia do modelo.";
+            emit(sseChunk(finalContent));
+            await patchTask({ status: "failed", result: { error: "Resposta vazia do modelo", steps } });
+            return;
+          }
+          step({ id: thinkId, status: "done", label: i === 0 ? "Raciocínio concluído" : "Resultados analisados" });
 
-                    if (decision === "cancelled") {
-                      controller.enqueue(sseStep({ id: tc.id, status: "error", label, detail: "Cancelado pelo usuário" }));
-                      return { tc, result: { cancelled: true, reason: "Ação cancelada pelo usuário. Não execute novamente; siga sem ela e comente brevemente." } };
-                    }
+          // Converte a resposta do Gemini de volta para o formato OpenAI usado no loop.
+          const text = parts.filter((p: any) => typeof p.text === "string").map((p: any) => p.text).join("");
+          const calls = parts.filter((p: any) => p.functionCall).map((p: any, idx: number) => ({
+            id: `call_${i}_${idx}`,
+            type: "function",
+            thought_signature: p.thoughtSignature ?? p.thought_signature ?? null,
+            function: { name: p.functionCall.name, arguments: JSON.stringify(p.functionCall.args ?? {}) },
+          }));
 
-                    if (decision !== "approved") {
-                      awaitingConfirmation = true;
-                      const human = actionLabel(name, parsedArgs);
-                      controller.enqueue(sseStep({ id: tc.id, status: "waiting", label: `Aguardando confirmação — ${label}`, detail: human }));
-                      controller.enqueue(sseConfirm({ id: key, tool: name, args: parsedArgs, label: human }));
-                      return { tc, result: { pending_user_confirmation: true, action: human } };
-                    }
+          const msg: any = { role: "assistant", content: text, ...(calls.length ? { tool_calls: calls } : {}) };
+          convo.push(msg);
+
+          if (msg.tool_calls?.length) {
+            // Fluxo de agente: registra a tarefa para sobreviver à queda da conexão.
+            await ensureTask();
+            let awaitingConfirmation = false;
+
+            const results = await Promise.all(
+              msg.tool_calls.map(async (tc: any) => {
+                let parsedArgs: any = {};
+                try { parsedArgs = JSON.parse(tc.function.arguments || "{}"); } catch { /* keep empty */ }
+                const name = tc.function.name;
+                const label = toolLabel(name, parsedArgs);
+
+                if (isIrreversible(name)) {
+                  const key = actionKey(name, parsedArgs);
+                  const decision = decisions[key];
+
+                  if (decision === "cancelled") {
+                    step({ id: tc.id, status: "error", label, detail: "Cancelado pelo usuário" });
+                    return { tc, result: { cancelled: true, reason: "Ação cancelada pelo usuário. Não execute novamente; siga sem ela e comente brevemente." } };
                   }
 
-                  controller.enqueue(sseStep({ id: tc.id, status: "running", label, detail: name }));
-                  const result = await executeTool(name, parsedArgs, { admin, userId: userId!, tokens });
-                  const failed = result && typeof result === "object" && "error" in (result as any);
-                  controller.enqueue(sseStep({
-                    id: tc.id,
-                    status: failed ? "error" : "done",
-                    label,
-                    detail: failed ? String((result as any).error).slice(0, 160) : name,
-                  }));
-                  return { tc, result };
-                })
-              );
-              for (const { tc, result } of results) {
-                convo.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result).slice(0, 8000) });
-              }
+                  if (decision !== "approved") {
+                    awaitingConfirmation = true;
+                    const human = actionLabel(name, parsedArgs);
+                    step({ id: tc.id, status: "waiting", label: `Aguardando confirmação — ${label}`, detail: human });
+                    emit(sseConfirm({ id: key, tool: name, args: parsedArgs, label: human }));
+                    return { tc, result: { pending_user_confirmation: true, action: human } };
+                  }
+                }
 
-              // Pausa o turno: o usuário precisa confirmar as ações irreversíveis pendentes.
-              if (awaitingConfirmation) break;
-              continue;
+                step({ id: tc.id, status: "running", label, detail: name });
+                const result = await executeTool(name, parsedArgs, { admin, userId: userId!, tokens });
+                const failed = result && typeof result === "object" && "error" in (result as any);
+                step({
+                  id: tc.id,
+                  status: failed ? "error" : "done",
+                  label,
+                  detail: failed ? String((result as any).error).slice(0, 160) : name,
+                });
+                return { tc, result };
+              })
+            );
+            for (const { tc, result } of results) {
+              convo.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result).slice(0, 8000) });
             }
 
+            await patchTask({ result: { steps, partial: true } });
 
-            // Final text — stream as one chunk so the frontend renders it.
-            // `convo` mantém o texto original (com <thinking>); só filtramos a exibição.
-            controller.enqueue(sseStep({ id: "final", status: "running", label: "Escrevendo resposta…" }));
-            const content = stripThinking(msg.content || "");
-            if (content) controller.enqueue(sseChunk(content));
-            controller.enqueue(sseStep({ id: "final", status: "done", label: "Resposta pronta" }));
-            break;
+            // Pausa o turno: o usuário precisa confirmar as ações irreversíveis pendentes.
+            if (awaitingConfirmation) {
+              await patchTask({ status: "completed", result: { steps, awaiting_confirmation: true } });
+              finished = true;
+              return;
+            }
+            continue;
           }
 
-          controller.enqueue(SSE_DONE);
-          controller.close();
-        } catch (e) {
-          controller.enqueue(sseChunk(`\n\n⚠️ ${e instanceof Error ? e.message : "Erro"}`));
-          controller.enqueue(SSE_DONE);
-          controller.close();
+          // Final text — stream as one chunk so the frontend renders it.
+          // `convo` mantém o texto original (com <thinking>); só filtramos a exibição.
+          step({ id: "final", status: "running", label: "Escrevendo resposta…" });
+          finalContent = stripThinking(msg.content || "");
+          if (finalContent) emit(sseChunk(finalContent));
+          step({ id: "final", status: "done", label: "Resposta pronta" });
+          finished = true;
+          break;
         }
-      },
+
+        if (taskId) {
+          await patchTask({ status: "completed", result: { steps, content: finalContent } });
+          // Se o cliente caiu no meio, persistimos a resposta na conversa
+          // para que ela apareça quando o usuário reabrir o app.
+          if (!clientOpen && conversationId && userId && finalContent) {
+            await admin.from("messages").insert({
+              conversation_id: conversationId,
+              user_id: userId,
+              role: "assistant",
+              content: finalContent,
+              agent: agent ?? null,
+            });
+          }
+        }
+        if (finished) scheduleMemory();
+      } catch (e) {
+        const m = e instanceof Error ? e.message : "Erro";
+        emit(sseChunk(`\n\n⚠️ ${m}`));
+        await patchTask({ status: "failed", result: { error: m, steps } });
+      } finally {
+        if (clientOpen && ctrl) {
+          try { ctrl.enqueue(SSE_DONE); ctrl.close(); } catch { /* já fechado */ }
+        }
+      }
+    };
+
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) { ctrl = controller; },
+      cancel() { clientOpen = false; },
     });
+
+    const runPromise = runAgent();
+    try { (globalThis as any).EdgeRuntime?.waitUntil?.(runPromise); } catch { /* noop */ }
 
     return new Response(stream, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
   } catch (e) {
