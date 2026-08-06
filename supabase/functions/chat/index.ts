@@ -1374,8 +1374,14 @@ serve(async (req) => {
       return { role: m.role, content: m.content };
     });
 
+    // Memória persistente entre conversas
+    const memories = userId ? await loadMemories(admin, userId) : [];
+    const memoryNote = memories.length
+      ? `\n\nMemória de longo prazo sobre o usuário (fatos que ele já contou em conversas anteriores — use com naturalidade, nunca liste isso de volta sem motivo):\n${memories.map((m) => `- ${m.content}`).join("\n")}`
+      : "";
+
     const convo: any[] = [
-      { role: "system", content: systemPrompt + connectedNote },
+      { role: "system", content: systemPrompt + connectedNote + memoryNote },
       ...processed,
     ];
 
