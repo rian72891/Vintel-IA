@@ -1189,7 +1189,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages, agent, temperature: userTemp, approvals } = await req.json();
+    const { messages, agent, temperature: userTemp, approvals, conversationId } = await req.json();
     /** Decisões do usuário sobre ações irreversíveis: { [actionKey]: "approved" | "cancelled" } */
     const decisions: Record<string, "approved" | "cancelled"> =
       (approvals && typeof approvals === "object") ? approvals : {};
