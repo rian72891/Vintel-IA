@@ -209,6 +209,7 @@ export function ChatView() {
       await streamChat({
         messages: history,
         agent: conversation?.agent,
+        conversationId: activeConversationId,
         plan,
         temperature,
         approvals: approvalsRef.current,
@@ -269,6 +270,7 @@ export function ChatView() {
       await streamChat({
         messages: history,
         agent: conversation?.agent,
+        conversationId: activeConversationId,
         plan,
         temperature,
         approvals: approvalsRef.current,
@@ -527,6 +529,7 @@ export function ChatView() {
       await streamChat({
         messages: history,
         agent: conversation?.agent,
+        conversationId: activeConversationId,
         plan,
         temperature,
         onDelta: (delta) => {
@@ -767,6 +770,7 @@ export function ChatView() {
       await streamChat({
         messages: history,
         agent: conversation?.agent,
+        conversationId: activeConversationId,
         plan,
         temperature,
         approvals: approvalsRef.current,
