@@ -1,4 +1,4 @@
-<h1 align="center">🤖 Vintel IA</h1>
+<h1 align="center"> Vintel IA</h1>
 <p align="center"><strong>Plataforma SaaS de Agentes de Inteligência Artificial</strong></p>
 
 <p align="center">
