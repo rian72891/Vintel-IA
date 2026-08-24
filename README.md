@@ -1,4 +1,4 @@
-<h1 align="center"> Vintel IA</h1>
+<h1 align="center">🤖 Vintel IA</h1>
 <p align="center"><strong>Plataforma SaaS de Agentes de Inteligência Artificial</strong></p>
 
 <p align="center">
@@ -25,10 +25,10 @@ O Vintel IA é uma plataforma de agentes de IA construída para operar no nível
 
 ## 🛠️ Stack
 
-![Lovable](https://img.shields.io/badge/Lovable-8A2BE2?style=for-the-badge&logo=lightning&logoColor=white)
-![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)
-![Gemini](https://img.shields.io/badge/Google_Gemini-4285F4?style=for-the-badge&logo=googlegemini&logoColor=white)
-![Stripe](https://img.shields.io/badge/Stripe-635BFF?style=for-the-badge&logo=stripe&logoColor=white)
+[![Lovable](https://img.shields.io/badge/Lovable-8A2BE2?style=for-the-badge&logo=lightning&logoColor=white)](https://lovable.dev)
+[![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com)
+[![Gemini](https://img.shields.io/badge/Google_Gemini-4285F4?style=for-the-badge&logo=googlegemini&logoColor=white)](https://gemini.google.com)
+[![Stripe](https://img.shields.io/badge/Stripe-635BFF?style=for-the-badge&logo=stripe&logoColor=white)](https://stripe.com)
 
 **Frontend/backend construídos com Lovable · Banco de dados e autenticação: Supabase**
 
