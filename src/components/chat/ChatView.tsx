@@ -22,6 +22,7 @@ import { useUsage } from '@/hooks/useUsage';
 import { useSubscription } from '@/hooks/useSubscription';
 import { UpgradeModal } from '@/components/UpgradeModal';
 import { useSmoothStream } from '@/hooks/useSmoothStream';
+import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
 import { downloadMarkdown } from '@/lib/exportConversation';
 
