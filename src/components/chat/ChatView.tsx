@@ -14,7 +14,7 @@ import { generateImage, ImageQuality } from '@/lib/generateImage';
 import { textToSpeech } from '@/lib/api/elevenlabs';
 import { firecrawlApi } from '@/lib/api/firecrawl';
 import { generatePDF, generateHTML, generateTXT, generateZIP, downloadFile } from '@/lib/fileGeneration';
-import { Loader2, ImageIcon, FileText, Mic, Sparkles, Search, Globe } from 'lucide-react';
+import { Loader2, ImageIcon, FileText, Mic, Sparkles, Search, Globe, Download } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
@@ -22,6 +22,9 @@ import { useUsage } from '@/hooks/useUsage';
 import { useSubscription } from '@/hooks/useSubscription';
 import { UpgradeModal } from '@/components/UpgradeModal';
 import { useSmoothStream } from '@/hooks/useSmoothStream';
+import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n';
+import { downloadMarkdown } from '@/lib/exportConversation';
 
 /**
  * Linha de mensagem isolada e memoizada: garante que mensagens já
@@ -68,7 +71,8 @@ export function ChatView() {
   const { displayed: streamingContent, push: pushStream, finish: finishStream, reset: resetStream } = useSmoothStream();
   const [loadingLabel, setLoadingLabel] = useState('');
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const { checkUsage, incrementUsage } = useUsage();
+  const { checkUsage, incrementUsage, getUsageLabel, getUsagePercent } = useUsage();
+  const { t } = useI18n();
   const { plan } = useSubscription();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeFeature, setUpgradeFeature] = useState('');
@@ -835,6 +839,23 @@ export function ChatView() {
 
   };
 
+  const msgUsageLabel = getUsageLabel('messages');
+  const msgUsagePercent = getUsagePercent('messages');
+  const [usedRaw, totalRaw] = msgUsageLabel.split('/').map((v) => v.trim());
+  const msgUsageText = /[∞]|ilimit|unlimit/i.test(msgUsageLabel)
+    ? t('usage.unlimited')
+    : t('usage.today', { used: usedRaw ?? '0', total: totalRaw ?? '0' });
+
+  const handleExportMarkdown = () => {
+    const conv = getActiveConversation();
+    if (!conv || conv.messages.length === 0) {
+      toast.error(t('chat.exportEmpty'));
+      return;
+    }
+    downloadMarkdown(conv);
+    toast.success(t('chat.exported'));
+  };
+
   return (
     <div className="flex-1 flex flex-col h-screen">
       <div className="px-4 py-3 bg-background flex items-center gap-3">
@@ -853,6 +874,32 @@ export function ChatView() {
             </span>
           )}
         </div>
+
+        <div className="ml-auto flex items-center gap-2">
+          {msgUsageLabel && (
+            <span
+              className={cn(
+                'hidden sm:inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px]',
+                msgUsagePercent >= 100
+                  ? 'border-destructive/30 text-destructive bg-destructive/10'
+                  : msgUsagePercent >= 80
+                    ? 'border-amber-500/30 text-amber-500 bg-amber-500/10'
+                    : 'border-border text-muted-foreground'
+              )}
+              title={msgUsagePercent >= 100 ? t('usage.reached') : msgUsagePercent >= 80 ? t('usage.almost') : undefined}
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-current" />
+              {msgUsageText}
+            </span>
+          )}
+          <button
+            onClick={handleExportMarkdown}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <Download className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{t('chat.export')}</span>
+          </button>
+        </div>
       </div>
 
       <div
@@ -867,8 +914,8 @@ export function ChatView() {
               <Sparkles className="h-7 w-7 text-primary" />
             </div>
             <div>
-              <p className="text-lg font-semibold text-foreground mb-1">Como posso ajudar?</p>
-              <p className="text-sm text-muted-foreground">Envie uma mensagem para começar</p>
+              <p className="text-lg font-semibold text-foreground mb-1">{t('chat.howCanIHelp')}</p>
+              <p className="text-sm text-muted-foreground">{t('chat.sendToStart')}</p>
             </div>
             <div className="flex flex-wrap gap-2 justify-center max-w-lg">
               {[
@@ -904,7 +951,7 @@ export function ChatView() {
           <div className="px-4 max-w-4xl mx-auto w-full pt-2">
             <div className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-primary">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              Vintel IA ainda está trabalhando nisso...
+              {t('chat.working')}
             </div>
           </div>
         )}

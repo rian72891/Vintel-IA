@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { SubscriptionProvider } from "@/hooks/useSubscription";
 import { UsageProvider } from "@/hooks/useUsage";
+import { I18nProvider } from "@/lib/i18n";
 import Index from "./pages/Index";
 import Precos from "./pages/Precos";
 import Obrigado from "./pages/Obrigado";
@@ -18,6 +19,7 @@ import OAuthCallback from "./pages/OAuthCallback";
 import Auth from "./pages/Auth";
 
 import Termos from "./pages/Termos";
+import Status from "./pages/Status";
 import Privacidade from "./pages/Privacidade";
 import NotFound from "./pages/NotFound";
 
@@ -26,6 +28,7 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
+      <I18nProvider>
       <AuthProvider>
         <SubscriptionProvider>
           <UsageProvider>
@@ -45,6 +48,7 @@ const App = () => (
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/auth/callback/:provider" element={<OAuthCallback />} />
 
+                <Route path="/status" element={<Status />} />
                 <Route path="/termos" element={<Termos />} />
                 <Route path="/privacidade" element={<Privacidade />} />
                 <Route path="*" element={<NotFound />} />
@@ -53,6 +57,7 @@ const App = () => (
           </UsageProvider>
         </SubscriptionProvider>
       </AuthProvider>
+      </I18nProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
