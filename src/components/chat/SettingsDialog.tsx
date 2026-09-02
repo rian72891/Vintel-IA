@@ -12,12 +12,13 @@ import { Switch } from '@/components/ui/switch';
 import {
   ChevronRight, ChevronLeft, User, CreditCard, Zap, Plug, Moon, Type, Mic, Vibrate,
   Shield, Link as LinkIcon, Thermometer, LogOut, Check, Sun, Monitor, Crown, RefreshCw,
-  Loader2, Copy, Trash2, Brain,
+  Loader2, Copy, Trash2, Brain, Languages,
 } from 'lucide-react';
 import { PLANS, PlanKey } from '@/lib/stripe';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n';
 
 interface SettingsDialogProps {
   open: boolean;
@@ -26,7 +27,7 @@ interface SettingsDialogProps {
 
 type Section =
   | 'root' | 'profile' | 'billing' | 'capabilities' | 'theme'
-  | 'font' | 'voice' | 'shared' | 'creativity' | 'memory';
+  | 'font' | 'voice' | 'shared' | 'creativity' | 'memory' | 'language';
 
 const CAP_KEYS = [
   { key: 'cap_images', label: 'Geração de imagens' },
@@ -47,6 +48,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const { plan, subscribed, checkSubscription } = useSubscription();
   const { getUsagePercent, getUsageLabel, refreshUsage } = useUsage();
   const { connected } = useConnectors();
+  const { lang, setLang, t: tr } = useI18n();
 
   const [section, setSection] = useState<Section>('root');
   const [syncing, setSyncing] = useState(false);
@@ -343,6 +345,12 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                 <Row icon={Type} label="Estilo de fonte" subtitle={fontSubtitle} onClick={() => setSection('font')} />
                 <Row icon={Mic} label="Voz" subtitle={voiceSubtitle} onClick={() => setSection('voice')} />
                 <Row
+                  icon={Languages}
+                  label={tr('common.language')}
+                  subtitle={lang === 'pt' ? tr('common.portuguese') : tr('common.english')}
+                  onClick={() => setSection('language')}
+                />
+                <Row
                   icon={Vibrate}
                   label="Feedback háptico"
                   onClick={toggleHaptic}
@@ -463,6 +471,24 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                   <Icon className="h-4 w-4 text-muted-foreground" />
                   <span className="flex-1 text-left text-sm">{label}</span>
                   {themeChoice === t && <Check className="h-4 w-4 text-primary" />}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        {section === 'language' && (
+          <>
+            <BackHeader title={tr('common.language')} />
+            <div className="p-2">
+              {([['pt', tr('common.portuguese')], ['en', tr('common.english')]] as const).map(([code, label]) => (
+                <button
+                  key={code}
+                  onClick={() => setLang(code as 'pt' | 'en')}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white/5 transition-colors"
+                >
+                  <span className="flex-1 text-left text-sm">{label}</span>
+                  {lang === code && <Check className="h-4 w-4 text-primary" />}
                 </button>
               ))}
             </div>
