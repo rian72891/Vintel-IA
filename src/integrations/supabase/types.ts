@@ -47,6 +47,45 @@ export type Database = {
         }
         Relationships: []
       }
+      conversation_documents: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          extracted_text: string | null
+          id: string
+          mime_type: string | null
+          name: string
+          size_bytes: number | null
+          storage_path: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          extracted_text?: string | null
+          id?: string
+          mime_type?: string | null
+          name: string
+          size_bytes?: number | null
+          storage_path?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          extracted_text?: string | null
+          id?: string
+          mime_type?: string | null
+          name?: string
+          size_bytes?: number | null
+          storage_path?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       conversations: {
         Row: {
           agent: string | null
@@ -211,6 +250,54 @@ export type Database = {
           id?: string
           plan?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      scheduled_tasks: {
+        Row: {
+          agent: string | null
+          created_at: string
+          enabled: boolean
+          frequency: string
+          hour_utc: number
+          id: string
+          last_run_at: string | null
+          last_status: string | null
+          prompt: string
+          title: string
+          updated_at: string
+          user_id: string
+          weekday: number | null
+        }
+        Insert: {
+          agent?: string | null
+          created_at?: string
+          enabled?: boolean
+          frequency?: string
+          hour_utc?: number
+          id?: string
+          last_run_at?: string | null
+          last_status?: string | null
+          prompt: string
+          title: string
+          updated_at?: string
+          user_id: string
+          weekday?: number | null
+        }
+        Update: {
+          agent?: string | null
+          created_at?: string
+          enabled?: boolean
+          frequency?: string
+          hour_utc?: number
+          id?: string
+          last_run_at?: string | null
+          last_status?: string | null
+          prompt?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          weekday?: number | null
         }
         Relationships: []
       }
