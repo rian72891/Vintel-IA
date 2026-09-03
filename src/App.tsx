@@ -20,6 +20,7 @@ import Auth from "./pages/Auth";
 
 import Termos from "./pages/Termos";
 import Status from "./pages/Status";
+import Tarefas from "./pages/Tarefas";
 import Privacidade from "./pages/Privacidade";
 import NotFound from "./pages/NotFound";
 
