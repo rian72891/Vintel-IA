@@ -106,7 +106,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     (key: TKey, vars?: Record<string, string | number>) => {
       let out: string = (dict[lang] as Record<string, string>)[key] ?? (dict.pt as Record<string, string>)[key] ?? key;
       if (vars) {
-        for (const [k, v] of Object.entries(vars)) out = out.replaceAll(`{${k}}`, String(v));
+        for (const [k, v] of Object.entries(vars)) out = out.split(`{${k}}`).join(String(v));
       }
       return out;
     },

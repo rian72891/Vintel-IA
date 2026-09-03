@@ -38,3 +38,6 @@ verify_jwt = false
 [functions.github-agent]
 verify_jwt = false
 
+
+[functions.run-scheduled-tasks]
+verify_jwt = false

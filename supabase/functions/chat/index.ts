@@ -1380,8 +1380,30 @@ serve(async (req) => {
       ? `\n\nMemória de longo prazo sobre o usuário (fatos que ele já contou em conversas anteriores — use com naturalidade, nunca liste isso de volta sem motivo):\n${memories.map((m) => `- ${m.content}`).join("\n")}`
       : "";
 
+    // Documentos anexados a esta conversa
+    let docsNote = "";
+    if (userId && conversationId) {
+      try {
+        const { data: docs } = await admin
+          .from("conversation_documents")
+          .select("name, mime_type, extracted_text")
+          .eq("user_id", userId)
+          .eq("conversation_id", conversationId)
+          .order("created_at", { ascending: true })
+          .limit(10);
+        if (docs?.length) {
+          const parts = docs
+            .filter((d: any) => d.extracted_text)
+            .map((d: any) => `### ${d.name}\n${String(d.extracted_text).slice(0, 12000)}`);
+          if (parts.length) {
+            docsNote = `\n\nDocumentos anexados a esta conversa (use o conteúdo quando for relevante e cite o nome do arquivo):\n${parts.join("\n\n")}`;
+          }
+        }
+      } catch (_) { /* ignore */ }
+    }
+
     const convo: any[] = [
-      { role: "system", content: systemPrompt + connectedNote + memoryNote },
+      { role: "system", content: systemPrompt + connectedNote + memoryNote + docsNote },
       ...processed,
     ];
 
