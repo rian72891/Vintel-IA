@@ -669,6 +669,15 @@ export function ChatView() {
           url: dataUrl,
           name: file.name,
         });
+        if (!file.type.startsWith('image/') && isSupportedDocument(file)) {
+          try {
+            const doc = await ingestConversationDocument(activeConversationId, file);
+            if (doc) toast.success(`Documento "${doc.name}" lido e anexado à conversa.`);
+          } catch (err) {
+            console.error(err);
+            toast.error(`Não consegui ler o documento "${file.name}".`);
+          }
+        }
       }
     }
 
