@@ -949,12 +949,24 @@ async function callGemini(opts: {
     generationConfig: { temperature: typeof opts.temperature === "number" ? opts.temperature : 0.7 },
   };
   const method = opts.stream ? "streamGenerateContent?alt=sse" : "generateContent";
-  return await fetch(`${GEMINI_BASE}/${opts.model}:${method}`, {
+  const url = `${GEMINI_BASE}/${opts.model}:${method}`;
+  const init = {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-goog-api-key": opts.apiKey },
     body: JSON.stringify(body),
-  });
+  };
+
+  // Retry com backoff exponencial (1s, 2s, 4s) em 503/UNAVAILABLE
+  let res = await fetch(url, init);
+  for (let attempt = 0; attempt < 3 && res.status === 503; attempt++) {
+    const delay = 1000 * Math.pow(2, attempt);
+    console.warn(`Gemini 503 (UNAVAILABLE). Retry ${attempt + 1}/3 em ${delay}ms`);
+    await new Promise((r) => setTimeout(r, delay));
+    res = await fetch(url, init);
+  }
+  return res;
 }
+
 
 /**
  * Filtro incremental de blocos <thinking>…</thinking>.
