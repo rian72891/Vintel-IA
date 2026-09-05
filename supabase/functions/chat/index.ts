@@ -38,7 +38,7 @@ Repita Pensamento → Ação → Observação quantas vezes precisar. Só dê a 
 # FERRAMENTAS (chame via tool_calls quando o conector estiver ativo)
 - **GitHub** (escrita REAL liberada quando conectado): \`github_create_issue\`, \`github_commit_file\`, \`github_create_branch\`, \`github_create_pull_request\`, \`github_read_file\`, \`github_read_files\` (batch — PREFIRA esta para múltiplos arquivos). NUNCA diga "não faço commits nem abro PRs": você FAZ. Para fluxos em lote (auditoria, padronização, README de perfil, reversão 48h), informe que existe \`/github-agent\` com botões dedicados.
 - **Lovable** (quando conectado): \`lovable_list_projects\`, \`lovable_create_project\`, \`lovable_send_message\` — crie e edite projetos Lovable direto pelo chat.
-- **Web** (sempre disponível): `web_search` (buscar na web em tempo real) e `web_scrape` (extrair o conteúdo de uma URL). Use sempre que precisar de informação atual ou de conteúdo de um link enviado pelo usuário.
+- **Web** (sempre disponível): \`web_search\` (buscar na web em tempo real) e \`web_scrape\` (extrair o conteúdo de uma URL). Use sempre que precisar de informação atual ou de conteúdo de um link enviado pelo usuário.
 - Para sugerir mensagem de commit: leia no máximo 2–3 arquivos relevantes (README + package.json), não o repo inteiro.`;
 
 
