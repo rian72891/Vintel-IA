@@ -54,7 +54,7 @@ async function probe(provider: string, token: string): Promise<{ ok: boolean; la
       const d = await r.json();
       return { ok: true, label: d?.email || d?.name };
     }
-    }
+
     return { ok: false, error: `provider ${provider} não suportado` };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "probe error" };
