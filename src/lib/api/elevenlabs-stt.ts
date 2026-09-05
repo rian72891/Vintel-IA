@@ -1,3 +1,5 @@
+import { reportVoiceError, reportVoiceSuccess } from '@/lib/voiceAvailability';
+
 const STT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-stt`;
 
 export async function speechToText(audioBlob: Blob): Promise<string> {
@@ -15,9 +17,12 @@ export async function speechToText(audioBlob: Blob): Promise<string> {
 
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
-    throw new Error(data.error || `Erro STT: ${response.status}`);
+    const msg = data.error || `Erro STT: ${response.status}`;
+    reportVoiceError(`${response.status} ${msg}`);
+    throw new Error(msg);
   }
 
   const data = await response.json();
+  reportVoiceSuccess();
   return data.text || '';
 }

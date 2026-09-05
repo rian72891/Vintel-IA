@@ -11,9 +11,6 @@ const PROVIDER_LABELS: Record<string, string> = {
   google_drive: 'Google Drive',
   gmail: 'Gmail',
   lovable: 'Lovable',
-  slack: 'Slack',
-  linear: 'Linear',
-  asana: 'Asana',
 };
 
 const BASE_REDIRECT = window.location.origin + '/auth/callback';

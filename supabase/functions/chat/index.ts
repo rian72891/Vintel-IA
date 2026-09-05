@@ -38,6 +38,7 @@ Repita Pensamento → Ação → Observação quantas vezes precisar. Só dê a 
 # FERRAMENTAS (chame via tool_calls quando o conector estiver ativo)
 - **GitHub** (escrita REAL liberada quando conectado): \`github_create_issue\`, \`github_commit_file\`, \`github_create_branch\`, \`github_create_pull_request\`, \`github_read_file\`, \`github_read_files\` (batch — PREFIRA esta para múltiplos arquivos). NUNCA diga "não faço commits nem abro PRs": você FAZ. Para fluxos em lote (auditoria, padronização, README de perfil, reversão 48h), informe que existe \`/github-agent\` com botões dedicados.
 - **Lovable** (quando conectado): \`lovable_list_projects\`, \`lovable_create_project\`, \`lovable_send_message\` — crie e edite projetos Lovable direto pelo chat.
+- **Web** (sempre disponível): \`web_search\` (buscar na web em tempo real) e \`web_scrape\` (extrair o conteúdo de uma URL). Use sempre que precisar de informação atual ou de conteúdo de um link enviado pelo usuário.
 - Para sugerir mensagem de commit: leia no máximo 2–3 arquivos relevantes (README + package.json), não o repo inteiro.`;
 
 
@@ -111,75 +112,6 @@ function buildToolsForProviders(providers: Set<string>) {
             message: { type: "string", description: "Instrução para o agente Lovable executar." },
           },
           required: ["project_id", "message"],
-        },
-      },
-    });
-  }
-
-  if (providers.has("slack")) {
-    tools.push({
-      type: "function",
-      function: {
-        name: "slack_send_message",
-        description: "Envia mensagem em um canal do Slack. Use # antes do nome do canal ou o ID.",
-        parameters: {
-          type: "object",
-          properties: { channel: { type: "string" }, text: { type: "string" } },
-          required: ["channel", "text"],
-        },
-      },
-    });
-    tools.push({
-      type: "function",
-      function: {
-        name: "slack_list_channels",
-        description: "Lista canais públicos do Slack.",
-        parameters: { type: "object", properties: {} },
-      },
-    });
-  }
-
-  if (providers.has("linear")) {
-    tools.push({
-      type: "function",
-      function: {
-        name: "linear_create_issue",
-        description: "Cria uma issue no Linear. Precisa do team_id (use linear_list_teams se não souber).",
-        parameters: {
-          type: "object",
-          properties: {
-            team_id: { type: "string" },
-            title: { type: "string" },
-            description: { type: "string" },
-          },
-          required: ["team_id", "title"],
-        },
-      },
-    });
-    tools.push({
-      type: "function",
-      function: { name: "linear_list_teams", description: "Lista times do Linear.", parameters: { type: "object", properties: {} } },
-    });
-  }
-
-  if (providers.has("asana")) {
-    tools.push({
-      type: "function",
-      function: { name: "asana_list_workspaces", description: "Lista workspaces do Asana.", parameters: { type: "object", properties: {} } },
-    });
-    tools.push({
-      type: "function",
-      function: {
-        name: "asana_create_task",
-        description: "Cria uma tarefa no Asana em um workspace.",
-        parameters: {
-          type: "object",
-          properties: {
-            workspace_id: { type: "string" },
-            name: { type: "string" },
-            notes: { type: "string" },
-          },
-          required: ["workspace_id", "name"],
         },
       },
     });
@@ -404,20 +336,32 @@ function buildToolsForProviders(providers: Set<string>) {
   }
 
 
-  if (providers.has("linear")) {
-    tools.push({
-      type: "function",
-      function: { name: "linear_list_projects", description: "Lista projetos do Linear.", parameters: { type: "object", properties: {} } },
-    });
-  }
-
-  if (providers.has("asana")) {
+  if (Deno.env.get("FIRECRAWL_API_KEY")) {
     tools.push({
       type: "function",
       function: {
-        name: "asana_list_projects",
-        description: "Lista projetos do Asana em um workspace.",
-        parameters: { type: "object", properties: { workspace_id: { type: "string" } }, required: ["workspace_id"] },
+        name: "web_search",
+        description: "Busca na web em tempo real. Use para informações atuais, notícias, preços, documentação recente.",
+        parameters: {
+          type: "object",
+          properties: {
+            query: { type: "string", description: "Consulta de busca." },
+            limit: { type: "number", description: "Número de resultados (padrão 5, máx 10)." },
+          },
+          required: ["query"],
+        },
+      },
+    });
+    tools.push({
+      type: "function",
+      function: {
+        name: "web_scrape",
+        description: "Extrai o conteúdo textual (markdown) de uma URL específica.",
+        parameters: {
+          type: "object",
+          properties: { url: { type: "string", description: "URL completa da página." } },
+          required: ["url"],
+        },
       },
     });
   }
@@ -460,56 +404,6 @@ async function executeTool(
         method: "POST",
         headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
         body: JSON.stringify({ message: args.message }),
-      });
-      return await r.json();
-    }
-    if (name === "slack_send_message") {
-      const tok = await t("slack");
-      const r = await fetch("https://slack.com/api/chat.postMessage", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json; charset=utf-8" },
-        body: JSON.stringify({ channel: args.channel, text: args.text }),
-      });
-      return await r.json();
-    }
-    if (name === "slack_list_channels") {
-      const tok = await t("slack");
-      const r = await fetch("https://slack.com/api/conversations.list?limit=100&types=public_channel", {
-        headers: { Authorization: `Bearer ${tok}` },
-      });
-      const d = await r.json();
-      return { channels: (d.channels ?? []).map((c: any) => ({ id: c.id, name: c.name })) };
-    }
-    if (name === "linear_list_teams") {
-      const tok = await t("linear");
-      const r = await fetch("https://api.linear.app/graphql", {
-        method: "POST", headers: { Authorization: tok, "Content-Type": "application/json" },
-        body: JSON.stringify({ query: "{ teams { nodes { id name key } } }" }),
-      });
-      return await r.json();
-    }
-    if (name === "linear_create_issue") {
-      const tok = await t("linear");
-      const r = await fetch("https://api.linear.app/graphql", {
-        method: "POST", headers: { Authorization: tok, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          query: `mutation($i: IssueCreateInput!) { issueCreate(input: $i) { success issue { id identifier url title } } }`,
-          variables: { i: { teamId: args.team_id, title: args.title, description: args.description ?? "" } },
-        }),
-      });
-      return await r.json();
-    }
-    if (name === "asana_list_workspaces") {
-      const tok = await t("asana");
-      const r = await fetch("https://app.asana.com/api/1.0/workspaces", { headers: { Authorization: `Bearer ${tok}` } });
-      return await r.json();
-    }
-    if (name === "asana_create_task") {
-      const tok = await t("asana");
-      const r = await fetch("https://app.asana.com/api/1.0/tasks", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ data: { workspace: args.workspace_id, name: args.name, notes: args.notes ?? "" } }),
       });
       return await r.json();
     }
@@ -665,20 +559,29 @@ async function executeTool(
       );
       return await r.json();
     }
-    if (name === "linear_list_projects") {
-      const tok = await t("linear");
-      const r = await fetch("https://api.linear.app/graphql", {
-        method: "POST", headers: { Authorization: tok, "Content-Type": "application/json" },
-        body: JSON.stringify({ query: "{ projects { nodes { id name description state } } }" }),
+    if (name === "web_search" || name === "web_scrape") {
+      const key = Deno.env.get("FIRECRAWL_API_KEY");
+      if (!key) throw new Error("Busca na web não está configurada.");
+      const endpoint = name === "web_search" ? "search" : "scrape";
+      const body = name === "web_search"
+        ? { query: args.query, limit: Math.min(Number(args.limit) || 5, 10), scrapeOptions: { formats: ["markdown"] } }
+        : { url: args.url, formats: ["markdown"], onlyMainContent: true };
+      const r = await fetch(`https://api.firecrawl.dev/v1/${endpoint}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
       });
-      return await r.json();
-    }
-    if (name === "asana_list_projects") {
-      const tok = await t("asana");
-      const r = await fetch(`https://app.asana.com/api/1.0/projects?workspace=${args.workspace_id}&limit=50`, {
-        headers: { Authorization: `Bearer ${tok}` },
-      });
-      return await r.json();
+      const d = await r.json();
+      if (!r.ok) throw new Error(d?.error || `Firecrawl ${r.status}`);
+      if (name === "web_search") {
+        const items = (d.data ?? []).map((x: any) => ({
+          title: x.title, url: x.url, description: x.description,
+          content: typeof x.markdown === "string" ? x.markdown.slice(0, 4000) : undefined,
+        }));
+        return { results: items };
+      }
+      const md = d?.data?.markdown ?? d?.markdown ?? "";
+      return { url: args.url, content: String(md).slice(0, 12000), metadata: d?.data?.metadata ?? d?.metadata };
     }
 
     if (name === "github_commit_file") {
@@ -766,8 +669,8 @@ const SSE_DONE = new TextEncoder().encode("data: [DONE]\n\n");
 function toolLabel(name: string, args: any): string {
   const svc = name.split("_")[0];
   const map: Record<string, string> = {
-    github: "GitHub", google: "Google Workspace", gmail: "Gmail", slack: "Slack",
-    linear: "Linear", asana: "Asana", lovable: "Lovable", firecrawl: "Web",
+    github: "GitHub", google: "Google Workspace", gmail: "Gmail",
+    lovable: "Lovable", web: "Web",
   };
   const service = map[svc] ?? svc;
   const target = args?.repo || args?.query || args?.path || args?.channel || args?.title || args?.url || args?.name || "";
@@ -787,11 +690,6 @@ const IRREVERSIBLE_TOOLS = new Set([
   "google_docs_create",
   "google_sheets_write",
   "google_drive_move",
-  "slack_send_message",
-  "linear_create_issue",
-  "linear_update_issue",
-  "asana_create_task",
-  "asana_update_task",
   "lovable_create_project",
   "lovable_send_message",
 ]);
@@ -828,12 +726,6 @@ function actionLabel(name: string, args: any): string {
       return `Criar o documento "${t(args.title)}" no Google Docs`;
     case "google_sheets_write":
       return `Escrever dados na planilha ${t(args.spreadsheetId)} (${t(args.range)})`;
-    case "slack_send_message":
-      return `Enviar mensagem no Slack (${t(args.channel)}): "${t(args.text)}"`;
-    case "linear_create_issue":
-      return `Criar uma issue no Linear: "${t(args.title)}"`;
-    case "asana_create_task":
-      return `Criar a tarefa "${t(args.name || args.title)}" no Asana`;
     case "lovable_create_project":
       return `Criar o projeto "${t(args.name)}" na Lovable`;
     case "lovable_send_message":

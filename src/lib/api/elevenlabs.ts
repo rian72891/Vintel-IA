@@ -1,3 +1,5 @@
+import { reportVoiceError, reportVoiceSuccess } from '@/lib/voiceAvailability';
+
 const TTS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`;
 
 export async function textToSpeech(text: string, voiceId?: string): Promise<string> {
@@ -13,9 +15,12 @@ export async function textToSpeech(text: string, voiceId?: string): Promise<stri
 
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
-    throw new Error(data.error || `Erro TTS: ${response.status}`);
+    const msg = data.error || `Erro TTS: ${response.status}`;
+    reportVoiceError(`${response.status} ${msg}`);
+    throw new Error(msg);
   }
 
   const data = await response.json();
+  reportVoiceSuccess();
   return `data:audio/mpeg;base64,${data.audioContent}`;
 }

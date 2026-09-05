@@ -29,33 +29,13 @@ const LovableMini = () => (
   </svg>
 );
 
-const SlackMini = () => (
-  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor">
-    <path d="M5 15a2.5 2.5 0 11-2.5-2.5H5V15zm1.27 0a2.5 2.5 0 015 0v6.5a2.5 2.5 0 01-5 0V15zM8.83 5a2.5 2.5 0 112.5-2.5V5H8.83zm0 1.27a2.5 2.5 0 010 5H2.5a2.5 2.5 0 010-5h6.33zM19 8.83a2.5 2.5 0 112.5 2.5H19V8.83zm-1.27 0a2.5 2.5 0 01-5 0V2.5a2.5 2.5 0 015 0v6.33zM15 19a2.5 2.5 0 112.5 2.5V19H15zm0-1.27a2.5 2.5 0 010-5h6.5a2.5 2.5 0 010 5H15z" />
-  </svg>
-);
 
-const LinearMini = () => (
-  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor">
-    <path d="M.4 14.05A12 12 0 009.95 23.6L.4 14.05zM.04 10.5l13.46 13.46A12 12 0 0023.96 13.5L10.5.04A12 12 0 00.04 10.5z" />
-  </svg>
-);
 
-const AsanaMini = () => (
-  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor">
-    <circle cx="12" cy="17.5" r="4.5" />
-    <circle cx="6.5" cy="8" r="4.5" />
-    <circle cx="17.5" cy="8" r="4.5" />
-  </svg>
-);
 
 const ITEMS: Item[] = [
   { id: 'github', label: 'GitHub', icon: <GitHubMini /> },
   { id: 'google', label: 'Google Workspace', icon: <GoogleMini /> },
   { id: 'lovable', label: 'Lovable', icon: <LovableMini /> },
-  { id: 'slack', label: 'Slack', icon: <SlackMini /> },
-  { id: 'linear', label: 'Linear', icon: <LinearMini /> },
-  { id: 'asana', label: 'Asana', icon: <AsanaMini /> },
 ];
 
 export function ConnectorIndicators() {
