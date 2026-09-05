@@ -19,7 +19,7 @@ export default function Termos() {
 
           <section>
             <h2 className="text-lg font-semibold text-foreground">2. Descrição do Serviço</h2>
-            <p>O Vintel IA é uma plataforma de assistente de inteligência artificial que oferece geração de texto, código, imagens, áudio e integrações com serviços de terceiros (GitHub, Google, Lovable, Slack, Linear, Asana).</p>
+            <p>O Vintel IA é uma plataforma de assistente de inteligência artificial que oferece geração de texto, código, imagens, áudio e integrações com serviços de terceiros (GitHub, Google, Lovable).</p>
           </section>
 
           <section>

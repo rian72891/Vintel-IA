@@ -22,7 +22,7 @@ export default function Privacidade() {
             <ul className="list-disc pl-5 space-y-1">
               <li><strong className="text-foreground">Dados de conta:</strong> nome, e-mail, foto de perfil (via Google).</li>
               <li><strong className="text-foreground">Conteúdo:</strong> mensagens, arquivos e artefatos gerados durante o uso.</li>
-              <li><strong className="text-foreground">Tokens OAuth:</strong> tokens de acesso a serviços conectados (GitHub, Google, Lovable, Slack, Linear, Asana), armazenados de forma criptografada.</li>
+              <li><strong className="text-foreground">Tokens OAuth:</strong> tokens de acesso a serviços conectados (GitHub, Google, Lovable), armazenados de forma criptografada.</li>
               <li><strong className="text-foreground">Dados de uso:</strong> métricas anônimas de navegação (via analytics).</li>
               <li><strong className="text-foreground">Dados de pagamento:</strong> processados diretamente pela Stripe; não armazenamos dados de cartão.</li>
             </ul>

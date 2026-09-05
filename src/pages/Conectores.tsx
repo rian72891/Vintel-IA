@@ -39,33 +39,10 @@ const LovableIcon = () => (
     <path d="M12 21.593c-5.63-5.539-11-10.297-11-14.402C1 4.144 3.01 2 5.5 2c1.973 0 3.787 1.198 4.5 3 .713-1.802 2.527-3 4.5-3C16.99 2 19 4.144 19 7.191c0 4.105-5.37 8.863-11 14.402z"/>
   </svg>
 );
-const SlackIcon = () => (
-  <svg viewBox="0 0 24 24" className="h-7 w-7">
-    <path d="M5.04 15.16a2.52 2.52 0 11-2.52-2.52h2.52v2.52zm1.27 0a2.52 2.52 0 015.04 0v6.32a2.52 2.52 0 01-5.04 0v-6.32z" fill="#E01E5A" />
-    <path d="M8.83 5.04a2.52 2.52 0 112.52-2.52v2.52H8.83zm0 1.27a2.52 2.52 0 010 5.04H2.52a2.52 2.52 0 010-5.04h6.31z" fill="#36C5F0" />
-    <path d="M18.96 8.83a2.52 2.52 0 112.52 2.52h-2.52V8.83zm-1.27 0a2.52 2.52 0 01-5.04 0V2.52a2.52 2.52 0 015.04 0v6.31z" fill="#2EB67D" />
-    <path d="M15.16 18.96a2.52 2.52 0 11-2.52 2.52v-2.52h2.52zm0-1.27a2.52 2.52 0 010-5.04h6.32a2.52 2.52 0 010 5.04h-6.32z" fill="#ECB22E" />
-  </svg>
-);
-const LinearIcon = () => (
-  <svg viewBox="0 0 24 24" className="h-7 w-7" fill="#5E6AD2">
-    <path d="M.4 14.05A12 12 0 009.95 23.6L.4 14.05zM.04 10.5l13.46 13.46A12 12 0 0023.96 13.5L10.5.04A12 12 0 00.04 10.5z" />
-  </svg>
-);
-const AsanaIcon = () => (
-  <svg viewBox="0 0 24 24" className="h-7 w-7">
-    <circle cx="12" cy="17.5" r="4.5" fill="#F06A6A" />
-    <circle cx="6.5" cy="8" r="4.5" fill="#F06A6A" />
-    <circle cx="17.5" cy="8" r="4.5" fill="#F06A6A" />
-  </svg>
-);
 
 const PROVIDERS: Provider[] = [
   { id: 'google', name: 'Google Workspace', description: 'Drive, Calendar, Sheets e Docs em uma só conexão.', color: '#4285F4', icon: <GoogleIcon /> },
   { id: 'lovable', name: 'Lovable', description: 'Crie e edite projetos Lovable com a IA.', color: '#9b5de5', icon: <LovableIcon /> },
-  { id: 'slack', name: 'Slack', description: 'Envie mensagens em canais e DMs.', color: '#4A154B', icon: <SlackIcon /> },
-  { id: 'linear', name: 'Linear', description: 'Crie e acompanhe issues do produto.', color: '#5E6AD2', icon: <LinearIcon /> },
-  { id: 'asana', name: 'Asana', description: 'Tarefas e projetos sincronizados com a IA.', color: '#F06A6A', icon: <AsanaIcon /> },
   { id: 'github', name: 'GitHub', description: 'Conecte seus repositórios e fluxos de código.', color: '#FFFFFF', icon: <GitHubIcon /> },
 ];
 
