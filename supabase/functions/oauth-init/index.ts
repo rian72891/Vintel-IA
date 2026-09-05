@@ -26,23 +26,6 @@ const PROVIDERS: Record<string, Cfg> = {
     extra: { response_type: 'code' },
     clientIdEnv: 'LOVABLE_CLIENT_ID',
   },
-  slack: {
-    authUrl: 'https://slack.com/oauth/v2/authorize',
-    scope: 'chat:write,channels:read,users:read,users:read.email,im:write,chat:write.public',
-    clientIdEnv: 'SLACK_CLIENT_ID',
-  },
-  linear: {
-    authUrl: 'https://linear.app/oauth/authorize',
-    scope: 'read,write',
-    extra: { response_type: 'code' },
-    clientIdEnv: 'LINEAR_CLIENT_ID',
-  },
-  asana: {
-    authUrl: 'https://app.asana.com/-/oauth_authorize',
-    scope: 'default',
-    extra: { response_type: 'code' },
-    clientIdEnv: 'ASANA_CLIENT_ID',
-  },
 };
 
 Deno.serve(async (req) => {

@@ -54,44 +54,6 @@ async function exchangeToken(provider: string, code: string, redirect_uri: strin
     return { access_token: d.access_token, token_type: 'bearer', scope: d.scope ?? null };
   }
 
-  if (provider === 'slack') {
-    const id = env('SLACK_CLIENT_ID'), secret = env('SLACK_CLIENT_SECRET');
-    if (!id || !secret) throw new Error('SLACK_CLIENT_ID / SLACK_CLIENT_SECRET ausentes');
-    const params = new URLSearchParams({ code, client_id: id, client_secret: secret, redirect_uri });
-    const res = await fetch('https://slack.com/api/oauth.v2.access', {
-      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: params.toString(),
-    });
-    const d = await res.json();
-    if (!d.ok) throw new Error(d.error || 'Slack token exchange failed');
-    const access = d.access_token || d.authed_user?.access_token;
-    if (!access) throw new Error('Nenhum access_token retornado pelo Slack');
-    return { access_token: access, scope: d.scope, token_type: 'bearer' };
-  }
-
-  if (provider === 'linear') {
-    const id = env('LINEAR_CLIENT_ID'), secret = env('LINEAR_CLIENT_SECRET');
-    if (!id || !secret) throw new Error('LINEAR_CLIENT_ID / LINEAR_CLIENT_SECRET ausentes');
-    const body = new URLSearchParams({ code, client_id: id, client_secret: secret, redirect_uri, grant_type: 'authorization_code' });
-    const res = await fetch('https://api.linear.app/oauth/token', {
-      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString(),
-    });
-    const d = await res.json();
-    if (!res.ok) throw new Error(d.error_description || d.error || 'Linear token exchange failed');
-    return { access_token: d.access_token, scope: d.scope, token_type: d.token_type, expires_at: expireFrom(d.expires_in) };
-  }
-
-  if (provider === 'asana') {
-    const id = env('ASANA_CLIENT_ID'), secret = env('ASANA_CLIENT_SECRET');
-    if (!id || !secret) throw new Error('ASANA_CLIENT_ID / ASANA_CLIENT_SECRET ausentes');
-    const body = new URLSearchParams({ code, client_id: id, client_secret: secret, redirect_uri, grant_type: 'authorization_code' });
-    const res = await fetch('https://app.asana.com/-/oauth_token', {
-      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString(),
-    });
-    const d = await res.json();
-    if (!res.ok) throw new Error(d.error_description || d.error || 'Asana token exchange failed');
-    return { access_token: d.access_token, refresh_token: d.refresh_token ?? null, token_type: d.token_type, expires_at: expireFrom(d.expires_in) };
-  }
-
   throw new Error(`Unsupported provider: ${provider}`);
 }
 
@@ -181,23 +143,6 @@ Deno.serve(async (req) => {
           headers: { Authorization: `Bearer ${result.access_token}` },
         });
         if (r.ok) { const d = await r.json(); accountLabel = d?.email ?? d?.name ?? null; }
-      } else if (provider === 'slack') {
-        const r = await fetch('https://slack.com/api/auth.test', {
-          headers: { Authorization: `Bearer ${result.access_token}` },
-        });
-        const d = await r.json(); if (d.ok) accountLabel = d.team ?? d.user ?? null;
-      } else if (provider === 'linear') {
-        const r = await fetch('https://api.linear.app/graphql', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${result.access_token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query: '{ viewer { name email } }' }),
-        });
-        const d = await r.json(); accountLabel = d?.data?.viewer?.email ?? d?.data?.viewer?.name ?? null;
-      } else if (provider === 'asana') {
-        const r = await fetch('https://app.asana.com/api/1.0/users/me', {
-          headers: { Authorization: `Bearer ${result.access_token}` },
-        });
-        if (r.ok) { const d = await r.json(); accountLabel = d?.data?.email ?? d?.data?.name ?? null; }
       }
     } catch { /* ignore identity errors */ }
 
