@@ -54,32 +54,6 @@ async function probe(provider: string, token: string): Promise<{ ok: boolean; la
       const d = await r.json();
       return { ok: true, label: d?.email || d?.name };
     }
-    if (provider === "slack") {
-      const r = await fetch("https://slack.com/api/auth.test", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const d = await r.json();
-      if (!d.ok) return { ok: false, error: d.error || "slack auth failed" };
-      return { ok: true, label: d.team ? `${d.team}` : d.user };
-    }
-    if (provider === "linear") {
-      const r = await fetch("https://api.linear.app/graphql", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ query: "{ viewer { name email } }" }),
-      });
-      const d = await r.json();
-      const v = d?.data?.viewer;
-      if (!v) return { ok: false, error: d?.errors?.[0]?.message || "linear failed" };
-      return { ok: true, label: v.email || v.name };
-    }
-    if (provider === "asana") {
-      const r = await fetch("https://app.asana.com/api/1.0/users/me", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!r.ok) return { ok: false, error: `Asana ${r.status}` };
-      const d = await r.json();
-      return { ok: true, label: d?.data?.email || d?.data?.name };
     }
     return { ok: false, error: `provider ${provider} não suportado` };
   } catch (e) {
