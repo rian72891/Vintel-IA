@@ -8,6 +8,8 @@ import { useState, useCallback, useRef, useMemo, memo } from 'react';
 import JSZip from 'jszip';
 import { MarkdownMessage } from './MarkdownMessage';
 import { getFeedback, setFeedback as saveFeedback, type Feedback } from '@/lib/messageFeedback';
+import { textToSpeech } from '@/lib/api/elevenlabs';
+import { useVoiceAvailable } from '@/lib/voiceAvailability';
 
 const actionBtn = 'p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors';
 
@@ -57,6 +59,39 @@ function ChatMessageBase({ message, audioUrl, isStreaming, onEdit, onRegenerate 
   const [copiedResponse, setCopiedResponse] = useState(false);
   const [feedbackValue, setFeedbackValue] = useState<Feedback | null>(() => getFeedback(message.id));
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const voiceAvailable = useVoiceAvailable();
+  const [ttsLoading, setTtsLoading] = useState(false);
+  const [ttsPlaying, setTtsPlaying] = useState(false);
+  const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
+
+
+  const speakResponse = useCallback(async () => {
+    if (ttsAudioRef.current && ttsPlaying) {
+      ttsAudioRef.current.pause();
+      setTtsPlaying(false);
+      return;
+    }
+    if (ttsAudioRef.current) {
+      ttsAudioRef.current.play();
+      setTtsPlaying(true);
+      return;
+    }
+    try {
+      setTtsLoading(true);
+      const text = message.content.replace(/```[\s\S]*?```/g, ' (bloco de código) ').slice(0, 4000);
+      const dataUrl = await textToSpeech(text);
+      const audio = new Audio(dataUrl);
+      ttsAudioRef.current = audio;
+      audio.onended = () => setTtsPlaying(false);
+      audio.onpause = () => setTtsPlaying(false);
+      await audio.play();
+      setTtsPlaying(true);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Não foi possível gerar o áudio.');
+    } finally {
+      setTtsLoading(false);
+    }
+  }, [message.content, ttsPlaying]);
 
 
   const { cleanContent, artifacts } = useMemo(() => {
@@ -423,6 +458,11 @@ function ChatMessageBase({ message, audioUrl, isStreaming, onEdit, onRegenerate 
                 >
                   <ThumbsDown className="h-3.5 w-3.5" />
                 </button>
+                {voiceAvailable && (
+                  <button onClick={speakResponse} title={ttsPlaying ? 'Pausar leitura' : 'Ouvir resposta'} className={actionBtn} disabled={ttsLoading}>
+                    {ttsLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : ttsPlaying ? <Pause className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+                  </button>
+                )}
                 <button onClick={shareResponse} title="Compartilhar resposta" className={actionBtn}>
                   <Share2 className="h-3.5 w-3.5" />
                 </button>

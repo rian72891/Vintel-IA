@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { speechToText } from '@/lib/api/elevenlabs-stt';
 import { toast } from 'sonner';
 import { ConnectorIndicators } from './ConnectorIndicators';
+import { useVoiceAvailable } from '@/lib/voiceAvailability';
 
 interface ChatInputProps {
   onSend: (message: string, attachments?: File[]) => void;
@@ -70,6 +71,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
   const [recordingTime, setRecordingTime] = useState(0);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
+  const voiceAvailable = useVoiceAvailable();
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -289,7 +291,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
               <ActionButton icon={Paperclip} title="Anexar arquivo" disabled={disabled || isRecording} onClick={() => fileInputRef.current?.click()} />
               <ActionButton icon={Image} title="Enviar imagem" disabled={disabled || isRecording} onClick={() => imageInputRef.current?.click()} />
               
-              {isRecording ? (
+              {isRecording && voiceAvailable ? (
                 <motion.button
                   initial={{ scale: 0.9 }}
                   animate={{ scale: 1 }}
@@ -299,9 +301,9 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
                 >
                   <Square className="h-4 w-4 fill-current" />
                 </motion.button>
-              ) : (
+              ) : voiceAvailable ? (
                 <ActionButton icon={Mic} title="Mensagem de voz" disabled={disabled || isTranscribing} onClick={startRecording} />
-              )}
+              ) : null}
 
               <div className="relative" ref={menuRef}>
                 <ActionButton icon={Sparkles} title="Ferramentas IA" disabled={disabled || isRecording} onClick={() => setShowToolsMenu(!showToolsMenu)} />
