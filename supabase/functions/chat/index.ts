@@ -869,7 +869,8 @@ type OaiProvider = { name: string; base: string; model: string; env: string };
 const OAI_PROVIDERS: OaiProvider[] = [
   { name: "Groq", base: "https://api.groq.com/openai/v1/chat/completions", model: "openai/gpt-oss-120b", env: "GROQ_API_KEY" },
   { name: "Mistral", base: "https://api.mistral.ai/v1/chat/completions", model: "mistral-small-latest", env: "MISTRAL_API_KEY" },
-  { name: "Cerebras", base: "https://api.cerebras.ai/v1/chat/completions", model: "llama-3.3-70b", env: "CEREBRAS_API_KEY" },
+  // "llama-3.3-70b" foi descontinuado na Cerebras; o catálogo atual expõe "gpt-oss-120b".
+  { name: "Cerebras", base: "https://api.cerebras.ai/v1/chat/completions", model: "gpt-oss-120b", env: "CEREBRAS_API_KEY" },
   { name: "OpenRouter", base: "https://openrouter.ai/api/v1/chat/completions", model: "meta-llama/llama-3.1-8b-instruct:free", env: "OPENROUTER_API_KEY" },
 ];
 
