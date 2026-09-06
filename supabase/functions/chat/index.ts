@@ -859,6 +859,118 @@ async function callGemini(opts: {
   return res;
 }
 
+/* ==================== CADEIA DE PROVEDORES (FAILOVER) ====================
+   Ordem: Gemini → Groq → Mistral → Cerebras → OpenRouter.
+   Provedores 2-5 são compatíveis com o formato OpenAI, então usamos
+   `convo`/`tools` internos diretamente, sem conversão.                    */
+
+type OaiProvider = { name: string; base: string; model: string; env: string };
+
+const OAI_PROVIDERS: OaiProvider[] = [
+  { name: "Groq", base: "https://api.groq.com/openai/v1/chat/completions", model: "openai/gpt-oss-120b", env: "GROQ_API_KEY" },
+  { name: "Mistral", base: "https://api.mistral.ai/v1/chat/completions", model: "mistral-small-latest", env: "MISTRAL_API_KEY" },
+  { name: "Cerebras", base: "https://api.cerebras.ai/v1/chat/completions", model: "llama-3.3-70b", env: "CEREBRAS_API_KEY" },
+  { name: "OpenRouter", base: "https://openrouter.ai/api/v1/chat/completions", model: "meta-llama/llama-3.1-8b-instruct:free", env: "OPENROUTER_API_KEY" },
+];
+
+/** Remove campos específicos do Gemini e normaliza o conteúdo para o formato OpenAI. */
+function sanitizeConvoForOpenAI(convo: any[]) {
+  return convo.map((m) => {
+    const out: any = { role: m.role };
+    if (Array.isArray(m.content)) {
+      out.content = m.content
+        .map((c: any) => (typeof c === "string" ? c : c?.text ?? ""))
+        .filter(Boolean)
+        .join("\n");
+    } else {
+      out.content = m.content ?? "";
+    }
+    if (m.tool_call_id) out.tool_call_id = m.tool_call_id;
+    if (m.tool_calls?.length) {
+      out.tool_calls = m.tool_calls.map((tc: any) => ({
+        id: tc.id,
+        type: "function",
+        function: { name: tc.function.name, arguments: tc.function.arguments ?? "{}" },
+      }));
+    }
+    return out;
+  });
+}
+
+/** Chamada genérica a qualquer endpoint compatível com a API da OpenAI. */
+async function callOpenAICompatible(
+  baseUrl: string,
+  apiKey: string,
+  model: string,
+  convo: any[],
+  tools?: any[],
+  opts?: { stream?: boolean; temperature?: number },
+) {
+  const body: any = {
+    model,
+    messages: sanitizeConvoForOpenAI(convo),
+    temperature: typeof opts?.temperature === "number" ? opts.temperature : 0.7,
+    ...(opts?.stream ? { stream: true } : {}),
+    ...(tools?.length ? { tools, tool_choice: "auto" } : {}),
+  };
+  const init: RequestInit = {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify(body),
+  };
+
+  let res = await fetch(baseUrl, init);
+  for (let attempt = 0; attempt < 3 && (res.status === 503 || res.status === 429); attempt++) {
+    const delay = 1000 * Math.pow(2, attempt);
+    console.warn(`${baseUrl} ${res.status}. Retry ${attempt + 1}/3 em ${delay}ms`);
+    await new Promise((r) => setTimeout(r, delay));
+    res = await fetch(baseUrl, init);
+  }
+  return res;
+}
+
+/** Converte o SSE de um provedor OpenAI-compatible para o SSE do frontend. */
+function openAiStreamToSse(upstream: ReadableStream<Uint8Array>, prelude?: Uint8Array) {
+  const decoder = new TextDecoder();
+  let buffer = "";
+  const filter = createThinkingFilter();
+  return new ReadableStream({
+    async start(controller) {
+      if (prelude) controller.enqueue(prelude);
+      const reader = upstream.getReader();
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          let idx: number;
+          while ((idx = buffer.indexOf("\n")) !== -1) {
+            const line = buffer.slice(0, idx).replace(/\r$/, "");
+            buffer = buffer.slice(idx + 1);
+            if (!line.startsWith("data:")) continue;
+            const json = line.slice(5).trim();
+            if (!json || json === "[DONE]") continue;
+            try {
+              const parsed = JSON.parse(json);
+              const text = parsed.choices?.[0]?.delta?.content ?? "";
+              if (text) {
+                const visible = filter.push(text);
+                if (visible) controller.enqueue(sseChunk(visible));
+              }
+            } catch { /* chunk parcial */ }
+          }
+        }
+      } catch { /* fim inesperado */ }
+      const tail = filter.flush();
+      if (tail) controller.enqueue(sseChunk(tail));
+      controller.enqueue(SSE_DONE);
+      controller.close();
+    },
+  });
+}
+
+
+
 
 /**
  * Filtro incremental de blocos <thinking>…</thinking>.
