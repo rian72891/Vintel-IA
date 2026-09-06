@@ -1549,36 +1549,64 @@ serve(async (req) => {
         for (let i = 0; i < 5; i++) {
           const thinkId = `think_${i}`;
           step({ id: thinkId, status: "running", label: i === 0 ? "Pensando…" : "Analisando resultados…" });
-          const r = await callWithFallback({ tools });
-          if (!r.ok) {
-            const txt = await r.text();
-            console.error("Gemini error:", r.status, txt.slice(0, 500));
-            const label = r.status === 429 ? "Limite de requisições excedido" : `Erro no serviço de IA: ${r.status}`;
+          const chosen = await callChain({ tools });
+          if (!chosen.provider) {
+            const status = (chosen as any).status;
+            const txt = String((chosen as any).detail ?? "");
+            const label = status === 429 ? "Limite de requisições excedido" : `Erro no serviço de IA: ${status}`;
             step({ id: thinkId, status: "error", label, detail: txt.slice(0, 200) });
             finalContent = `\n\n⚠️ ${label} ${txt.slice(0, 200)}`;
             emit(sseChunk(finalContent));
             await patchTask({ status: "failed", result: { error: label, steps } });
             return;
           }
-          const data = await r.json();
-          const parts = data.candidates?.[0]?.content?.parts;
-          if (!parts) {
-            step({ id: thinkId, status: "error", label: "Resposta vazia do modelo" });
-            finalContent = "\n\n⚠️ Resposta vazia do modelo.";
-            emit(sseChunk(finalContent));
-            await patchTask({ status: "failed", result: { error: "Resposta vazia do modelo", steps } });
-            return;
+          if (chosen.provider !== "Gemini") {
+            step({ id: `provider_${i}`, status: "done", label: `Respondido via ${chosen.provider} (fallback)` });
           }
-          step({ id: thinkId, status: "done", label: i === 0 ? "Raciocínio concluído" : "Resultados analisados" });
 
-          // Converte a resposta do Gemini de volta para o formato OpenAI usado no loop.
-          const text = parts.filter((p: any) => typeof p.text === "string").map((p: any) => p.text).join("");
-          const calls = parts.filter((p: any) => p.functionCall).map((p: any, idx: number) => ({
-            id: `call_${i}_${idx}`,
-            type: "function",
-            thought_signature: p.thoughtSignature ?? p.thought_signature ?? null,
-            function: { name: p.functionCall.name, arguments: JSON.stringify(p.functionCall.args ?? {}) },
-          }));
+          const data = await chosen.res.json();
+
+          let text = "";
+          let calls: any[] = [];
+
+          if (chosen.kind === "gemini") {
+            const parts = data.candidates?.[0]?.content?.parts;
+            if (!parts) {
+              step({ id: thinkId, status: "error", label: "Resposta vazia do modelo" });
+              finalContent = "\n\n⚠️ Resposta vazia do modelo.";
+              emit(sseChunk(finalContent));
+              await patchTask({ status: "failed", result: { error: "Resposta vazia do modelo", steps } });
+              return;
+            }
+            // Converte a resposta do Gemini de volta para o formato OpenAI usado no loop.
+            text = parts.filter((p: any) => typeof p.text === "string").map((p: any) => p.text).join("");
+            calls = parts.filter((p: any) => p.functionCall).map((p: any, idx: number) => ({
+              id: `call_${i}_${idx}`,
+              type: "function",
+              thought_signature: p.thoughtSignature ?? p.thought_signature ?? null,
+              function: { name: p.functionCall.name, arguments: JSON.stringify(p.functionCall.args ?? {}) },
+            }));
+          } else {
+            const message = data.choices?.[0]?.message;
+            if (!message) {
+              step({ id: thinkId, status: "error", label: "Resposta vazia do modelo" });
+              finalContent = "\n\n⚠️ Resposta vazia do modelo.";
+              emit(sseChunk(finalContent));
+              await patchTask({ status: "failed", result: { error: "Resposta vazia do modelo", steps } });
+              return;
+            }
+            text = typeof message.content === "string" ? message.content : "";
+            calls = (message.tool_calls ?? []).map((tc: any, idx: number) => ({
+              id: tc.id || `call_${i}_${idx}`,
+              type: "function",
+              function: {
+                name: tc.function?.name,
+                arguments: typeof tc.function?.arguments === "string" ? tc.function.arguments : JSON.stringify(tc.function?.arguments ?? {}),
+              },
+            }));
+          }
+
+          step({ id: thinkId, status: "done", label: i === 0 ? "Raciocínio concluído" : "Resultados analisados" });
 
           const msg: any = { role: "assistant", content: text, ...(calls.length ? { tool_calls: calls } : {}) };
           convo.push(msg);
