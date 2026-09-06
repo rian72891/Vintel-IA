@@ -859,6 +859,119 @@ async function callGemini(opts: {
   return res;
 }
 
+/* ==================== CADEIA DE PROVEDORES (FAILOVER) ====================
+   Ordem: Gemini → Groq → Mistral → Cerebras → OpenRouter.
+   Provedores 2-5 são compatíveis com o formato OpenAI, então usamos
+   `convo`/`tools` internos diretamente, sem conversão.                    */
+
+type OaiProvider = { name: string; base: string; model: string; env: string };
+
+const OAI_PROVIDERS: OaiProvider[] = [
+  { name: "Groq", base: "https://api.groq.com/openai/v1/chat/completions", model: "openai/gpt-oss-120b", env: "GROQ_API_KEY" },
+  { name: "Mistral", base: "https://api.mistral.ai/v1/chat/completions", model: "mistral-small-latest", env: "MISTRAL_API_KEY" },
+  // "llama-3.3-70b" foi descontinuado na Cerebras; o catálogo atual expõe "gpt-oss-120b".
+  { name: "Cerebras", base: "https://api.cerebras.ai/v1/chat/completions", model: "gpt-oss-120b", env: "CEREBRAS_API_KEY" },
+  { name: "OpenRouter", base: "https://openrouter.ai/api/v1/chat/completions", model: "meta-llama/llama-3.1-8b-instruct:free", env: "OPENROUTER_API_KEY" },
+];
+
+/** Remove campos específicos do Gemini e normaliza o conteúdo para o formato OpenAI. */
+function sanitizeConvoForOpenAI(convo: any[]) {
+  return convo.map((m) => {
+    const out: any = { role: m.role };
+    if (Array.isArray(m.content)) {
+      out.content = m.content
+        .map((c: any) => (typeof c === "string" ? c : c?.text ?? ""))
+        .filter(Boolean)
+        .join("\n");
+    } else {
+      out.content = m.content ?? "";
+    }
+    if (m.tool_call_id) out.tool_call_id = m.tool_call_id;
+    if (m.tool_calls?.length) {
+      out.tool_calls = m.tool_calls.map((tc: any) => ({
+        id: tc.id,
+        type: "function",
+        function: { name: tc.function.name, arguments: tc.function.arguments ?? "{}" },
+      }));
+    }
+    return out;
+  });
+}
+
+/** Chamada genérica a qualquer endpoint compatível com a API da OpenAI. */
+async function callOpenAICompatible(
+  baseUrl: string,
+  apiKey: string,
+  model: string,
+  convo: any[],
+  tools?: any[],
+  opts?: { stream?: boolean; temperature?: number },
+) {
+  const body: any = {
+    model,
+    messages: sanitizeConvoForOpenAI(convo),
+    temperature: typeof opts?.temperature === "number" ? opts.temperature : 0.7,
+    ...(opts?.stream ? { stream: true } : {}),
+    ...(tools?.length ? { tools, tool_choice: "auto" } : {}),
+  };
+  const init: RequestInit = {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify(body),
+  };
+
+  let res = await fetch(baseUrl, init);
+  for (let attempt = 0; attempt < 3 && (res.status === 503 || res.status === 429); attempt++) {
+    const delay = 1000 * Math.pow(2, attempt);
+    console.warn(`${baseUrl} ${res.status}. Retry ${attempt + 1}/3 em ${delay}ms`);
+    await new Promise((r) => setTimeout(r, delay));
+    res = await fetch(baseUrl, init);
+  }
+  return res;
+}
+
+/** Converte o SSE de um provedor OpenAI-compatible para o SSE do frontend. */
+function openAiStreamToSse(upstream: ReadableStream<Uint8Array>, prelude?: Uint8Array) {
+  const decoder = new TextDecoder();
+  let buffer = "";
+  const filter = createThinkingFilter();
+  return new ReadableStream({
+    async start(controller) {
+      if (prelude) controller.enqueue(prelude);
+      const reader = upstream.getReader();
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          let idx: number;
+          while ((idx = buffer.indexOf("\n")) !== -1) {
+            const line = buffer.slice(0, idx).replace(/\r$/, "");
+            buffer = buffer.slice(idx + 1);
+            if (!line.startsWith("data:")) continue;
+            const json = line.slice(5).trim();
+            if (!json || json === "[DONE]") continue;
+            try {
+              const parsed = JSON.parse(json);
+              const text = parsed.choices?.[0]?.delta?.content ?? "";
+              if (text) {
+                const visible = filter.push(text);
+                if (visible) controller.enqueue(sseChunk(visible));
+              }
+            } catch { /* chunk parcial */ }
+          }
+        }
+      } catch { /* fim inesperado */ }
+      const tail = filter.flush();
+      if (tail) controller.enqueue(sseChunk(tail));
+      controller.enqueue(SSE_DONE);
+      controller.close();
+    },
+  });
+}
+
+
+
 
 /**
  * Filtro incremental de blocos <thinking>…</thinking>.
@@ -1323,23 +1436,69 @@ serve(async (req) => {
       return r;
     };
 
+    /** Cadeia de failover: Gemini → Groq → Mistral → Cerebras → OpenRouter. */
+    const callChain = async (
+      opts: { tools?: any[]; stream?: boolean },
+    ): Promise<{ provider: string; kind: "gemini" | "openai"; res: Response } | { provider: null; status: number; detail: string }> => {
+      let lastStatus = 500;
+      let lastDetail = "";
+
+      try {
+        const r = await callWithFallback(opts);
+        if (r.ok && (!opts.stream || r.body)) return { provider: "Gemini", kind: "gemini", res: r };
+        lastStatus = r.status;
+        lastDetail = await r.text().catch(() => "");
+        console.error("[failover] Gemini falhou:", r.status, lastDetail.slice(0, 300));
+      } catch (e) {
+        lastDetail = e instanceof Error ? e.message : String(e);
+        console.error("[failover] Gemini exception:", lastDetail);
+      }
+
+      for (const p of OAI_PROVIDERS) {
+        const key = Deno.env.get(p.env);
+        if (!key) continue;
+        try {
+          const r = await callOpenAICompatible(p.base, key, p.model, convo, opts.tools, {
+            stream: opts.stream,
+            temperature: userTemp,
+          });
+          if (r.ok && (!opts.stream || r.body)) return { provider: p.name, kind: "openai", res: r };
+          lastStatus = r.status;
+          lastDetail = await r.text().catch(() => "");
+          console.error(`[failover] ${p.name} falhou:`, r.status, lastDetail.slice(0, 300));
+        } catch (e) {
+          lastDetail = e instanceof Error ? e.message : String(e);
+          console.error(`[failover] ${p.name} exception:`, lastDetail);
+        }
+      }
+
+      return { provider: null, status: lastStatus, detail: lastDetail };
+    };
+
     const scheduleMemory = () => {
       if (!userId) return;
       const p = extractAndSaveMemories({ apiKey: GEMINI_API_KEY, admin, userId, convo: [...convo], existing: memories });
       try { (globalThis as any).EdgeRuntime?.waitUntil?.(p); } catch { /* noop */ }
     };
 
-    // Sem ferramentas: streaming direto da API do Gemini, convertido para o SSE do frontend.
+    // Sem ferramentas: streaming direto do provedor ativo, convertido para o SSE do frontend.
     if (tools.length === 0) {
-      const r = await callWithFallback({ stream: true });
-      if (!r.ok || !r.body) {
-        const txt = await r.text().catch(() => "");
-        console.error("Gemini error:", r.status, txt.slice(0, 500));
-        if (r.status === 429) return new Response(JSON.stringify({ error: "Limite de requisições excedido." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const chosen = await callChain({ stream: true });
+      if (!chosen.provider) {
+        const status = (chosen as any).status;
+        if (status === 429) return new Response(JSON.stringify({ error: "Limite de requisições excedido." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         return new Response(JSON.stringify({ error: "Erro no serviço de IA" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       scheduleMemory();
-      return new Response(geminiStreamToOpenAiSse(r.body), { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
+      const prelude =
+        chosen.provider !== "Gemini"
+          ? sseStep({ id: "provider", status: "done", label: `Respondido via ${chosen.provider} (fallback)` })
+          : undefined;
+      const body =
+        chosen.kind === "gemini"
+          ? geminiStreamToOpenAiSse(chosen.res.body!)
+          : openAiStreamToSse(chosen.res.body!, prelude);
+      return new Response(body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
     }
 
     /* ================= EXECUÇÃO EM SEGUNDO PLANO =================
@@ -1391,36 +1550,64 @@ serve(async (req) => {
         for (let i = 0; i < 5; i++) {
           const thinkId = `think_${i}`;
           step({ id: thinkId, status: "running", label: i === 0 ? "Pensando…" : "Analisando resultados…" });
-          const r = await callWithFallback({ tools });
-          if (!r.ok) {
-            const txt = await r.text();
-            console.error("Gemini error:", r.status, txt.slice(0, 500));
-            const label = r.status === 429 ? "Limite de requisições excedido" : `Erro no serviço de IA: ${r.status}`;
+          const chosen = await callChain({ tools });
+          if (!chosen.provider) {
+            const status = (chosen as any).status;
+            const txt = String((chosen as any).detail ?? "");
+            const label = status === 429 ? "Limite de requisições excedido" : `Erro no serviço de IA: ${status}`;
             step({ id: thinkId, status: "error", label, detail: txt.slice(0, 200) });
             finalContent = `\n\n⚠️ ${label} ${txt.slice(0, 200)}`;
             emit(sseChunk(finalContent));
             await patchTask({ status: "failed", result: { error: label, steps } });
             return;
           }
-          const data = await r.json();
-          const parts = data.candidates?.[0]?.content?.parts;
-          if (!parts) {
-            step({ id: thinkId, status: "error", label: "Resposta vazia do modelo" });
-            finalContent = "\n\n⚠️ Resposta vazia do modelo.";
-            emit(sseChunk(finalContent));
-            await patchTask({ status: "failed", result: { error: "Resposta vazia do modelo", steps } });
-            return;
+          if (chosen.provider !== "Gemini") {
+            step({ id: `provider_${i}`, status: "done", label: `Respondido via ${chosen.provider} (fallback)` });
           }
-          step({ id: thinkId, status: "done", label: i === 0 ? "Raciocínio concluído" : "Resultados analisados" });
 
-          // Converte a resposta do Gemini de volta para o formato OpenAI usado no loop.
-          const text = parts.filter((p: any) => typeof p.text === "string").map((p: any) => p.text).join("");
-          const calls = parts.filter((p: any) => p.functionCall).map((p: any, idx: number) => ({
-            id: `call_${i}_${idx}`,
-            type: "function",
-            thought_signature: p.thoughtSignature ?? p.thought_signature ?? null,
-            function: { name: p.functionCall.name, arguments: JSON.stringify(p.functionCall.args ?? {}) },
-          }));
+          const data = await chosen.res.json();
+
+          let text = "";
+          let calls: any[] = [];
+
+          if (chosen.kind === "gemini") {
+            const parts = data.candidates?.[0]?.content?.parts;
+            if (!parts) {
+              step({ id: thinkId, status: "error", label: "Resposta vazia do modelo" });
+              finalContent = "\n\n⚠️ Resposta vazia do modelo.";
+              emit(sseChunk(finalContent));
+              await patchTask({ status: "failed", result: { error: "Resposta vazia do modelo", steps } });
+              return;
+            }
+            // Converte a resposta do Gemini de volta para o formato OpenAI usado no loop.
+            text = parts.filter((p: any) => typeof p.text === "string").map((p: any) => p.text).join("");
+            calls = parts.filter((p: any) => p.functionCall).map((p: any, idx: number) => ({
+              id: `call_${i}_${idx}`,
+              type: "function",
+              thought_signature: p.thoughtSignature ?? p.thought_signature ?? null,
+              function: { name: p.functionCall.name, arguments: JSON.stringify(p.functionCall.args ?? {}) },
+            }));
+          } else {
+            const message = data.choices?.[0]?.message;
+            if (!message) {
+              step({ id: thinkId, status: "error", label: "Resposta vazia do modelo" });
+              finalContent = "\n\n⚠️ Resposta vazia do modelo.";
+              emit(sseChunk(finalContent));
+              await patchTask({ status: "failed", result: { error: "Resposta vazia do modelo", steps } });
+              return;
+            }
+            text = typeof message.content === "string" ? message.content : "";
+            calls = (message.tool_calls ?? []).map((tc: any, idx: number) => ({
+              id: tc.id || `call_${i}_${idx}`,
+              type: "function",
+              function: {
+                name: tc.function?.name,
+                arguments: typeof tc.function?.arguments === "string" ? tc.function.arguments : JSON.stringify(tc.function?.arguments ?? {}),
+              },
+            }));
+          }
+
+          step({ id: thinkId, status: "done", label: i === 0 ? "Raciocínio concluído" : "Resultados analisados" });
 
           const msg: any = { role: "assistant", content: text, ...(calls.length ? { tool_calls: calls } : {}) };
           convo.push(msg);
