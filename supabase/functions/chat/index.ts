@@ -1497,9 +1497,7 @@ serve(async (req) => {
         chosen.kind === "gemini"
           ? geminiStreamToOpenAiSse(chosen.res.body!)
           : openAiStreamToSse(chosen.res.body!, prelude);
-      const finalBody =
-        chosen.kind === "gemini" || !prelude ? body : body;
-      return new Response(finalBody, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
+      return new Response(body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
     }
 
     /* ================= EXECUÇÃO EM SEGUNDO PLANO =================
