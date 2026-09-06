@@ -1435,23 +1435,71 @@ serve(async (req) => {
       return r;
     };
 
+    /** Cadeia de failover: Gemini → Groq → Mistral → Cerebras → OpenRouter. */
+    const callChain = async (
+      opts: { tools?: any[]; stream?: boolean },
+    ): Promise<{ provider: string; kind: "gemini" | "openai"; res: Response } | { provider: null; status: number; detail: string }> => {
+      let lastStatus = 500;
+      let lastDetail = "";
+
+      try {
+        const r = await callWithFallback(opts);
+        if (r.ok && (!opts.stream || r.body)) return { provider: "Gemini", kind: "gemini", res: r };
+        lastStatus = r.status;
+        lastDetail = await r.text().catch(() => "");
+        console.error("[failover] Gemini falhou:", r.status, lastDetail.slice(0, 300));
+      } catch (e) {
+        lastDetail = e instanceof Error ? e.message : String(e);
+        console.error("[failover] Gemini exception:", lastDetail);
+      }
+
+      for (const p of OAI_PROVIDERS) {
+        const key = Deno.env.get(p.env);
+        if (!key) continue;
+        try {
+          const r = await callOpenAICompatible(p.base, key, p.model, convo, opts.tools, {
+            stream: opts.stream,
+            temperature: userTemp,
+          });
+          if (r.ok && (!opts.stream || r.body)) return { provider: p.name, kind: "openai", res: r };
+          lastStatus = r.status;
+          lastDetail = await r.text().catch(() => "");
+          console.error(`[failover] ${p.name} falhou:`, r.status, lastDetail.slice(0, 300));
+        } catch (e) {
+          lastDetail = e instanceof Error ? e.message : String(e);
+          console.error(`[failover] ${p.name} exception:`, lastDetail);
+        }
+      }
+
+      return { provider: null, status: lastStatus, detail: lastDetail };
+    };
+
     const scheduleMemory = () => {
       if (!userId) return;
       const p = extractAndSaveMemories({ apiKey: GEMINI_API_KEY, admin, userId, convo: [...convo], existing: memories });
       try { (globalThis as any).EdgeRuntime?.waitUntil?.(p); } catch { /* noop */ }
     };
 
-    // Sem ferramentas: streaming direto da API do Gemini, convertido para o SSE do frontend.
+    // Sem ferramentas: streaming direto do provedor ativo, convertido para o SSE do frontend.
     if (tools.length === 0) {
-      const r = await callWithFallback({ stream: true });
-      if (!r.ok || !r.body) {
-        const txt = await r.text().catch(() => "");
-        console.error("Gemini error:", r.status, txt.slice(0, 500));
-        if (r.status === 429) return new Response(JSON.stringify({ error: "Limite de requisições excedido." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const chosen = await callChain({ stream: true });
+      if (!chosen.provider) {
+        const status = (chosen as any).status;
+        if (status === 429) return new Response(JSON.stringify({ error: "Limite de requisições excedido." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         return new Response(JSON.stringify({ error: "Erro no serviço de IA" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       scheduleMemory();
-      return new Response(geminiStreamToOpenAiSse(r.body), { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
+      const prelude =
+        chosen.provider !== "Gemini"
+          ? sseStep({ id: "provider", status: "done", label: `Respondido via ${chosen.provider} (fallback)` })
+          : undefined;
+      const body =
+        chosen.kind === "gemini"
+          ? geminiStreamToOpenAiSse(chosen.res.body!)
+          : openAiStreamToSse(chosen.res.body!, prelude);
+      const finalBody =
+        chosen.kind === "gemini" || !prelude ? body : body;
+      return new Response(finalBody, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
     }
 
     /* ================= EXECUÇÃO EM SEGUNDO PLANO =================
