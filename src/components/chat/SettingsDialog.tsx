@@ -12,7 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import {
   ChevronRight, ChevronLeft, User, CreditCard, Zap, Plug, Moon, Type, Mic, Vibrate,
   Shield, Link as LinkIcon, Thermometer, LogOut, Check, Sun, Monitor, Crown, RefreshCw,
-  Loader2, Copy, Trash2, Brain, Languages,
+  Loader2, Copy, Trash2, Brain, Languages, FileText, AlertTriangle,
 } from 'lucide-react';
 import { PLANS, PlanKey } from '@/lib/stripe';
 import { supabase } from '@/integrations/supabase/client';
@@ -27,7 +27,7 @@ interface SettingsDialogProps {
 
 type Section =
   | 'root' | 'profile' | 'billing' | 'capabilities' | 'theme'
-  | 'font' | 'voice' | 'shared' | 'creativity' | 'memory' | 'language';
+  | 'font' | 'voice' | 'shared' | 'creativity' | 'memory' | 'language' | 'delete';
 
 const CAP_KEYS = [
   { key: 'cap_images', label: 'Geração de imagens' },
@@ -86,6 +86,27 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   // Memória persistente entre conversas
   const [memories, setMemories] = useState<any[]>([]);
   const [loadingMemories, setLoadingMemories] = useState(false);
+
+  // Exclusão de conta
+  const [deleteConfirm, setDeleteConfirm] = useState('');
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirm.trim().toUpperCase() !== 'EXCLUIR') return;
+    setDeleting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-account');
+      if (error || data?.error) throw new Error(error?.message || data?.error);
+      await supabase.auth.signOut();
+      toast.success('Sua conta e todos os seus dados foram excluídos.');
+      onOpenChange(false);
+      window.location.href = '/';
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Não foi possível excluir a conta');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const planData = PLANS[plan as PlanKey] || PLANS.free;
 
@@ -627,6 +648,50 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                 <span>Preciso</span>
                 <span>Criativo</span>
               </div>
+            </div>
+          </>
+        )}
+        {section === 'delete' && (
+          <>
+            <BackHeader title="Excluir minha conta" />
+            <div className="p-4 space-y-4 overflow-y-auto scrollbar-thin">
+              <div className="flex items-start gap-2 p-3 rounded-lg border border-destructive/30 bg-destructive/5">
+                <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+                <p className="text-xs text-destructive leading-relaxed">
+                  Esta ação é <strong>irreversível</strong>. Não é possível recuperar os dados depois.
+                </p>
+              </div>
+              <div className="text-xs text-muted-foreground leading-relaxed space-y-1">
+                <p>Serão apagados permanentemente:</p>
+                <ul className="list-disc pl-5 space-y-0.5">
+                  <li>Perfil e credenciais de acesso</li>
+                  <li>Conversas, mensagens e artefatos compartilhados</li>
+                  <li>Memórias salvas entre conversas</li>
+                  <li>Documentos enviados</li>
+                  <li>Tarefas agendadas</li>
+                  <li>Tokens OAuth das integrações conectadas</li>
+                  <li>Registros de uso e assinatura</li>
+                </ul>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs text-muted-foreground">
+                  Digite <strong className="text-foreground">EXCLUIR</strong> para confirmar
+                </label>
+                <input
+                  value={deleteConfirm}
+                  onChange={(e) => setDeleteConfirm(e.target.value)}
+                  placeholder="EXCLUIR"
+                  className="w-full px-3 py-2.5 bg-background border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-destructive/40"
+                />
+              </div>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleting || deleteConfirm.trim().toUpperCase() !== 'EXCLUIR'}
+                className="w-full py-2.5 rounded-xl bg-destructive text-destructive-foreground text-sm font-medium disabled:opacity-40 hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+              >
+                {deleting && <Loader2 className="h-4 w-4 animate-spin" />}
+                Excluir permanentemente
+              </button>
             </div>
           </>
         )}
