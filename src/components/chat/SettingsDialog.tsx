@@ -359,13 +359,16 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               </div>
               <div className="border-t border-border py-1">
                 <Row icon={Shield} label="Privacidade" onClick={() => { onOpenChange(false); navigate('/privacidade'); }} />
+                <Row icon={FileText} label="Termos de Uso" onClick={() => { onOpenChange(false); navigate('/termos'); }} />
                 <Row icon={Brain} label="Memória" onClick={() => setSection('memory')} />
                 <Row icon={LinkIcon} label="Links compartilhados" onClick={() => setSection('shared')} />
                 <Row icon={Thermometer} label="Criatividade da IA" subtitle={`${temperature.toFixed(1)}`} onClick={() => setSection('creativity')} />
               </div>
               <div className="border-t border-border py-1">
                 <Row icon={LogOut} label="Sair" danger onClick={handleLogout} />
+                <Row icon={Trash2} label="Excluir minha conta" danger onClick={() => setSection('delete')} />
               </div>
+
             </div>
           </>
         )}
