@@ -132,7 +132,12 @@ export default function Auth() {
           </p>
         </div>
 
-        <p className="text-[10px] text-muted-foreground/40 text-center mt-6">
+        <p className="text-[10px] text-muted-foreground/60 text-center mt-6 leading-relaxed">
+          Ao continuar, você concorda com os{' '}
+          <a href="/termos" className="underline hover:text-foreground">Termos de Uso</a> e a{' '}
+          <a href="/privacidade" className="underline hover:text-foreground">Política de Privacidade</a>.
+        </p>
+        <p className="text-[10px] text-muted-foreground/40 text-center mt-2">
           Powered by Gemini Pro & GPT-4o
         </p>
       </motion.div>

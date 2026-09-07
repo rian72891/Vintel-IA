@@ -151,6 +151,13 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
               {isLogin ? 'Criar conta' : 'Entrar'}
             </button>
           </p>
+
+          <p className="text-[10px] text-muted-foreground/60 text-center mt-4 leading-relaxed">
+            Ao continuar, você concorda com os{' '}
+            <a href="/termos" className="underline hover:text-foreground">Termos de Uso</a> e a{' '}
+            <a href="/privacidade" className="underline hover:text-foreground">Política de Privacidade</a>.
+          </p>
+
         </motion.div>
       </DialogContent>
     </Dialog>
