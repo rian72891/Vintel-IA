@@ -46,6 +46,8 @@ Para ativar o monitoramento, crie uma conta gratuita em [sentry.io](https://sent
 
 Projeto em desenvolvimento ativo.
 
+<!-- Deploy marker: Sentry production environment refresh. -->
+
 ---
 
 <p align="center">Desenvolvido por <a href="https://github.com/rian72891">Rian Bruno</a></p>
