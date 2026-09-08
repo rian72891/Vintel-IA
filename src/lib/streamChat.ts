@@ -1,5 +1,6 @@
 import { AgentType, Message } from '@/types/agent';
 import { supabase } from '@/integrations/supabase/client';
+import { reportChatRequestError } from '@/lib/sentry';
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
@@ -84,6 +85,7 @@ export async function streamChat({
   if (!resp.ok) {
     const data = await resp.json().catch(() => ({}));
     const friendly = mapErrorMessage(resp.status, data?.error);
+    reportChatRequestError(resp.status, 'http_error');
     emitHttpError('Falha ao gerar resposta', friendly);
     try {
       onError(friendly);
@@ -95,6 +97,7 @@ export async function streamChat({
 
   if (!resp.body) {
     const error = 'No response body';
+    reportChatRequestError(resp.status, 'empty_response');
     emitHttpError('Resposta vazia do serviço', error);
     try {
       onError(error);

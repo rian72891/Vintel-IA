@@ -32,6 +32,16 @@ O Vintel IA é uma plataforma de agentes de IA construída para operar no nível
 
 **Frontend/backend construídos com Lovable · Banco de dados e autenticação: Supabase**
 
+## CI e avaliações
+
+Todo push ou pull request direcionado à branch `main` executa automaticamente o workflow `.github/workflows/ci.yml`, que instala as dependências com `npm ci`, executa o build de produção, roda todos os testes e executa o linter. A suíte fixa de comportamento do agente está em `src/test/agent-eval.test.ts` e usa respostas de rede mockadas, sem chamadas a provedores de IA reais.
+
+## Monitoramento com Sentry
+
+O frontend usa `@sentry/react` quando `VITE_SENTRY_DSN` está configurada. O SDK captura erros JavaScript não tratados, rejeições de promises e erros de renderização via Error Boundary. Falhas HTTP do chat são reportadas apenas como metadados — status, tipo do erro, rota e stack — sem tokens, headers de autenticação ou mensagens completas do usuário.
+
+Para ativar o monitoramento, crie uma conta gratuita em [sentry.io](https://sentry.io), crie um projeto **React**, copie o DSN gerado e defina `VITE_SENTRY_DSN` no ambiente do frontend, como nas variáveis de ambiente da Vercel e no ambiente local. Sem essa variável, o Sentry permanece desativado.
+
 ## 🚧 Status
 
 Projeto em desenvolvimento ativo.
