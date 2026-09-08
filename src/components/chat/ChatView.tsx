@@ -89,6 +89,7 @@ export function ChatView() {
   const [traceDurations, setTraceDurations] = useState<Record<string, number>>({});
   const stepsRef = useRef<TraceStep[]>([]);
   const traceStartedAtRef = useRef<number | null>(null);
+  const traceErrorRef = useRef(false);
 
   // Confirmação de ações irreversíveis
   const [pendingConfirms, setPendingConfirms] = useState<ConfirmRequest[]>([]);
@@ -130,11 +131,10 @@ export function ChatView() {
     if (pendingRef.current.length) return; // mantém a timeline viva enquanto aguarda confirmação
     const msgs = getActiveConversation()?.messages ?? [];
     const last = [...msgs].reverse().find((m) => m.role === 'assistant');
-    if (last) {
-      const duration = traceStartedAtRef.current == null ? 0 : performance.now() - traceStartedAtRef.current;
-      setTraces((prev) => ({ ...prev, [last.id]: collected }));
-      setTraceDurations((prev) => ({ ...prev, [last.id]: duration }));
-    }
+    if (!last) return;
+    const duration = traceStartedAtRef.current == null ? 0 : performance.now() - traceStartedAtRef.current;
+    setTraces((prev) => ({ ...prev, [last.id]: collected }));
+    setTraceDurations((prev) => ({ ...prev, [last.id]: duration }));
     resetSteps();
   }, [getActiveConversation, resetSteps]);
 
@@ -219,6 +219,7 @@ export function ChatView() {
     approvalsRef.current = {};
     setLoadingLabel('');
     traceStartedAtRef.current = performance.now();
+    traceErrorRef.current = false;
 
     let fullContent = '';
     try {
@@ -246,21 +247,20 @@ export function ChatView() {
           }
           setIsStreaming(false);
           resetStream();
-          persistTrace();
+          if (!traceErrorRef.current) persistTrace();
           await incrementUsage('messages');
         },
         onError: (error) => {
           toast.error(error);
           setIsStreaming(false);
           resetStream();
-          resetSteps();
+          traceErrorRef.current = true;
         },
       });
     } catch {
       toast.error('Erro ao conectar com a IA. Tente novamente.');
       setIsStreaming(false);
       resetStream();
-      resetSteps();
     }
   }, [activeConversationId, conversation?.agent, plan, temperature, addMessage, incrementUsage, handleStep, resetSteps, persistTrace]);
 
@@ -302,6 +302,7 @@ export function ChatView() {
     resetStream();
     resetSteps();
     traceStartedAtRef.current = performance.now();
+    traceErrorRef.current = false;
 
     let fullContent = '';
     try {
@@ -329,20 +330,19 @@ export function ChatView() {
           }
           setIsStreaming(false);
           resetStream();
-          persistTrace();
+          if (!traceErrorRef.current) persistTrace();
         },
         onError: (error) => {
           toast.error(error);
           setIsStreaming(false);
           resetStream();
-          resetSteps();
+          traceErrorRef.current = true;
         },
       });
     } catch {
       toast.error('Erro ao continuar a ação. Tente novamente.');
       setIsStreaming(false);
       resetStream();
-      resetSteps();
     }
   }, [activeConversationId, conversation?.agent, plan, temperature, addMessage, getActiveConversation, handleStep, handleConfirmRequest, persistTrace, resetSteps, resetStream, pushStream, finishStream]);
 
@@ -839,7 +839,7 @@ export function ChatView() {
           }
           setIsStreaming(false);
           resetStream();
-          persistTrace();
+          if (!traceErrorRef.current) persistTrace();
           await incrementUsage('messages');
           if (hasImageAttachment) {
             await incrementUsage('image_analyses');
@@ -849,14 +849,13 @@ export function ChatView() {
           toast.error(error);
           setIsStreaming(false);
           resetStream();
-          resetSteps();
+          traceErrorRef.current = true;
         },
       });
     } catch (e) {
       toast.error('Erro ao conectar com a IA. Tente novamente.');
       setIsStreaming(false);
       resetStream();
-      resetSteps();
     }
 
   };
@@ -979,7 +978,7 @@ export function ChatView() {
           </div>
         )}
 
-        {(isStreaming || pendingConfirms.length > 0) && steps.length > 0 && (
+        {(isStreaming || pendingConfirms.length > 0 || steps.some((step) => step.status === 'error')) && steps.length > 0 && (
           <div className="px-4 max-w-4xl mx-auto w-full pt-2">
             <AgentTrace
               steps={steps}

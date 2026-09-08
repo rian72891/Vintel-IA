@@ -71,15 +71,36 @@ export async function streamChat({
     body: JSON.stringify({ messages, agent, plan, temperature, approvals, conversationId }),
   });
 
+  const activeSteps = new Map<string, TraceStep>();
+  const emitHttpError = (label: string, detail: string) => {
+    const inProgress = [...activeSteps.values()].filter((step) => step.status === 'running' || step.status === 'waiting');
+    if (inProgress.length) {
+      for (const step of inProgress) onStep?.({ ...step, status: 'error', label, detail });
+    } else {
+      onStep?.({ id: 'chat-request', status: 'error', label, detail });
+    }
+  };
+
   if (!resp.ok) {
     const data = await resp.json().catch(() => ({}));
     const friendly = mapErrorMessage(resp.status, data?.error);
-    onError(friendly);
+    emitHttpError('Falha ao gerar resposta', friendly);
+    try {
+      onError(friendly);
+    } finally {
+      onDone();
+    }
     return;
   }
 
   if (!resp.body) {
-    onError('No response body');
+    const error = 'No response body';
+    emitHttpError('Resposta vazia do serviço', error);
+    try {
+      onError(error);
+    } finally {
+      onDone();
+    }
     return;
   }
 
@@ -110,7 +131,12 @@ export async function streamChat({
 
       try {
         const parsed = JSON.parse(jsonStr);
-        if (parsed?.type === 'step') { onStep?.(parsed as TraceStep); continue; }
+        if (parsed?.type === 'step') {
+          const step = parsed as TraceStep;
+          activeSteps.set(step.id, step);
+          onStep?.(step);
+          continue;
+        }
         if (parsed?.type === 'confirm') { onConfirm?.(parsed as ConfirmRequest); continue; }
         const content = parsed.choices?.[0]?.delta?.content as string | undefined;
         if (content) onDelta(content);
@@ -133,7 +159,12 @@ export async function streamChat({
       if (jsonStr === '[DONE]') continue;
       try {
         const parsed = JSON.parse(jsonStr);
-        if (parsed?.type === 'step') { onStep?.(parsed as TraceStep); continue; }
+        if (parsed?.type === 'step') {
+          const step = parsed as TraceStep;
+          activeSteps.set(step.id, step);
+          onStep?.(step);
+          continue;
+        }
         if (parsed?.type === 'confirm') { onConfirm?.(parsed as ConfirmRequest); continue; }
         const content = parsed.choices?.[0]?.delta?.content as string | undefined;
         if (content) onDelta(content);
