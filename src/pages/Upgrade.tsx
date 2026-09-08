@@ -10,11 +10,11 @@ export default function Upgrade() {
   const { plan } = useSubscription();
 
   const blockedFeatures = [
-    'Mensagens ilimitadas',
+    'Mais mensagens por dia',
     'Mais imagens por mês',
-    'Geração de áudio estendida',
-    'Análises de imagem ilimitadas',
-    'Suporte prioritário',
+    'Geração de arquivos (PDF/HTML/TXT/ZIP)',
+    'Mais minutos de áudio por mês',
+    'Modelos Gemini Flash ou Gemini Pro conforme o plano',
   ];
 
   return (

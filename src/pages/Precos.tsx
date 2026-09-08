@@ -47,19 +47,11 @@ export default function Precos() {
   };
 
   const comparisonFeatures = [
-    { label: 'Modelo IA', starter: 'Gemini Flash', pro: 'Gemini Pro', agency: 'Gemini Pro (máx. contexto)' },
+    { label: 'Modelo IA', starter: 'Gemini Flash', pro: 'Gemini Pro', agency: 'Gemini Pro (principal)' },
     { label: 'Mensagens/dia', starter: '50', pro: 'Ilimitado', agency: 'Ilimitado' },
-    { label: 'Imagens/mês', starter: '20', pro: '100 (HD)', agency: 'Ilimitado' },
-    { label: 'Arquivos/mês', starter: '5 (PDF)', pro: '20 (PDF, ZIP, HTML)', agency: 'Ilimitado' },
-    { label: 'Áudio/mês', starter: '30 min', pro: '2 horas', agency: 'Ilimitado (10h voz)' },
-    { label: 'Análises de imagem', starter: '10', pro: 'Ilimitado', agency: 'Ilimitado' },
-    { label: 'Geração de código', starter: 'Básico', pro: 'Completo', agency: 'Completo' },
-    { label: 'Conectores (Google, Lovable, GitHub)', starter: '2 ativos', pro: 'Todos', agency: 'Todos + OAuth próprio' },
-    { label: 'Usuários', starter: '1', pro: '1', agency: '5' },
-    { label: 'API access', starter: '✗', pro: '✗', agency: '✓' },
-    { label: 'White-label', starter: '✗', pro: '✗', agency: 'Parcial' },
-    { label: 'Suporte', starter: 'Email', pro: 'Prioritário', agency: 'WhatsApp' },
-    { label: 'Acesso antecipado', starter: '✗', pro: '✓', agency: '✓' },
+    { label: 'Imagens/mês', starter: 'Até 20', pro: 'Até 100', agency: 'Ilimitado' },
+    { label: 'Geração de arquivos', starter: 'Com limite mensal', pro: 'Com limite ampliado', agency: 'Ilimitada' },
+    { label: 'Áudio/mês', starter: 'Até 30 min', pro: 'Até 120 min', agency: 'Ilimitado' },
   ];
 
   return (
