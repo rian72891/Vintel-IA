@@ -19,6 +19,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
+import { ELEVENLABS_VOICE_IDS } from '@/lib/api/elevenlabs';
 
 interface SettingsDialogProps {
   open: boolean;
@@ -193,7 +194,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     setTestingVoice(true);
     try {
       const { data, error } = await supabase.functions.invoke('elevenlabs-tts', {
-        body: { text: 'Olá, eu sou o Vintel IA!', voice: voiceId },
+        body: { text: 'Olá, eu sou o Vintel IA!', voiceId: ELEVENLABS_VOICE_IDS[voiceId] },
       });
       if (error) throw error;
       const b64 = (data as any)?.audioContent;

@@ -1,23 +1,41 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronDown, Loader2, Check, X, Brain, ShieldAlert } from 'lucide-react';
 import type { TraceStep } from '@/lib/streamChat';
 
 interface AgentTraceProps {
   steps: TraceStep[];
-  /** Quando true, mantém a timeline aberta (execução em andamento). */
+  durationMs?: number;
+  /** Quando true, indica que a execução ainda está em andamento. */
   live?: boolean;
 }
 
-export function AgentTrace({ steps, live = false }: AgentTraceProps) {
-  const [open, setOpen] = useState(live);
+function formatDuration(durationMs: number) {
+  const seconds = Math.max(0, durationMs) / 1000;
+  return seconds < 10 ? `${seconds.toFixed(1)}s` : `${Math.round(seconds)}s`;
+}
 
-  if (!steps.length) return null;
+export function AgentTrace({ steps, durationMs = 0, live = false }: AgentTraceProps) {
+  const [open, setOpen] = useState(false);
+  const [elapsed, setElapsed] = useState(durationMs);
 
   const running = steps.some((s) => s.status === 'running');
   const waiting = steps.some((s) => s.status === 'waiting');
   const errored = steps.some((s) => s.status === 'error');
-  const current = [...steps].reverse().find((s) => s.status === 'running' || s.status === 'waiting') ?? steps[steps.length - 1];
-  const expanded = open || live;
+  const finished = !running && !waiting;
+
+  useEffect(() => {
+    if (!live) {
+      setElapsed(durationMs);
+      return;
+    }
+    const started = performance.now() - durationMs;
+    const tick = () => setElapsed(Math.max(0, performance.now() - started));
+    tick();
+    const timer = window.setInterval(tick, 100);
+    return () => window.clearInterval(timer);
+  }, [durationMs, live]);
+
+  if (!steps.length) return null;
 
   return (
     <div className="rounded-xl border border-border bg-card/60 text-[12px] overflow-hidden">
@@ -36,14 +54,14 @@ export function AgentTrace({ steps, live = false }: AgentTraceProps) {
           <Brain className="h-3.5 w-3.5 text-primary shrink-0" />
         )}
         <span className="flex-1 min-w-0 truncate font-medium text-foreground/80">
-          {running || waiting ? current.label : `Raciocínio do agente · ${steps.length} passo${steps.length > 1 ? 's' : ''}`}
+          {finished ? `Pensou por ${formatDuration(elapsed)}` : `Pensando por ${formatDuration(elapsed)}`}
         </span>
         <ChevronDown
-          className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`}
+          className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`}
         />
       </button>
 
-      {expanded && (
+      {open && (
         <ol className="px-3 pb-2.5 space-y-1.5">
           {steps.map((step) => (
             <li key={`${step.id}-${step.label}`} className="flex items-start gap-2">

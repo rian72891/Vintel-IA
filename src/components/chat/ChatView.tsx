@@ -34,12 +34,14 @@ import { isSupportedDocument, ingestConversationDocument } from '@/lib/conversat
 const MessageRow = memo(function MessageRow({
   msg,
   trace,
+  traceDurationMs,
   audioUrl,
   onEdit,
   onRegenerate,
 }: {
   msg: Message;
   trace?: TraceStep[];
+  traceDurationMs?: number;
   audioUrl?: string | null;
   onEdit: (id: string, content: string) => void;
   onRegenerate: (id: string) => void;
@@ -50,7 +52,7 @@ const MessageRow = memo(function MessageRow({
     <div>
       {trace && (
         <div className="px-4 max-w-4xl mx-auto w-full pt-2">
-          <AgentTrace steps={trace} />
+          <AgentTrace steps={trace} durationMs={traceDurationMs} />
         </div>
       )}
       <ChatMessage
@@ -84,7 +86,9 @@ export function ChatView() {
   // Trace visual do raciocínio do agente
   const [steps, setSteps] = useState<TraceStep[]>([]);
   const [traces, setTraces] = useState<Record<string, TraceStep[]>>({});
+  const [traceDurations, setTraceDurations] = useState<Record<string, number>>({});
   const stepsRef = useRef<TraceStep[]>([]);
+  const traceStartedAtRef = useRef<number | null>(null);
 
   // Confirmação de ações irreversíveis
   const [pendingConfirms, setPendingConfirms] = useState<ConfirmRequest[]>([]);
@@ -116,6 +120,7 @@ export function ChatView() {
   const resetSteps = useCallback(() => {
     stepsRef.current = [];
     setSteps([]);
+    traceStartedAtRef.current = null;
   }, []);
 
   /** Anexa o trace concluído à última mensagem do assistente. */
@@ -125,7 +130,11 @@ export function ChatView() {
     if (pendingRef.current.length) return; // mantém a timeline viva enquanto aguarda confirmação
     const msgs = getActiveConversation()?.messages ?? [];
     const last = [...msgs].reverse().find((m) => m.role === 'assistant');
-    if (last) setTraces((prev) => ({ ...prev, [last.id]: collected }));
+    if (last) {
+      const duration = traceStartedAtRef.current == null ? 0 : performance.now() - traceStartedAtRef.current;
+      setTraces((prev) => ({ ...prev, [last.id]: collected }));
+      setTraceDurations((prev) => ({ ...prev, [last.id]: duration }));
+    }
     resetSteps();
   }, [getActiveConversation, resetSteps]);
 
@@ -209,6 +218,7 @@ export function ChatView() {
     clearPending();
     approvalsRef.current = {};
     setLoadingLabel('');
+    traceStartedAtRef.current = performance.now();
 
     let fullContent = '';
     try {
@@ -291,6 +301,7 @@ export function ChatView() {
     setIsStreaming(true);
     resetStream();
     resetSteps();
+    traceStartedAtRef.current = performance.now();
 
     let fullContent = '';
     try {
@@ -796,6 +807,7 @@ export function ChatView() {
     clearPending();
     approvalsRef.current = {};
     setLoadingLabel('');
+    traceStartedAtRef.current = performance.now();
 
     const currentConv = getActiveConversation();
     const history = currentConv?.messages || [];
@@ -951,6 +963,7 @@ export function ChatView() {
             key={msg.id}
             msg={msg}
             trace={traces[msg.id]}
+            traceDurationMs={traceDurations[msg.id]}
             audioUrl={msg.content.startsWith('🔊 Áudio gerado') ? audioUrl : undefined}
             onEdit={handleEditSubmit}
             onRegenerate={handleRegenerate}
@@ -968,7 +981,11 @@ export function ChatView() {
 
         {(isStreaming || pendingConfirms.length > 0) && steps.length > 0 && (
           <div className="px-4 max-w-4xl mx-auto w-full pt-2">
-            <AgentTrace steps={steps} live />
+            <AgentTrace
+              steps={steps}
+              durationMs={traceStartedAtRef.current == null ? 0 : performance.now() - traceStartedAtRef.current}
+              live
+            />
           </div>
         )}
         {pendingConfirms.length > 0 && (

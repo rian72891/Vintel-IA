@@ -323,9 +323,6 @@ export function AgentSelector({ onRequireAuth }: AgentSelectorProps) {
           transition={{ duration: 0.5, delay: 0.5 }}
           className="text-center pb-6 space-y-2"
         >
-          <p className="text-[11px] text-muted-foreground/30 tracking-wide">
-            Powered by Gemini Pro & GPT-4o
-          </p>
           <div className="flex items-center justify-center gap-3 text-[11px] text-muted-foreground/40">
             <Link to="/precos" className="hover:text-primary transition-colors">Planos</Link>
             <span className="opacity-40">·</span>

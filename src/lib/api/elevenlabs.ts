@@ -2,11 +2,24 @@ import { reportVoiceError, reportVoiceSuccess } from '@/lib/voiceAvailability';
 
 const TTS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`;
 
-export async function textToSpeech(text: string, voiceId?: string): Promise<string> {
+export type VoiceChoice = 'female' | 'male';
+
+/** IDs públicos distintos usados pelas opções Bia e Carlos na interface. */
+export const ELEVENLABS_VOICE_IDS: Record<VoiceChoice, string> = {
+  female: 'EXAVITQu4vr4xnSDxMaL',
+  male: 'pNInz6obpgDQGcFmaJgB',
+};
+
+export function getSelectedVoiceId(): string {
+  const choice = localStorage.getItem('voice_id') as VoiceChoice | null;
+  return ELEVENLABS_VOICE_IDS[choice || 'female'] || ELEVENLABS_VOICE_IDS.female;
+}
+
+export async function textToSpeech(text: string, voiceId = getSelectedVoiceId()): Promise<string> {
   const response = await fetch(TTS_URL, {
-    method: "POST",
+    method: 'POST',
     headers: {
-      "Content-Type": "application/json",
+      'Content-Type': 'application/json',
       apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
       Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
     },

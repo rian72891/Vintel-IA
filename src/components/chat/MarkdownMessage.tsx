@@ -1,5 +1,8 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 import { Check, Copy, Download, Eye, EyeOff } from 'lucide-react';
 
 function isHTMLContent(code: string, lang?: string) {
@@ -169,7 +172,13 @@ export const MarkdownMessage = memo(function MarkdownMessage({
 
   return (
     <div className={PROSE} style={{ contain: 'layout style' }}>
-      <ReactMarkdown components={MARKDOWN_COMPONENTS}>{rendered}</ReactMarkdown>
+      <ReactMarkdown
+        remarkPlugins={[remarkMath]}
+        rehypePlugins={[rehypeKatex]}
+        components={MARKDOWN_COMPONENTS}
+      >
+        {rendered}
+      </ReactMarkdown>
       {isStreaming && (
         <span className="inline-block w-[2px] h-[1em] bg-primary animate-blink align-text-bottom ml-0.5" />
       )}

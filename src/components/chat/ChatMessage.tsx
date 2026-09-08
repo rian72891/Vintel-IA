@@ -8,7 +8,7 @@ import { useState, useCallback, useRef, useMemo, memo } from 'react';
 import JSZip from 'jszip';
 import { MarkdownMessage } from './MarkdownMessage';
 import { getFeedback, setFeedback as saveFeedback, type Feedback } from '@/lib/messageFeedback';
-import { textToSpeech } from '@/lib/api/elevenlabs';
+import { getSelectedVoiceId, textToSpeech } from '@/lib/api/elevenlabs';
 import { useVoiceAvailable } from '@/lib/voiceAvailability';
 
 const actionBtn = 'p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors';
@@ -79,7 +79,7 @@ function ChatMessageBase({ message, audioUrl, isStreaming, onEdit, onRegenerate 
     try {
       setTtsLoading(true);
       const text = message.content.replace(/```[\s\S]*?```/g, ' (bloco de código) ').slice(0, 4000);
-      const dataUrl = await textToSpeech(text);
+      const dataUrl = await textToSpeech(text, getSelectedVoiceId());
       const audio = new Audio(dataUrl);
       ttsAudioRef.current = audio;
       audio.onended = () => setTtsPlaying(false);
@@ -489,4 +489,3 @@ export const ChatMessage = memo(ChatMessageBase, (prev, next) =>
   prev.onEdit === next.onEdit &&
   prev.onRegenerate === next.onRegenerate
 );
-
