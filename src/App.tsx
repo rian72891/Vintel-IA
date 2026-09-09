@@ -21,6 +21,7 @@ import Auth from "./pages/Auth";
 import Termos from "./pages/Termos";
 import Status from "./pages/Status";
 import Tarefas from "./pages/Tarefas";
+import MinhasTarefas from "./pages/MinhasTarefas";
 import Privacidade from "./pages/Privacidade";
 import NotFound from "./pages/NotFound";
 
@@ -51,6 +52,7 @@ const App = () => (
 
                 <Route path="/status" element={<Status />} />
                 <Route path="/tarefas" element={<Tarefas />} />
+                <Route path="/minhas-tarefas" element={<MinhasTarefas />} />
                 <Route path="/termos" element={<Termos />} />
                 <Route path="/privacidade" element={<Privacidade />} />
                 <Route path="*" element={<NotFound />} />

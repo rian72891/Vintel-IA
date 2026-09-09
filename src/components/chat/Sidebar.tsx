@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, MessageSquare, X, Trash2, Pencil, Check, Settings, LogOut, Menu, Search, Plug } from 'lucide-react';
+import { Plus, MessageSquare, X, Trash2, Pencil, Check, Settings, LogOut, Menu, Search, Plug, ListTodo } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useChatStore } from '@/store/chatStore';
 import { cn } from '@/lib/utils';
@@ -51,6 +51,7 @@ export function Sidebar() {
     { label: 'Novo bate-papo', icon: Plus, onClick: handleNewChat },
     { label: 'Conversas', icon: MessageSquare, onClick: () => {} },
     { label: 'Conectores', icon: Plug, onClick: () => navigate('/conectores') },
+    { label: 'Minhas tarefas', icon: ListTodo, onClick: () => navigate('/minhas-tarefas') },
   ];
 
   return (
