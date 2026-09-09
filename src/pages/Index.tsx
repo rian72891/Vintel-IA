@@ -31,6 +31,7 @@ const Index = () => {
             <div className="w-10">
               <button
                 onClick={() => setSidebarOpen(true)}
+                aria-label="Abrir menu lateral"
                 className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors active:scale-95"
               >
                 <Menu className="h-5 w-5" />
@@ -45,6 +46,7 @@ const Index = () => {
             <div className="w-10 flex justify-end">
               <button
                 onClick={() => setSettingsOpen(true)}
+                aria-label="Abrir configurações do usuário"
                 className="relative touch-feedback"
               >
                 <div className="h-8 w-8 rounded-full bg-primary/15 border border-primary/20 flex items-center justify-center">

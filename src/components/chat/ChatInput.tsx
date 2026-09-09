@@ -247,10 +247,10 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
               {files.map((f, i) => (
                 <div key={i} className="flex items-center gap-1.5 px-2.5 py-1.5 bg-muted/60 rounded-lg text-xs text-foreground border border-border/50">
                   {f.type.startsWith('image/') && (
-                    <img src={URL.createObjectURL(f)} alt="" className="h-6 w-6 rounded object-cover" />
+                    <img src={URL.createObjectURL(f)} alt={`Prévia de ${f.name}`} className="h-6 w-6 rounded object-cover" />
                   )}
                   <span className="truncate max-w-[120px]">{f.name}</span>
-                  <button onClick={() => removeFile(i)} className="text-muted-foreground hover:text-foreground ml-1 font-bold">×</button>
+                  <button aria-label={`Remover arquivo ${f.name}`} onClick={() => removeFile(i)} className="text-muted-foreground hover:text-foreground ml-1 font-bold">×</button>
                 </div>
               ))}
             </motion.div>
@@ -298,6 +298,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
                   onClick={stopRecording}
                   className="p-2 text-destructive hover:text-destructive/80 transition-colors rounded-lg hover:bg-destructive/10"
                   title="Parar gravação"
+                  aria-label="Parar gravação"
                 >
                   <Square className="h-4 w-4 fill-current" />
                 </motion.button>
@@ -346,6 +347,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
+              aria-label="Mensagem para o Vintel IA"
               placeholder={isRecording ? 'Gravando áudio...' : 'Pergunte qualquer coisa ao Vintel IA...'}
               rows={1}
               disabled={isRecording || isTranscribing}
@@ -356,6 +358,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
               whileTap={{ scale: 0.9 }}
               onClick={handleSubmit}
               disabled={(!input.trim() && files.length === 0) || disabled || isRecording || isTranscribing}
+              aria-label="Enviar mensagem"
               className="p-2.5 rounded-xl bg-primary text-primary-foreground disabled:opacity-20 disabled:cursor-not-allowed hover:opacity-90 transition-all shrink-0 mb-0.5"
             >
               <Send className="h-4 w-4" />
@@ -365,7 +368,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
 
         <ConnectorIndicators />
 
-        <p className="text-[10px] text-muted-foreground/50 text-center mt-2 tracking-wide">
+        <p className="text-[10px] text-muted-foreground text-center mt-2 tracking-wide">
           Vintel IA pode cometer erros. Verifique informações importantes.
         </p>
 
@@ -382,6 +385,7 @@ function ActionButton({ icon: Icon, title, disabled, onClick }: { icon: any; tit
       onClick={onClick}
       className="p-2 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-muted/60 disabled:opacity-40"
       title={title}
+      aria-label={title}
       disabled={disabled}
     >
       <Icon className="h-4 w-4" />

@@ -285,6 +285,7 @@ function ChatMessageBase({ message, audioUrl, isStreaming, onEdit, onRegenerate 
         {isUser && onEdit && !isEditing && (
           <button
             onClick={startEdit}
+            aria-label="Editar mensagem"
             className="absolute -left-9 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 opacity-0 group-hover:opacity-100 transition-all"
             title="Editar mensagem"
           >
@@ -365,7 +366,7 @@ function ChatMessageBase({ message, audioUrl, isStreaming, onEdit, onRegenerate 
                       <div className="text-[13px] font-medium text-foreground truncate">{artifact.title}</div>
                       <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                         <span className="truncate">{artifact.filename}</span>
-                        <span className="opacity-40">·</span>
+                        <span className="text-muted-foreground">·</span>
                         <span>{formatFileSize(artifact.content)}</span>
                       </div>
                     </div>
@@ -377,7 +378,7 @@ function ChatMessageBase({ message, audioUrl, isStreaming, onEdit, onRegenerate 
                         {open ? 'Ocultar' : 'Preview'}
                       </button>
                     )}
-                    <button onClick={() => copyArtifact(artifact.content, idx)} className="flex items-center gap-1 px-2 py-1 bg-background/50 border border-border/50 rounded-md text-[11px] font-medium hover:bg-muted transition-colors shrink-0" title="Copiar">
+                    <button aria-label={`Copiar ${artifact.filename}`} onClick={() => copyArtifact(artifact.content, idx)} className="flex items-center gap-1 px-2 py-1 bg-background/50 border border-border/50 rounded-md text-[11px] font-medium hover:bg-muted transition-colors shrink-0" title="Copiar">
                       {copiedArtifact === idx ? (<><Check className="h-3 w-3 text-green-500" /></>) : (<><Copy className="h-3 w-3" /></>)}
                     </button>
                     <button onClick={() => downloadFileContent(artifact.content, artifact.filename, idx)} className={cn(
@@ -412,7 +413,8 @@ function ChatMessageBase({ message, audioUrl, isStreaming, onEdit, onRegenerate 
               <textarea
                 value={editText}
                 onChange={(e) => setEditText(e.target.value)}
-                className="w-full bg-primary-foreground/10 border border-primary-foreground/20 rounded-lg px-3 py-2 text-[15px] text-primary-foreground placeholder:text-primary-foreground/50 resize-none focus:outline-none min-h-[60px]"
+                aria-label="Editar mensagem"
+                className="w-full bg-primary-foreground/10 border border-primary-foreground/20 rounded-lg px-3 py-2 text-[15px] text-primary-foreground placeholder:text-primary-foreground/70 resize-none focus:outline-none min-h-[60px]"
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); confirmEdit(); }
@@ -436,16 +438,17 @@ function ChatMessageBase({ message, audioUrl, isStreaming, onEdit, onRegenerate 
             <MarkdownMessage content={cleanContent} isStreaming={isStreaming} />
             {!isStreaming && (
               <div className="mt-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
-                <button onClick={copyResponse} title="Copiar resposta" className={actionBtn}>
+                <button onClick={copyResponse} aria-label="Copiar resposta" title="Copiar resposta" className={actionBtn}>
                   {copiedResponse ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
                 </button>
                 {onRegenerate && (
-                  <button onClick={onRegenerate} title="Regenerar resposta" className={actionBtn}>
+                  <button onClick={onRegenerate} aria-label="Regenerar resposta" title="Regenerar resposta" className={actionBtn}>
                     <RefreshCw className="h-3.5 w-3.5" />
                   </button>
                 )}
                 <button
                   onClick={() => setFeedbackValue(saveFeedback(message.id, 'up'))}
+                  aria-label="Marcar resposta como boa"
                   title="Boa resposta"
                   className={cn(actionBtn, feedbackValue === 'up' && 'text-primary bg-primary/10')}
                 >
@@ -453,17 +456,18 @@ function ChatMessageBase({ message, audioUrl, isStreaming, onEdit, onRegenerate 
                 </button>
                 <button
                   onClick={() => setFeedbackValue(saveFeedback(message.id, 'down'))}
+                  aria-label="Marcar resposta como ruim"
                   title="Resposta ruim"
                   className={cn(actionBtn, feedbackValue === 'down' && 'text-destructive bg-destructive/10')}
                 >
                   <ThumbsDown className="h-3.5 w-3.5" />
                 </button>
                 {voiceAvailable && (
-                  <button onClick={speakResponse} title={ttsPlaying ? 'Pausar leitura' : 'Ouvir resposta'} className={actionBtn} disabled={ttsLoading}>
+                  <button onClick={speakResponse} aria-label={ttsPlaying ? 'Pausar leitura' : 'Ouvir resposta'} title={ttsPlaying ? 'Pausar leitura' : 'Ouvir resposta'} className={actionBtn} disabled={ttsLoading}>
                     {ttsLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : ttsPlaying ? <Pause className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
                   </button>
                 )}
-                <button onClick={shareResponse} title="Compartilhar resposta" className={actionBtn}>
+                <button onClick={shareResponse} aria-label="Compartilhar resposta" title="Compartilhar resposta" className={actionBtn}>
                   <Share2 className="h-3.5 w-3.5" />
                 </button>
               </div>

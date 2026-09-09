@@ -68,12 +68,14 @@ export function Sidebar() {
             <div className="shrink-0 px-4 pt-4 pb-2 flex items-center justify-between">
               <button
                 onClick={() => setSidebarOpen(false)}
+                aria-label="Fechar menu lateral"
                 className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-feedback"
               >
                 <Menu className="h-5 w-5" />
               </button>
               <button
                 onClick={() => setSettingsOpen(true)}
+                aria-label="Abrir configurações"
                 className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors touch-feedback"
                 title="Configurações"
               >
@@ -138,8 +140,8 @@ export function Sidebar() {
                         className="flex-1 bg-background border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                         autoFocus
                       />
-                      <button onClick={confirmRename} className="p-1 text-primary hover:bg-muted rounded touch-feedback"><Check className="h-3 w-3" /></button>
-                      <button onClick={() => setEditingId(null)} className="p-1 text-muted-foreground hover:bg-muted rounded touch-feedback"><X className="h-3 w-3" /></button>
+                      <button aria-label="Confirmar renomeação" onClick={confirmRename} className="p-1 text-primary hover:bg-muted rounded touch-feedback"><Check className="h-3 w-3" /></button>
+                      <button aria-label="Cancelar renomeação" onClick={() => setEditingId(null)} className="p-1 text-muted-foreground hover:bg-muted rounded touch-feedback"><X className="h-3 w-3" /></button>
                     </div>
                   ) : (
                     <>
@@ -150,10 +152,10 @@ export function Sidebar() {
                         <span className="truncate text-[13px]">{conv.title}</span>
                       </button>
                       <div className="hidden group-hover:flex items-center pr-1.5 gap-0.5">
-                        <button onClick={() => startRename(conv.id, conv.title)} className="p-1.5 rounded-lg hover:bg-background/50 transition-colors touch-feedback">
+                        <button aria-label={`Renomear conversa ${conv.title}`} onClick={() => startRename(conv.id, conv.title)} className="p-1.5 rounded-lg hover:bg-background/50 transition-colors touch-feedback">
                           <Pencil className="h-3 w-3" />
                         </button>
-                        <button onClick={() => deleteConversation(conv.id)} className="p-1.5 rounded-lg hover:bg-background/50 text-destructive transition-colors touch-feedback">
+                        <button aria-label={`Excluir conversa ${conv.title}`} onClick={() => deleteConversation(conv.id)} className="p-1.5 rounded-lg hover:bg-background/50 text-destructive transition-colors touch-feedback">
                           <Trash2 className="h-3 w-3" />
                         </button>
                       </div>
@@ -179,10 +181,11 @@ export function Sidebar() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-foreground truncate">{userName}</p>
-                  <p className="text-[10px] text-muted-foreground/70 truncate">{user?.email}</p>
+                  <p className="text-[10px] text-muted-foreground truncate">{user?.email}</p>
                 </div>
                 <button
                   onClick={signOut}
+                  aria-label="Sair da conta"
                   className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors touch-feedback"
                   title="Sair"
                 >
