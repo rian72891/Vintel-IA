@@ -90,6 +90,7 @@ export function ChatView() {
   const stepsRef = useRef<TraceStep[]>([]);
   const traceStartedAtRef = useRef<number | null>(null);
   const traceErrorRef = useRef(false);
+  const confirmationFeedbackRef = useRef(false);
 
   // Confirmação de ações irreversíveis
   const [pendingConfirms, setPendingConfirms] = useState<ConfirmRequest[]>([]);
@@ -111,8 +112,14 @@ export function ChatView() {
 
   const handleStep = useCallback((step: TraceStep) => {
     setSteps((prev) => {
-      const idx = prev.findIndex((s) => s.id === step.id);
-      const next = idx === -1 ? [...prev, step] : prev.map((s, i) => (i === idx ? step : s));
+      const withoutConfirmationFeedback = confirmationFeedbackRef.current
+        ? prev.filter((s) => s.id !== 'confirmed-action')
+        : prev;
+      confirmationFeedbackRef.current = false;
+      const idx = withoutConfirmationFeedback.findIndex((s) => s.id === step.id);
+      const next = idx === -1
+        ? [...withoutConfirmationFeedback, step]
+        : withoutConfirmationFeedback.map((s, i) => (i === idx ? step : s));
       stepsRef.current = next;
       return next;
     });
@@ -301,6 +308,12 @@ export function ChatView() {
     setIsStreaming(true);
     resetStream();
     resetSteps();
+    confirmationFeedbackRef.current = true;
+    handleStep({
+      id: 'confirmed-action',
+      status: 'running',
+      label: decision === 'approved' ? 'Executando ação confirmada...' : 'Cancelando ação...',
+    });
     traceStartedAtRef.current = performance.now();
     traceErrorRef.current = false;
 
