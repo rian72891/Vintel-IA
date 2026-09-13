@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useChatStore } from '@/store/chatStore';
 import { useAuth } from '@/hooks/useAuth';
@@ -6,13 +6,16 @@ import { agents } from '@/data/agents';
 import type { AgentType } from '@/types/agent';
 import {
   Send, Paperclip, Image, Sparkles, Wand2, Volume2, Globe, Search,
-  Mic, FileText, Code, FileArchive, File,
+  Mic, Square, FileText, Code, FileArchive, File,
   Brain, Code2,
   ImageIcon, ScanText, Zap
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
 import { agentIconMap } from '@/lib/agentIcons';
+import { speechToText } from '@/lib/api/elevenlabs-stt';
+import { useVoiceAvailable } from '@/lib/voiceAvailability';
+import { toast } from 'sonner';
 
 interface AgentSelectorProps {
   onRequireAuth: () => void;
@@ -56,10 +59,15 @@ export function AgentSelector({ onRequireAuth }: AgentSelectorProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [showTools, setShowTools] = useState(false);
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const voiceAvailable = useVoiceAvailable();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   // Rotating placeholder
   useEffect(() => {
@@ -82,6 +90,10 @@ export function AgentSelector({ onRequireAuth }: AgentSelectorProps) {
     };
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  useEffect(() => () => {
+    if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop();
   }, []);
 
   const handleSend = async () => {
@@ -116,6 +128,56 @@ export function AgentSelector({ onRequireAuth }: AgentSelectorProps) {
   const insertCommand = (cmd: string) => {
     setInput(cmd); setShowTools(false); textareaRef.current?.focus();
   };
+
+  const stopRecording = useCallback(() => {
+    if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop();
+    setIsRecording(false);
+  }, []);
+
+  const startRecording = useCallback(async () => {
+    if (!voiceAvailable || isRecording || isTranscribing) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg';
+      const recorder = new MediaRecorder(stream, { mimeType });
+      mediaRecorderRef.current = recorder;
+      audioChunksRef.current = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+      };
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((track) => track.stop());
+        mediaRecorderRef.current = null;
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+        audioChunksRef.current = [];
+        if (audioBlob.size < 1000) {
+          toast.error('Gravação muito curta.');
+          return;
+        }
+        setIsTranscribing(true);
+        try {
+          const text = await speechToText(audioBlob);
+          if (text.trim()) {
+            setInput((current) => current.trim() ? `${current.trim()} ${text.trim()}` : `🎤 ${text.trim()}`);
+            requestAnimationFrame(() => textareaRef.current?.focus());
+          } else {
+            toast.error('Não foi possível entender o áudio.');
+          }
+        } catch (error) {
+          toast.error(error instanceof Error ? error.message : 'Erro ao transcrever áudio.');
+        } finally {
+          setIsTranscribing(false);
+        }
+      };
+      recorder.start(100);
+      setIsRecording(true);
+    } catch (error: any) {
+      if (error?.name === 'NotAllowedError') toast.error('Permissão de microfone negada.');
+      else toast.error('Erro ao acessar o microfone.');
+    }
+  }, [isRecording, isTranscribing, voiceAvailable]);
 
   const toolItems = [
     { icon: Sparkles, color: 'text-primary', cmd: '/imagine ', name: 'Imagem rápida' },
@@ -178,7 +240,19 @@ export function AgentSelector({ onRequireAuth }: AgentSelectorProps) {
               <div className="flex items-center gap-0.5 shrink-0">
                 <PillBtn icon={Paperclip} title="Anexar" onClick={() => { if (!user) { onRequireAuth(); return; } fileInputRef.current?.click(); }} />
                 <PillBtn icon={Image} title="Imagem" onClick={() => { if (!user) { onRequireAuth(); return; } imageInputRef.current?.click(); }} />
-                <PillBtn icon={Mic} title="Áudio" onClick={() => { if (!user) { onRequireAuth(); return; } }} />
+                {voiceAvailable && (
+                  <PillBtn
+                    icon={isRecording ? Square : Mic}
+                    title={isRecording ? 'Parar gravação' : isTranscribing ? 'Transcrevendo áudio' : 'Mensagem de voz'}
+                    onClick={() => {
+                      if (!user) { onRequireAuth(); return; }
+                      if (isRecording) stopRecording();
+                      else startRecording();
+                    }}
+                    disabled={isTranscribing}
+                    active={isRecording}
+                  />
+                )}
                 <div className="relative" ref={menuRef}>
                   <PillBtn icon={Sparkles} title="Ferramentas" onClick={() => setShowTools(!showTools)} />
                   <AnimatePresence>
@@ -301,11 +375,16 @@ export function AgentSelector({ onRequireAuth }: AgentSelectorProps) {
   );
 }
 
-function PillBtn({ icon: Icon, title, onClick }: { icon: any; title: string; onClick: () => void }) {
+function PillBtn({ icon: Icon, title, onClick, disabled = false, active = false }: { icon: any; title: string; onClick: () => void; disabled?: boolean; active?: boolean }) {
   return (
     <button
       onClick={onClick}
-      className="p-2 text-muted-foreground/60 hover:text-foreground transition-colors rounded-full hover:bg-muted/40"
+      disabled={disabled}
+      aria-label={title}
+      className={cn(
+        'p-2 text-muted-foreground/60 hover:text-foreground transition-colors rounded-full hover:bg-muted/40 disabled:opacity-40',
+        active && 'text-destructive hover:text-destructive bg-destructive/10',
+      )}
       title={title}
     >
       <Icon className="h-4 w-4" />
