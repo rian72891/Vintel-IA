@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useChatStore } from '@/store/chatStore';
 import { useAuth } from '@/hooks/useAuth';
@@ -6,7 +6,7 @@ import { agents } from '@/data/agents';
 import type { AgentType } from '@/types/agent';
 import {
   Send, Paperclip, Image, Sparkles, Wand2, Volume2, Globe, Search,
-  Mic, Square, FileText, Code, FileArchive, File,
+  Mic, Square, MessageSquare, ChevronRight, FileText, Code, FileArchive, File,
   Brain, Code2,
   ImageIcon, ScanText, Zap
 } from 'lucide-react';
@@ -53,7 +53,7 @@ const featureCards = [
 ];
 
 export function AgentSelector({ onRequireAuth }: AgentSelectorProps) {
-  const { createConversation, setSelectedAgent, addMessage } = useChatStore();
+  const { conversations, createConversation, setSelectedAgent, setActiveConversation, loadMessages, addMessage } = useChatStore();
   const { user } = useAuth();
   const [input, setInput] = useState('');
   const [files, setFiles] = useState<File[]>([]);
@@ -68,6 +68,27 @@ export function AgentSelector({ onRequireAuth }: AgentSelectorProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+
+  const latestConversation = useMemo(
+    () => [...conversations].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())[0],
+    [conversations],
+  );
+
+  const mostUsedAgent = useMemo(() => {
+    const counts = new Map<AgentType, number>();
+    for (const conversation of conversations) {
+      if (conversation.agent) counts.set(conversation.agent, (counts.get(conversation.agent) ?? 0) + 1);
+    }
+    let selected: AgentType | undefined;
+    let highest = 0;
+    for (const [agent, count] of counts) {
+      if (count > highest) {
+        selected = agent;
+        highest = count;
+      }
+    }
+    return selected;
+  }, [conversations]);
 
   // Rotating placeholder
   useEffect(() => {
@@ -95,6 +116,12 @@ export function AgentSelector({ onRequireAuth }: AgentSelectorProps) {
   useEffect(() => () => {
     if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop();
   }, []);
+
+  useEffect(() => {
+    if (latestConversation && latestConversation.messages.length === 0) {
+      void loadMessages(latestConversation.id);
+    }
+  }, [latestConversation, loadMessages]);
 
   const handleSend = async () => {
     if (!input.trim() && files.length === 0) return;
@@ -213,6 +240,31 @@ export function AgentSelector({ onRequireAuth }: AgentSelectorProps) {
             A nova era da produtividade. Crie, codifique e automatize <span className="text-foreground font-medium">10x mais rápido</span>.
           </p>
         </motion.div>
+
+        {latestConversation && (
+          <motion.section
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, delay: 0.08 }}
+            className="mb-8"
+          >
+            <p className="text-xs text-muted-foreground uppercase tracking-widest font-semibold mb-3">Continuar de onde parou</p>
+            <button
+              type="button"
+              onClick={() => setActiveConversation(latestConversation.id)}
+              className="w-full max-w-2xl mx-auto flex items-center gap-3 rounded-2xl border border-border/40 bg-card/60 px-4 py-3 text-left hover:border-primary/40 hover:bg-card/80 transition-colors"
+            >
+              <MessageSquare className="h-4 w-4 text-primary shrink-0" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium text-foreground truncate">{latestConversation.title}</span>
+                <span className="block text-xs text-muted-foreground truncate">
+                  {latestConversation.messages.at(-1)?.content || 'Abrir esta conversa'}
+                </span>
+              </span>
+              <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+            </button>
+          </motion.section>
+        )}
 
         {/* ─── Floating Input ─── */}
         <motion.div
@@ -341,12 +393,17 @@ export function AgentSelector({ onRequireAuth }: AgentSelectorProps) {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
             {agents.map((agent) => {
               const IconComp = agentIconMap[agent.icon] || Brain;
+              const isMostUsed = agent.id === mostUsedAgent;
               return (
                 <button
                   key={agent.id}
                   onClick={() => handleSelectAgent(agent.id)}
-                  className="group flex flex-col items-center gap-2 p-3 rounded-xl bg-card/40 border border-border/20 hover:border-primary/30 hover:bg-card/60 transition-colors text-center touch-feedback"
+                  className={cn(
+                    'group relative flex flex-col items-center gap-2 p-3 rounded-xl bg-card/40 border hover:bg-card/60 transition-colors text-center touch-feedback',
+                    isMostUsed ? 'border-primary/60 bg-primary/[0.06]' : 'border-border/20 hover:border-primary/30',
+                  )}
                 >
+                  {isMostUsed && <span className="absolute right-2 top-2 text-[9px] font-medium text-primary">Mais usado por você</span>}
                   <IconComp className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
                   <span className="text-xs font-medium text-foreground/80">{agent.name}</span>
                 </button>
