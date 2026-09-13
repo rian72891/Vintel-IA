@@ -14,7 +14,7 @@ import { generateImage, ImageQuality } from '@/lib/generateImage';
 import { textToSpeech } from '@/lib/api/elevenlabs';
 import { firecrawlApi } from '@/lib/api/firecrawl';
 import { generatePDF, generateHTML, generateTXT, generateZIP, downloadFile } from '@/lib/fileGeneration';
-import { Loader2, ImageIcon, FileText, Mic, Sparkles, Search, Globe, Download } from 'lucide-react';
+import { Loader2, ImageIcon, FileText, Mic, Sparkles, Search, Globe, Download, MessageCircle, Volume2 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
@@ -951,17 +951,18 @@ export function ChatView() {
             </div>
             <div className="flex flex-wrap gap-2 justify-center max-w-lg">
               {[
-                { label: '💬 O que você pode fazer?', action: () => handleSend('Olá! O que você pode fazer?') },
-                { label: '🎨 Gerar uma imagem', action: () => handleImageGeneration('um gato astronauta flutuando no espaço', 'fast') },
-                { label: '🔍 Buscar na web', action: () => handleSend('/search últimas notícias de tecnologia') },
-                { label: '🔊 Gerar áudio', action: () => handleSend('/voz Olá! Eu sou o Vintel IA.') },
-                { label: '📄 Gerar PDF', action: () => handleFileGeneration('pdf', 'Guia sobre inteligência artificial') },
+                { icon: MessageCircle, label: 'O que você pode fazer?', action: () => handleSend('Olá! O que você pode fazer?') },
+                { icon: Sparkles, label: 'Gerar uma imagem', action: () => handleImageGeneration('um gato astronauta flutuando no espaço', 'fast') },
+                { icon: Search, label: 'Buscar na web', action: () => handleSend('/search últimas notícias de tecnologia') },
+                { icon: Volume2, label: 'Gerar áudio', action: () => handleSend('/voz Olá! Eu sou o Vintel IA.') },
+                { icon: FileText, label: 'Gerar PDF', action: () => handleFileGeneration('pdf', 'Guia sobre inteligência artificial') },
               ].map((item) => (
                 <button
                   key={item.label}
                   onClick={item.action}
-                  className="px-4 py-2 bg-card border border-border rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground hover:border-primary/30 hover:shadow-sm transition-all"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground hover:border-primary/30 hover:shadow-sm transition-all"
                 >
+                  <item.icon className="h-4 w-4" />
                   {item.label}
                 </button>
               ))}
