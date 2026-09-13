@@ -26,6 +26,7 @@ import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
 import { downloadMarkdown } from '@/lib/exportConversation';
 import { isSupportedDocument, ingestConversationDocument } from '@/lib/conversationDocuments';
+import { agentIconMap } from '@/lib/agentIcons';
 
 /**
  * Linha de mensagem isolada e memoizada: garante que mensagens já
@@ -895,7 +896,10 @@ export function ChatView() {
       <div className="px-4 py-3 bg-background flex items-center gap-3">
         {agent && (
           <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center">
-            <span className="text-sm">{agent.icon}</span>
+            {(() => {
+              const AgentIcon = agentIconMap[agent.icon];
+              return AgentIcon ? <AgentIcon className="h-4 w-4" aria-hidden="true" /> : null;
+            })()}
           </div>
         )}
         <div className="flex flex-col">

@@ -7,11 +7,12 @@ import type { AgentType } from '@/types/agent';
 import {
   Send, Paperclip, Image, Sparkles, Wand2, Volume2, Globe, Search,
   Mic, FileText, Code, FileArchive, File,
-  Brain, SearchIcon, Code2, BarChart3, Megaphone, PenTool, TrendingUp, Cpu,
+  Brain, SearchIcon, Code2, BarChart3, PenTool,
   ImageIcon, ScanText, Zap
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
+import { agentIconMap } from '@/lib/agentIcons';
 
 interface AgentSelectorProps {
   onRequireAuth: () => void;
@@ -54,16 +55,6 @@ const quickActions = [
   { icon: BarChart3, label: 'Análise de negócio', agent: 'business' as AgentType },
   { icon: PenTool, label: 'Criar conteúdo', agent: 'content' as AgentType },
 ];
-
-const agentIconMap: Record<string, React.ComponentType<any>> = {
-  'search': SearchIcon,
-  'code-2': Code2,
-  'bar-chart-3': BarChart3,
-  'megaphone': Megaphone,
-  'pen-tool': PenTool,
-  'trending-up': TrendingUp,
-  'cpu': Cpu,
-};
 
 export function AgentSelector({ onRequireAuth }: AgentSelectorProps) {
   const { createConversation, setSelectedAgent, addMessage } = useChatStore();
