@@ -13,6 +13,7 @@ import {
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
 import { agentIconMap } from '@/lib/agentIcons';
+import { getMostUsedAgent } from '@/lib/agentUsage';
 import { speechToText } from '@/lib/api/elevenlabs-stt';
 import { useVoiceAvailable } from '@/lib/voiceAvailability';
 import { toast } from 'sonner';
@@ -61,6 +62,7 @@ export function AgentSelector({ onRequireAuth }: AgentSelectorProps) {
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [loadedConversationId, setLoadedConversationId] = useState<string | null>(null);
   const voiceAvailable = useVoiceAvailable();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -74,21 +76,7 @@ export function AgentSelector({ onRequireAuth }: AgentSelectorProps) {
     [conversations],
   );
 
-  const mostUsedAgent = useMemo(() => {
-    const counts = new Map<AgentType, number>();
-    for (const conversation of conversations) {
-      if (conversation.agent) counts.set(conversation.agent, (counts.get(conversation.agent) ?? 0) + 1);
-    }
-    let selected: AgentType | undefined;
-    let highest = 0;
-    for (const [agent, count] of counts) {
-      if (count > highest) {
-        selected = agent;
-        highest = count;
-      }
-    }
-    return selected;
-  }, [conversations]);
+  const mostUsedAgent = useMemo(() => getMostUsedAgent(conversations), [conversations]);
 
   // Rotating placeholder
   useEffect(() => {
@@ -118,9 +106,19 @@ export function AgentSelector({ onRequireAuth }: AgentSelectorProps) {
   }, []);
 
   useEffect(() => {
-    if (latestConversation && latestConversation.messages.length === 0) {
-      void loadMessages(latestConversation.id);
+    let cancelled = false;
+    setLoadedConversationId(null);
+
+    if (!latestConversation) return () => { cancelled = true; };
+    if (latestConversation.messages.length > 0) {
+      setLoadedConversationId(latestConversation.id);
+      return () => { cancelled = true; };
     }
+
+    void loadMessages(latestConversation.id).then(() => {
+      if (!cancelled) setLoadedConversationId(latestConversation.id);
+    });
+    return () => { cancelled = true; };
   }, [latestConversation, loadMessages]);
 
   const handleSend = async () => {
@@ -246,22 +244,30 @@ export function AgentSelector({ onRequireAuth }: AgentSelectorProps) {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.45, delay: 0.08 }}
-            className="mb-8"
+            className="mb-10"
           >
-            <p className="text-xs text-muted-foreground uppercase tracking-widest font-semibold mb-3">Continuar de onde parou</p>
+            <p className="mb-3 px-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">Continuar de onde parou</p>
             <button
               type="button"
               onClick={() => setActiveConversation(latestConversation.id)}
-              className="w-full max-w-2xl mx-auto flex items-center gap-3 rounded-2xl border border-border/40 bg-card/60 px-4 py-3 text-left hover:border-primary/40 hover:bg-card/80 transition-colors"
+              className="group w-full max-w-2xl mx-auto flex items-center gap-4 rounded-2xl border border-border/50 bg-card/65 px-5 py-4 text-left shadow-[0_10px_30px_-22px_hsl(222_80%_52%/0.5)] transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/35 hover:bg-card/85 hover:shadow-[0_16px_36px_-24px_hsl(222_80%_52%/0.65)]"
             >
-              <MessageSquare className="h-4 w-4 text-primary shrink-0" />
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-medium text-foreground truncate">{latestConversation.title}</span>
-                <span className="block text-xs text-muted-foreground truncate">
-                  {latestConversation.messages.at(-1)?.content || 'Abrir esta conversa'}
-                </span>
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/15 bg-primary/[0.08] text-primary transition-colors group-hover:bg-primary/[0.13]">
+                <MessageSquare className="h-[18px] w-[18px]" />
               </span>
-              <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold tracking-[-0.01em] text-foreground">{latestConversation.title || 'Nova conversa'}</span>
+                {loadedConversationId !== latestConversation.id ? (
+                  <span className="mt-2 block h-3 w-4/5 animate-pulse rounded-full bg-muted/60" aria-label="Carregando última mensagem" />
+                ) : (
+                  <span className="mt-1 block truncate text-[13px] leading-5 text-muted-foreground">
+                    {latestConversation.messages.at(-1)?.content
+                      ? `${latestConversation.messages.at(-1)!.content.slice(0, 60)}${latestConversation.messages.at(-1)!.content.length > 60 ? '…' : ''}`
+                      : 'Nova conversa'}
+                  </span>
+                )}
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
             </button>
           </motion.section>
         )}
@@ -403,7 +409,7 @@ export function AgentSelector({ onRequireAuth }: AgentSelectorProps) {
                     isMostUsed ? 'border-primary/60 bg-primary/[0.06]' : 'border-border/20 hover:border-primary/30',
                   )}
                 >
-                  {isMostUsed && <span className="absolute right-2 top-2 text-[9px] font-medium text-primary">Mais usado por você</span>}
+                  {isMostUsed && <span className="absolute right-2 top-2 rounded-full border border-primary/15 bg-primary/[0.08] px-1.5 py-0.5 text-[8px] font-medium tracking-wide text-primary/80">Mais usado</span>}
                   <IconComp className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
                   <span className="text-xs font-medium text-foreground/80">{agent.name}</span>
                 </button>
