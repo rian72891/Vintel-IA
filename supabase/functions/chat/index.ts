@@ -879,10 +879,15 @@ function sanitizeConvoForOpenAI(convo: any[]) {
   return convo.map((m) => {
     const out: any = { role: m.role };
     if (Array.isArray(m.content)) {
-      out.content = m.content
-        .map((c: any) => (typeof c === "string" ? c : c?.text ?? ""))
-        .filter(Boolean)
-        .join("\n");
+      const parts = m.content
+        .map((c: any) => {
+          if (typeof c === "string") return { type: "text", text: c };
+          if (c?.type === "image_url" && c.image_url?.url) return c;
+          if (c?.text) return { type: "text", text: c.text };
+          return null;
+        })
+        .filter(Boolean);
+      out.content = parts.length === 1 && parts[0].type === "text" ? parts[0].text : parts;
     } else {
       out.content = m.content ?? "";
     }
@@ -921,7 +926,7 @@ async function callOpenAICompatible(
   };
 
   let res = await fetch(baseUrl, init);
-  for (let attempt = 0; attempt < 3 && (res.status === 503 || res.status === 429); attempt++) {
+  for (let attempt = 0; attempt < 3 && res.status === 503; attempt++) {
     const delay = 1000 * Math.pow(2, attempt);
     console.warn(`${baseUrl} ${res.status}. Retry ${attempt + 1}/3 em ${delay}ms`);
     await new Promise((r) => setTimeout(r, delay));
@@ -1390,6 +1395,9 @@ serve(async (req) => {
       }
       return { role: m.role, content: m.content };
     });
+    const hasVisualInput = processed.some((m: any) =>
+      Array.isArray(m.content) && m.content.some((part: any) => part?.type === "image_url"),
+    );
 
     // Memória persistente entre conversas
     const memories = userId ? await loadMemories(admin, userId) : [];
@@ -1487,7 +1495,10 @@ serve(async (req) => {
       if (!chosen.provider) {
         const status = (chosen as any).status;
         if (status === 429) return new Response(JSON.stringify({ error: "Limite de requisições excedido." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        return new Response(JSON.stringify({ error: "Erro no serviço de IA" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        const error = hasVisualInput
+          ? "Nenhum provedor de IA disponível conseguiu analisar esta imagem. Tente novamente em instantes."
+          : "Erro no serviço de IA";
+        return new Response(JSON.stringify({ error }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       scheduleMemory();
       const prelude =
@@ -1554,7 +1565,11 @@ serve(async (req) => {
           if (!chosen.provider) {
             const status = (chosen as any).status;
             const txt = String((chosen as any).detail ?? "");
-            const label = status === 429 ? "Limite de requisições excedido" : `Erro no serviço de IA: ${status}`;
+            const label = status === 429
+              ? "Limite de requisições excedido"
+              : hasVisualInput
+              ? "Nenhum provedor disponível conseguiu analisar a imagem"
+              : `Erro no serviço de IA: ${status}`;
             step({ id: thinkId, status: "error", label, detail: txt.slice(0, 200) });
             finalContent = `\n\n⚠️ ${label} ${txt.slice(0, 200)}`;
             emit(sseChunk(finalContent));

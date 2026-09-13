@@ -27,6 +27,7 @@ import { useI18n } from '@/lib/i18n';
 import { downloadMarkdown } from '@/lib/exportConversation';
 import { isSupportedDocument, ingestConversationDocument } from '@/lib/conversationDocuments';
 import { agentIconMap } from '@/lib/agentIcons';
+import { isImageEditRequest } from '@/lib/imageIntent';
 
 /**
  * Linha de mensagem isolada e memoizada: garante que mensagens já
@@ -709,16 +710,9 @@ export function ChatView() {
 
     // Detect image editing
     const hasImageAttachment = processedAttachments.some(a => a.type === 'image');
-    const imageEditKeywords = ['recri', 'edit', 'modifi', 'alter', 'transform', 'mude', 'muda', 'troque', 'troca', 'refaz', 'refaç', 'imagine', 'gere', 'gerar', 'crie', 'criar', 'tipo', 'estilo', 'igual', 'parecid', 'mesm'];
-    const lowerContent = content.toLowerCase();
-    const isImageEditRequest = hasImageAttachment && (
-      content.startsWith('/imagine ') ||
-      content.startsWith('/imaginehd ') ||
-      imageEditKeywords.some(k => lowerContent.includes(k)) ||
-      lowerContent.length < 100
-    );
+    const imageEdit = isImageEditRequest(content, hasImageAttachment);
 
-    if (isImageEditRequest && hasImageAttachment) {
+    if (imageEdit) {
       if (!checkUsage('images')) { showUpgrade('imagens'); return; }
       const imageAtt = processedAttachments.find(a => a.type === 'image')!;
       const prompt = content.replace(/^\/(imagine|imaginehd)\s*/, '').trim() || 'Recrie esta imagem com melhorias';
