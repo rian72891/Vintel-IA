@@ -18,6 +18,11 @@ export type TraceStep = {
   status: 'running' | 'done' | 'error' | 'waiting';
   label: string;
   detail?: string;
+  /** Resultado retornado pela ferramenta, quando o evento o disponibiliza. */
+  result?: unknown;
+  /** Metadados opcionais para traces persistidos ou futuros eventos enriquecidos. */
+  durationMs?: number;
+  startedAt?: number;
 };
 
 export type ConfirmRequest = {
