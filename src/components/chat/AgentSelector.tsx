@@ -7,7 +7,7 @@ import type { AgentType } from '@/types/agent';
 import {
   Send, Paperclip, Image, Sparkles, Wand2, Volume2, Globe, Search,
   Mic, FileText, Code, FileArchive, File,
-  Brain, SearchIcon, Code2, BarChart3, PenTool,
+  Brain, Code2,
   ImageIcon, ScanText, Zap
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -47,13 +47,6 @@ const featureCards = [
     title: 'Criação de Imagens',
     description: 'Gere imagens incríveis em segundos com modelos de ponta.',
   },
-];
-
-const quickActions = [
-  { icon: SearchIcon, label: 'Pesquisar na web', agent: 'research' as AgentType },
-  { icon: Code2, label: 'Programação', agent: 'coder' as AgentType },
-  { icon: BarChart3, label: 'Análise de negócio', agent: 'business' as AgentType },
-  { icon: PenTool, label: 'Criar conteúdo', agent: 'content' as AgentType },
 ];
 
 export function AgentSelector({ onRequireAuth }: AgentSelectorProps) {
@@ -164,7 +157,7 @@ export function AgentSelector({ onRequireAuth }: AgentSelectorProps) {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.12 }}
-          className="w-full max-w-2xl mx-auto mb-6"
+          className="w-full max-w-2xl mx-auto mb-14"
         >
           <AnimatePresence>
             {files.length > 0 && (
@@ -232,25 +225,6 @@ export function AgentSelector({ onRequireAuth }: AgentSelectorProps) {
 
           <input ref={fileInputRef} type="file" className="hidden" multiple onChange={handleFileSelect} accept=".pdf,.doc,.docx,.txt,.csv,.json,.xml,.xlsx" />
           <input ref={imageInputRef} type="file" className="hidden" multiple onChange={handleFileSelect} accept="image/*" />
-        </motion.div>
-
-        {/* ─── Quick Actions ─── */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.22 }}
-          className="flex flex-wrap justify-center gap-2 max-w-2xl mx-auto mb-14"
-        >
-          {quickActions.map((action, i) => (
-            <button
-              key={i}
-              onClick={() => handleSelectAgent(action.agent)}
-              className="flex items-center gap-2 px-4 py-2 rounded-full bg-card/60 border border-border/30 text-sm text-muted-foreground hover:text-foreground hover:border-primary/30 hover:bg-card/80 transition-colors touch-feedback"
-            >
-              <action.icon className="h-3.5 w-3.5" />
-              <span>{action.label}</span>
-            </button>
-          ))}
         </motion.div>
 
         {/* ─── Bento Grid ─── */}
