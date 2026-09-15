@@ -24,6 +24,7 @@ import Tarefas from "./pages/Tarefas";
 import MinhasTarefas from "./pages/MinhasTarefas";
 import Privacidade from "./pages/Privacidade";
 import NotFound from "./pages/NotFound";
+import { NetworkStatusBadge } from "./components/NetworkStatusBadge";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +37,7 @@ const App = () => (
           <UsageProvider>
             <Toaster />
             <Sonner />
+            <NetworkStatusBadge />
             <BrowserRouter>
               <Routes>
                 <Route path="/" element={<Index />} />

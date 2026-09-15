@@ -64,7 +64,13 @@ function AudioWaveform({ analyser }: { analyser: AnalyserNode | null }) {
 }
 
 export function ChatInput({ onSend, disabled }: ChatInputProps) {
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState(() => {
+    try {
+      return localStorage.getItem('vintel-chat-draft') ?? '';
+    } catch {
+      return '';
+    }
+  });
   const [files, setFiles] = useState<File[]>([]);
   const [showToolsMenu, setShowToolsMenu] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -86,6 +92,15 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
       textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 160) + 'px';
+    }
+  }, [input]);
+
+  useEffect(() => {
+    try {
+      if (input) localStorage.setItem('vintel-chat-draft', input);
+      else localStorage.removeItem('vintel-chat-draft');
+    } catch {
+      // Storage pode estar indisponível no modo privado; o campo continua funcional.
     }
   }, [input]);
 

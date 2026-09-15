@@ -4,6 +4,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { Check, Copy, Download, Eye, EyeOff } from 'lucide-react';
+import { ImageLightbox } from './ImageLightbox';
 
 function isHTMLContent(code: string, lang?: string) {
   if (lang && ['html', 'htm'].includes(lang.toLowerCase())) return true;
@@ -23,6 +24,43 @@ function downloadImage(src: string, name?: string) {
   a.download = name || 'vintel-image.png';
   a.target = '_blank';
   a.click();
+}
+
+function MarkdownImage({ src, alt }: { src?: string; alt?: string }) {
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  if (!src) return null;
+
+  return (
+    <>
+      <span className="my-3 group/img relative inline-block">
+        <button
+          type="button"
+          className="block cursor-zoom-in rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+          aria-label={`Ampliar imagem ${alt || ''}`.trim()}
+          onClick={() => setLightboxOpen(true)}
+        >
+          <img src={src} alt={alt || ''} loading="lazy" className="block max-h-96 rounded-xl object-contain transition-opacity hover:opacity-95" />
+        </button>
+        <button
+          type="button"
+          onClick={(event) => { event.stopPropagation(); downloadImage(src, alt || undefined); }}
+          className="absolute bottom-2 right-2 rounded-lg border border-border/50 bg-background/80 p-1.5 opacity-0 backdrop-blur-sm transition-all hover:bg-background group-hover/img:opacity-100"
+          title="Baixar imagem"
+          aria-label="Baixar imagem"
+        >
+          <Download className="h-3.5 w-3.5 text-foreground" />
+        </button>
+      </span>
+      {lightboxOpen && (
+        <ImageLightbox
+          src={src}
+          alt={alt}
+          onClose={() => setLightboxOpen(false)}
+          onDownload={downloadImage}
+        />
+      )}
+    </>
+  );
 }
 
 /**
@@ -106,24 +144,7 @@ const MARKDOWN_COMPONENTS = {
     );
   },
   img({ src, alt }: any) {
-    return (
-      <span className="my-3 group/img relative inline-block">
-        <img
-          src={src}
-          alt={alt || ''}
-          loading="lazy"
-          className="rounded-xl max-h-96 object-contain cursor-pointer hover:opacity-95 transition-opacity"
-          onClick={() => src && window.open(src, '_blank')}
-        />
-        <button
-          onClick={(e) => { e.stopPropagation(); if (src) downloadImage(src, alt || undefined); }}
-          className="absolute bottom-2 right-2 p-1.5 bg-background/80 border border-border/50 rounded-lg opacity-0 group-hover/img:opacity-100 transition-all hover:bg-background"
-          title="Baixar imagem"
-        >
-          <Download className="h-3.5 w-3.5 text-foreground" />
-        </button>
-      </span>
-    );
+    return <MarkdownImage src={src} alt={alt} />;
   },
 };
 

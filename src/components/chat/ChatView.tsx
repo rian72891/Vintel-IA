@@ -76,6 +76,7 @@ export function ChatView() {
   const { displayed: streamingContent, push: pushStream, finish: finishStream, reset: resetStream } = useSmoothStream();
   const [loadingLabel, setLoadingLabel] = useState('');
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [connectionNotice, setConnectionNotice] = useState<string | null>(null);
   const { checkUsage, incrementUsage, getUsageLabel, getUsagePercent } = useUsage();
   const { t } = useI18n();
   const { plan } = useSubscription();
@@ -98,6 +99,12 @@ export function ChatView() {
   const [pendingConfirms, setPendingConfirms] = useState<ConfirmRequest[]>([]);
   const pendingRef = useRef<ConfirmRequest[]>([]);
   const approvalsRef = useRef<ApprovalMap>({});
+
+  const handleConnectionState = useCallback((state: 'connecting' | 'reconnecting' | 'offline' | 'connected') => {
+    if (state === 'offline') setConnectionNotice('Conexão perdida, tentando reconectar…');
+    else if (state === 'reconnecting') setConnectionNotice('Reconectando… sua mensagem está preservada.');
+    else if (state === 'connected') setConnectionNotice(null);
+  }, []);
 
   const handleConfirmRequest = useCallback((req: ConfirmRequest) => {
     setPendingConfirms((prev) => {
@@ -241,12 +248,18 @@ export function ChatView() {
         approvals: approvalsRef.current,
         onStep: handleStep,
         onConfirm: handleConfirmRequest,
+        onConnectionState: handleConnectionState,
         onDelta: (delta) => {
           fullContent += delta;
           pushStream(delta);
         },
         onDone: async () => {
           await new Promise<void>((r) => finishStream(r));
+          if (traceErrorRef.current) {
+            setIsStreaming(false);
+            resetStream();
+            return;
+          }
           if (fullContent) {
             await addMessage(activeConversationId, {
               role: 'assistant',
@@ -260,7 +273,8 @@ export function ChatView() {
           await incrementUsage('messages');
         },
         onError: (error) => {
-          toast.error(error);
+          if (error.toLowerCase().includes('conex')) setConnectionNotice(error);
+          else toast.error(error);
           setIsStreaming(false);
           resetStream();
           traceErrorRef.current = true;
@@ -271,7 +285,7 @@ export function ChatView() {
       setIsStreaming(false);
       resetStream();
     }
-  }, [activeConversationId, conversation?.agent, plan, temperature, addMessage, incrementUsage, handleStep, resetSteps, persistTrace]);
+  }, [activeConversationId, conversation?.agent, plan, temperature, addMessage, incrementUsage, handleConnectionState, handleStep, resetSteps, persistTrace]);
 
 
   /**
@@ -330,12 +344,18 @@ export function ChatView() {
         approvals: approvalsRef.current,
         onStep: handleStep,
         onConfirm: handleConfirmRequest,
+        onConnectionState: handleConnectionState,
         onDelta: (delta) => {
           fullContent += delta;
           pushStream(delta);
         },
         onDone: async () => {
           await new Promise<void>((r) => finishStream(r));
+          if (traceErrorRef.current) {
+            setIsStreaming(false);
+            resetStream();
+            return;
+          }
           if (fullContent) {
             await addMessage(activeConversationId, {
               role: 'assistant',
@@ -348,7 +368,8 @@ export function ChatView() {
           if (!traceErrorRef.current) persistTrace();
         },
         onError: (error) => {
-          toast.error(error);
+          if (error.toLowerCase().includes('conex')) setConnectionNotice(error);
+          else toast.error(error);
           setIsStreaming(false);
           resetStream();
           traceErrorRef.current = true;
@@ -359,7 +380,7 @@ export function ChatView() {
       setIsStreaming(false);
       resetStream();
     }
-  }, [activeConversationId, conversation?.agent, plan, temperature, addMessage, getActiveConversation, handleStep, handleConfirmRequest, persistTrace, resetSteps, resetStream, pushStream, finishStream]);
+  }, [activeConversationId, conversation?.agent, plan, temperature, addMessage, getActiveConversation, handleStep, handleConfirmRequest, handleConnectionState, persistTrace, resetSteps, resetStream, pushStream, finishStream]);
 
   // Internal handlers that skip adding user message (already exists)
   const handleTTSInternal = async (text: string, skipUserMsg: boolean) => {
@@ -585,6 +606,7 @@ export function ChatView() {
         conversationId: activeConversationId,
         plan,
         temperature,
+        onConnectionState: handleConnectionState,
         onDelta: (delta) => {
           fullContent += delta;
           pushStream(delta);
@@ -645,7 +667,8 @@ export function ChatView() {
           setLoadingLabel('');
         },
         onError: (error) => {
-          toast.error(error);
+          if (error.toLowerCase().includes('conex')) setConnectionNotice(error);
+          else toast.error(error);
           setIsStreaming(false);
           resetStream();
           setLoadingLabel('');
@@ -832,6 +855,7 @@ export function ChatView() {
         approvals: approvalsRef.current,
         onStep: handleStep,
         onConfirm: handleConfirmRequest,
+        onConnectionState: handleConnectionState,
         onDelta: (delta) => {
           fullContent += delta;
           pushStream(delta);
@@ -854,7 +878,8 @@ export function ChatView() {
           }
         },
         onError: (error) => {
-          toast.error(error);
+          if (error.toLowerCase().includes('conex')) setConnectionNotice(error);
+          else toast.error(error);
           setIsStreaming(false);
           resetStream();
           traceErrorRef.current = true;
@@ -1069,6 +1094,12 @@ export function ChatView() {
         <div ref={bottomRef} />
       </div>
 
+      {connectionNotice && (
+        <div className="mx-auto mb-2 flex w-full max-w-3xl items-center gap-2 px-4 text-xs text-muted-foreground" role="status" aria-live="polite">
+          <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-destructive" aria-hidden="true" />
+          {connectionNotice}
+        </div>
+      )}
       <ChatInput onSend={handleSend} disabled={isStreaming} />
       <UpgradeModal open={upgradeOpen} onOpenChange={setUpgradeOpen} feature={upgradeFeature} />
     </div>

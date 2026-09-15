@@ -34,6 +34,29 @@ export type ConfirmRequest = {
 
 export type ApprovalMap = Record<string, 'approved' | 'cancelled'>;
 
+export type ConnectionState = 'connecting' | 'reconnecting' | 'offline' | 'connected';
+
+const NETWORK_RETRY_DELAYS = [1000, 2000];
+
+function isNetworkError(error: unknown) {
+  return error instanceof TypeError || (error instanceof DOMException && error.name === 'AbortError');
+}
+
+function wait(ms: number) {
+  return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+}
+
+function waitForOnline() {
+  if (navigator.onLine) return Promise.resolve();
+  return new Promise<void>((resolve) => {
+    const handleOnline = () => {
+      window.removeEventListener('online', handleOnline);
+      resolve();
+    };
+    window.addEventListener('online', handleOnline, { once: true });
+  });
+}
+
 export async function streamChat({
   messages,
   agent,
@@ -44,6 +67,7 @@ export async function streamChat({
   onDelta,
   onStep,
   onConfirm,
+  onConnectionState,
   onDone,
   onError,
 }: {
@@ -56,6 +80,7 @@ export async function streamChat({
   onDelta: (text: string) => void;
   onStep?: (step: TraceStep) => void;
   onConfirm?: (req: ConfirmRequest) => void;
+  onConnectionState?: (state: ConnectionState) => void;
   onDone: () => void;
   onError: (error: string) => void;
 }) {
@@ -67,7 +92,7 @@ export async function streamChat({
   const { data: sessionData } = await supabase.auth.getSession();
   const accessToken = sessionData.session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-  const resp = await fetch(CHAT_URL, {
+  const request = {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -75,7 +100,41 @@ export async function streamChat({
       apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
     },
     body: JSON.stringify({ messages, agent, plan, temperature, approvals, conversationId }),
-  });
+  };
+
+  let resp: Response;
+  for (let attempt = 0; ; attempt += 1) {
+    if (!navigator.onLine) {
+      onConnectionState?.('offline');
+      await waitForOnline();
+    }
+
+    try {
+      onConnectionState?.(attempt > 0 ? 'reconnecting' : 'connecting');
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 20000);
+      try {
+        resp = await fetch(CHAT_URL, { ...request, signal: controller.signal });
+      } finally {
+        window.clearTimeout(timeout);
+      }
+      onConnectionState?.('connected');
+      break;
+    } catch (error) {
+      if (!isNetworkError(error) || attempt >= NETWORK_RETRY_DELAYS.length) {
+        onConnectionState?.(navigator.onLine ? 'reconnecting' : 'offline');
+        if (isNetworkError(error)) {
+          onError('Não foi possível estabelecer conexão com a IA. Sua mensagem foi preservada; tente novamente quando a internet estabilizar.');
+          onDone();
+          return;
+        }
+        throw error;
+      }
+      onConnectionState?.(navigator.onLine ? 'reconnecting' : 'offline');
+      if (!navigator.onLine) await waitForOnline();
+      else await wait(NETWORK_RETRY_DELAYS[attempt]);
+    }
+  }
 
   const activeSteps = new Map<string, TraceStep>();
   const emitHttpError = (label: string, detail: string) => {

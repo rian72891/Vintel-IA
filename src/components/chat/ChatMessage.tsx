@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { useState, useCallback, useRef, useMemo, memo } from 'react';
 import JSZip from 'jszip';
 import { MarkdownMessage } from './MarkdownMessage';
+import { ImageLightbox } from './ImageLightbox';
 import { getFeedback, setFeedback as saveFeedback, type Feedback } from '@/lib/messageFeedback';
 import { getSelectedVoiceId, textToSpeech } from '@/lib/api/elevenlabs';
 import { useVoiceAvailable } from '@/lib/voiceAvailability';
@@ -63,6 +64,7 @@ function ChatMessageBase({ message, audioUrl, isStreaming, onEdit, onRegenerate 
   const [ttsLoading, setTtsLoading] = useState(false);
   const [ttsPlaying, setTtsPlaying] = useState(false);
   const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [lightboxImage, setLightboxImage] = useState<{ src: string; alt?: string; filename?: string } | null>(null);
 
 
   const speakResponse = useCallback(async () => {
@@ -304,7 +306,14 @@ function ChatMessageBase({ message, audioUrl, isStreaming, onEdit, onRegenerate 
           <div key={i} className="mb-2.5">
             {att.type === 'image' ? (
               <div className="group/img relative inline-block">
-                <img src={att.url} alt={att.name} className="rounded-xl max-h-72 object-contain cursor-pointer hover:opacity-95 transition-opacity" onClick={() => window.open(att.url, '_blank')} />
+                <button
+                  type="button"
+                  className="block cursor-zoom-in rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                  aria-label={`Ampliar imagem ${att.name || ''}`.trim()}
+                  onClick={() => setLightboxImage({ src: att.url, alt: att.name || 'Imagem anexada', filename: att.name })}
+                >
+                  <img src={att.url} alt={att.name || 'Imagem anexada'} className="block max-h-72 rounded-xl object-contain transition-opacity hover:opacity-95" />
+                </button>
                 <button onClick={(e) => { e.stopPropagation(); downloadImage(att.url, att.name || undefined); }} className="absolute bottom-2 right-2 p-1.5 bg-background/80 backdrop-blur-sm border border-border/50 rounded-lg opacity-0 group-hover/img:opacity-100 transition-all hover:bg-background flex items-center gap-1.5" title="Baixar imagem">
                   <Download className="h-3.5 w-3.5 text-foreground" />
                   <span className="text-[11px] text-foreground font-medium">Baixar</span>
@@ -479,6 +488,15 @@ function ChatMessageBase({ message, audioUrl, isStreaming, onEdit, onRegenerate 
         <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-1">
           <User className="h-3.5 w-3.5 text-primary" />
         </div>
+      )}
+      {lightboxImage && (
+        <ImageLightbox
+          src={lightboxImage.src}
+          alt={lightboxImage.alt}
+          filename={lightboxImage.filename}
+          onClose={() => setLightboxImage(null)}
+          onDownload={downloadImage}
+        />
       )}
     </motion.div>
   );
