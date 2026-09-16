@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { Children, isValidElement, memo, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -110,15 +110,16 @@ const CodeBlock = memo(function CodeBlock({ code, lang }: { code: string; lang?:
 });
 
 const PROSE = `prose prose-sm dark:prose-invert max-w-none
-  prose-p:text-[15.5px] prose-p:leading-[1.75] prose-p:my-3 prose-p:text-foreground
+  prose-p:text-[15.5px] prose-p:leading-[1.85] prose-p:my-4 prose-p:text-foreground prose-p:whitespace-pre-line
+  [&>p+p]:mt-6
   prose-headings:text-foreground prose-headings:font-semibold prose-headings:tracking-tight
-  prose-h1:text-[20px] prose-h1:mt-6 prose-h1:mb-3
-  prose-h2:text-[17px] prose-h2:mt-5 prose-h2:mb-2.5
-  prose-h3:text-[15.5px] prose-h3:mt-4 prose-h3:mb-2
-  prose-ul:my-3 prose-ol:my-3 prose-ul:pl-5 prose-ol:pl-5 prose-li:my-1 prose-li:text-[15.5px] prose-li:leading-[1.75]
+  prose-h1:text-[20px] prose-h1:mt-8 prose-h1:mb-4
+  prose-h2:text-[17px] prose-h2:mt-7 prose-h2:mb-3
+  prose-h3:text-[15.5px] prose-h3:mt-6 prose-h3:mb-2.5
+  prose-ul:my-5 prose-ol:my-5 prose-ul:pl-5 prose-ol:pl-5 prose-li:my-2 prose-li:text-[15.5px] prose-li:leading-[1.8]
   prose-li:marker:text-muted-foreground
   prose-strong:text-foreground prose-strong:font-semibold
-  prose-em:text-foreground/90
+  prose-em:text-foreground/75
   prose-a:text-primary prose-a:font-medium prose-a:underline prose-a:underline-offset-2 prose-a:decoration-primary/30 hover:prose-a:decoration-primary
   prose-blockquote:border-l-[3px] prose-blockquote:border-primary/40 prose-blockquote:bg-muted/30
   prose-blockquote:rounded-r-lg prose-blockquote:py-1.5 prose-blockquote:pl-4 prose-blockquote:pr-3 prose-blockquote:my-4
@@ -129,7 +130,40 @@ const PROSE = `prose prose-sm dark:prose-invert max-w-none
   prose-pre:p-0 prose-pre:bg-transparent prose-pre:border-0 prose-pre:my-0
   [&>*:first-child]:mt-0 [&>*:last-child]:mb-0`;
 
+function MarkdownParagraph({ children, ...props }: { children?: ReactNode }) {
+  const child = Children.toArray(children)[0];
+  const isSingleChild = Children.count(children) === 1 && isValidElement(child);
+  const isSubtitle = isSingleChild && child.type === 'strong';
+  const isNote = isSingleChild && child.type === 'em';
+  const textChildren = Children.toArray(children).filter((item): item is string => typeof item === 'string');
+  const plainText = textChildren.length === Children.count(children) ? textChildren.join('') : '';
+  const lines = plainText.split('\n');
+  const numberedLines = lines.filter((line) => /^\s*\d+[.)–-]\s+/.test(line));
+  const isTextList = numberedLines.length >= 2;
+  const renderedChildren = isTextList
+    ? lines.map((line, index) => (
+        <span key={`${line}-${index}`} className={/^\s*\d+[.)–-]\s+/.test(line) ? 'block mb-2 last:mb-0' : 'block'}>
+          {line}
+        </span>
+      ))
+    : children;
+
+  return (
+    <p
+      {...props}
+      className={[
+        'my-4 text-[15.5px] leading-[1.85] text-foreground whitespace-pre-line',
+        isSubtitle && 'mb-3 mt-8 text-[15.5px] leading-[1.6] [&>strong]:font-semibold',
+        isNote && 'my-5 border-l-2 border-primary/20 pl-3 text-[14px] leading-[1.75] text-muted-foreground/85',
+      ].filter(Boolean).join(' ')}
+    >
+      {renderedChildren}
+    </p>
+  );
+}
+
 const MARKDOWN_COMPONENTS = {
+  p: MarkdownParagraph,
   code({ className, children, ...props }: any) {
     const match = /language-(\w+)/.exec(className || '');
     const raw = String(children ?? '');
