@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plug, MoreVertical, RefreshCw, RotateCw, Unplug, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Plug, MoreVertical, RefreshCw, RotateCw, Unplug, CheckCircle2, AlertTriangle, Plus, Trash2, Power, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/card';
@@ -12,6 +12,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useConnectors } from '@/hooks/useConnectors';
+import { useMcpServers } from '@/hooks/useMcpServers';
 
 type Provider = {
   id: string;
@@ -66,6 +67,11 @@ export default function Conectores() {
   const navigate = useNavigate();
   const { connected, records, loading } = useConnectors();
   const [busy, setBusy] = useState<string | null>(null);
+  const { servers: mcpServers, loading: mcpLoading, busy: mcpBusy, test: testMcp, create: createMcp, sync: syncMcp, toggle: toggleMcp, remove: removeMcp } = useMcpServers(Boolean(user));
+  const [mcpFormOpen, setMcpFormOpen] = useState(false);
+  const [mcpName, setMcpName] = useState('');
+  const [mcpUrl, setMcpUrl] = useState('');
+  const [mcpToken, setMcpToken] = useState('');
 
   const startOAuth = async (p: Provider) => {
     if (!user) return;
@@ -125,6 +131,21 @@ export default function Conectores() {
     } finally {
       setBusy(null);
     }
+  };
+
+  const handleMcpTest = async () => {
+    try {
+      const result = await testMcp(mcpUrl, mcpToken);
+      toast.success(`Conexão OK — ${result.tools_count ?? 0} ferramenta(s) encontrada(s).`);
+    } catch (e) { toast.error(e instanceof Error ? e.message : 'Não foi possível testar o servidor MCP.'); }
+  };
+
+  const handleMcpCreate = async () => {
+    try {
+      const result = await createMcp(mcpName, mcpUrl, mcpToken);
+      toast.success(`Servidor MCP adicionado com ${result.tools_count ?? 0} ferramenta(s).`);
+      setMcpName(''); setMcpUrl(''); setMcpToken(''); setMcpFormOpen(false);
+    } catch (e) { toast.error(e instanceof Error ? e.message : 'Não foi possível adicionar o servidor MCP.'); }
   };
 
   return (
@@ -272,6 +293,63 @@ export default function Conectores() {
             );
           })}
         </div>
+
+        <section className="mt-12 border-t border-border/60 pt-8">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-semibold tracking-tight">Servidores MCP personalizados</h2>
+              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">Conecte servidores compatíveis com o Model Context Protocol e disponibilize suas ferramentas ao agente.</p>
+            </div>
+            <Button onClick={() => setMcpFormOpen((value) => !value)} className="gap-2"><Plus className="h-4 w-4" /> Adicionar servidor</Button>
+          </div>
+
+          <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 text-xs text-amber-700 dark:text-amber-300">
+            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>Por segurança, toda ação executada por um servidor MCP sempre pede sua confirmação antes de ser realizada.</span>
+          </div>
+
+          {mcpFormOpen && (
+            <Card className="mt-4 p-5 border-primary/25">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="text-xs font-medium">Nome
+                  <input value={mcpName} onChange={(e) => setMcpName(e.target.value)} placeholder="Ex.: Notion da equipe" className="mt-1.5 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/30" />
+                </label>
+                <label className="text-xs font-medium">URL do servidor MCP
+                  <input value={mcpUrl} onChange={(e) => setMcpUrl(e.target.value)} placeholder="https://servidor.exemplo/mcp" type="url" className="mt-1.5 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/30" />
+                </label>
+                <label className="text-xs font-medium sm:col-span-2">Token de autenticação <span className="font-normal text-muted-foreground">(opcional; armazenado apenas no backend)</span>
+                  <input value={mcpToken} onChange={(e) => setMcpToken(e.target.value)} placeholder="Token Bearer opcional" type="password" autoComplete="off" className="mt-1.5 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/30" />
+                </label>
+              </div>
+              <div className="mt-4 flex flex-wrap justify-end gap-2">
+                <Button variant="outline" onClick={handleMcpTest} disabled={mcpBusy === 'test' || !mcpUrl} className="gap-2"><RefreshCw className="h-3.5 w-3.5" /> {mcpBusy === 'test' ? 'Testando…' : 'Testar conexão'}</Button>
+                <Button onClick={handleMcpCreate} disabled={mcpBusy === 'create' || !mcpName || !mcpUrl}>{mcpBusy === 'create' ? 'Adicionando…' : 'Salvar servidor'}</Button>
+              </div>
+              <p className="mt-3 text-[11px] text-muted-foreground">Endereços locais, localhost e IPs privados são bloqueados automaticamente.</p>
+            </Card>
+          )}
+
+          <div className="mt-4 space-y-3">
+            {mcpLoading && <p className="text-sm text-muted-foreground">Carregando servidores MCP…</p>}
+            {!mcpLoading && mcpServers.length === 0 && <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">Nenhum servidor MCP personalizado adicionado.</div>}
+            {mcpServers.map((server) => (
+              <Card key={server.id} className="p-4 border-border/60">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2"><h3 className="font-medium">{server.name}</h3><Badge variant={server.enabled ? 'default' : 'secondary'}>{server.enabled ? 'Habilitado' : 'Desabilitado'}</Badge></div>
+                    <p className="mt-1 truncate text-xs text-muted-foreground">{server.url}</p>
+                    <p className="mt-2 text-xs text-muted-foreground">{server.tools_cache?.length ?? 0} ferramenta(s) · Última sincronização: {timeAgo(server.last_synced_at)}</p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="icon" title="Sincronizar ferramentas" onClick={() => syncMcp(server.id)} disabled={mcpBusy === server.id}><RefreshCw className={`h-4 w-4 ${mcpBusy === server.id ? 'animate-spin' : ''}`} /></Button>
+                    <Button variant="ghost" size="icon" title={server.enabled ? 'Desabilitar' : 'Habilitar'} onClick={() => toggleMcp(server.id, !server.enabled)} disabled={mcpBusy === server.id}><Power className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" title="Remover servidor" className="text-destructive hover:text-destructive" onClick={async () => { if (window.confirm(`Remover ${server.name}?`)) { await removeMcp(server.id); toast.success('Servidor MCP removido.'); } }} disabled={mcpBusy === server.id}><Trash2 className="h-4 w-4" /></Button>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </section>
       </main>
     </div>
   );

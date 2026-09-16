@@ -72,6 +72,100 @@ async function getValidToken(admin: any, userId: string, provider: string, token
   return t.access_token;
 }
 
+// ---- Custom MCP client ----
+type McpServerRow = {
+  id: string;
+  name: string;
+  url: string;
+  auth_token: string | null;
+  enabled: boolean;
+  tools_cache: any[] | null;
+  last_synced_at: string | null;
+};
+
+function isPrivateIpv4(ip: string) {
+  const p = ip.split(".").map(Number);
+  if (p.length !== 4 || p.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return false;
+  const [a, b] = p;
+  return a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) || (a === 192 && b === 168) || (a === 172 && b >= 16 && b <= 31);
+}
+
+function isPrivateIp(ip: string) {
+  const value = ip.toLowerCase().replace(/^\[|\]$/g, "");
+  return isPrivateIpv4(value) || value === "::1" || value === "::" || value.startsWith("fc") || value.startsWith("fd") || value.startsWith("fe80:");
+}
+
+async function validateMcpUrl(raw: string) {
+  let parsed: URL;
+  try { parsed = new URL(raw); } catch { throw new Error("URL do servidor MCP inválida."); }
+  if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password) throw new Error("O servidor MCP deve usar uma URL HTTP(S) sem credenciais embutidas.");
+  const host = parsed.hostname.toLowerCase();
+  if (host === "localhost" || host.endsWith(".localhost") || isPrivateIp(host)) throw new Error("Por segurança, servidores MCP em endereços locais ou privados não são permitidos.");
+  const records = await Promise.all([
+    Deno.resolveDns(host, "A").catch(() => [] as string[]),
+    Deno.resolveDns(host, "AAAA").catch(() => [] as string[]),
+  ]);
+  if (records.flat().some(isPrivateIp)) throw new Error("O hostname do servidor MCP resolve para um endereço privado ou interno.");
+  return parsed;
+}
+
+async function mcpJsonRpc(url: string, method: string, params: unknown, token?: string) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15_000);
+  try {
+    const headers: Record<string, string> = { "Content-Type": "application/json", Accept: "application/json, text/event-stream" };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const response = await fetch(url, { method: "POST", headers, body: JSON.stringify({ jsonrpc: "2.0", id: crypto.randomUUID(), method, params }), signal: controller.signal, redirect: "error" });
+    const text = await response.text();
+    if (!response.ok) throw new Error(`Servidor MCP respondeu HTTP ${response.status}.`);
+    let payload: any;
+    try { payload = JSON.parse(text); } catch { throw new Error("Resposta inválida do servidor MCP."); }
+    if (payload?.error) throw new Error(payload.error.message || "Erro JSON-RPC do servidor MCP.");
+    return payload?.result ?? {};
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") throw new Error("O servidor MCP excedeu o tempo limite de 15 segundos.");
+    throw error;
+  } finally { clearTimeout(timer); }
+}
+
+async function fetchMcpTools(server: McpServerRow) {
+  await validateMcpUrl(server.url);
+  await mcpJsonRpc(server.url, "initialize", { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "vintel-ia", version: "1.0.0" } }, server.auth_token ?? undefined).catch(() => undefined);
+  const result = await mcpJsonRpc(server.url, "tools/list", {}, server.auth_token ?? undefined);
+  return Array.isArray(result?.tools) ? result.tools.slice(0, 100) : [];
+}
+
+function mcpSlug(name: string) {
+  return name.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 32) || "servidor";
+}
+
+function mcpToolName(server: McpServerRow, toolName: string) {
+  return `mcp_${mcpSlug(server.name)}_${server.id.slice(0, 8)}_${toolName.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64)}`;
+}
+
+async function loadMcpTools(admin: any, userId: string | null) {
+  if (!userId) return { tools: [], servers: [] as McpServerRow[] };
+  const { data, error } = await admin.from("mcp_servers").select("id, name, url, auth_token, enabled, tools_cache, last_synced_at").eq("user_id", userId).eq("enabled", true).limit(20);
+  if (error) return { tools: [], servers: [] as McpServerRow[] };
+  const servers = (data ?? []) as McpServerRow[];
+  const tools: any[] = [];
+  for (const server of servers) {
+    try {
+      const fresh = server.last_synced_at && Date.now() - new Date(server.last_synced_at).getTime() < 60 * 60 * 1000;
+      const discovered = fresh && Array.isArray(server.tools_cache) ? server.tools_cache : await fetchMcpTools(server);
+      if (!fresh) await admin.from("mcp_servers").update({ tools_cache: discovered, last_synced_at: new Date().toISOString() }).eq("id", server.id).eq("user_id", userId);
+      for (const tool of discovered) {
+        if (!tool?.name || typeof tool.name !== "string") continue;
+        tools.push({ type: "function", function: { name: mcpToolName(server, tool.name), description: `[${server.name}] ${String(tool.description || `Ferramenta MCP ${tool.name}`).slice(0, 500)}`, parameters: tool.inputSchema ?? { type: "object", properties: {} } } });
+      }
+    } catch (error) {
+      console.warn(`[mcp] ${server.name}:`, error instanceof Error ? error.message : error);
+      await admin.from("mcp_servers").update({ enabled: false }).eq("id", server.id).eq("user_id", userId);
+    }
+  }
+  return { tools, servers };
+}
+
 // ---- Tool definitions ----
 function buildToolsForProviders(providers: Set<string>) {
   const tools: any[] = [];
@@ -382,6 +476,17 @@ async function executeTool(
   };
 
   try {
+    if (name.startsWith("mcp_")) {
+      const parts = name.split("_");
+      const serverIdPrefix = parts[2];
+      const { data: serverRows } = await ctx.admin.from("mcp_servers").select("id, name, url, auth_token, enabled").eq("user_id", ctx.userId).limit(20);
+      const server = (serverRows ?? []).find((candidate: any) => String(candidate.id).startsWith(serverIdPrefix));
+      if (!server || !server.enabled) throw new Error("Servidor MCP não está disponível.");
+      await validateMcpUrl(server.url);
+      const originalName = name.slice(`mcp_${mcpSlug(server.name)}_${server.id.slice(0, 8)}_`.length);
+      await mcpJsonRpc(server.url, "initialize", { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "vintel-ia", version: "1.0.0" } }, server.auth_token ?? undefined).catch(() => undefined);
+      return await mcpJsonRpc(server.url, "tools/call", { name: originalName, arguments: args ?? {} }, server.auth_token ?? undefined);
+    }
     if (name === "lovable_list_projects") {
       const tok = await t("lovable");
       const r = await fetch("https://api.lovable.dev/v1/projects", {
@@ -667,6 +772,12 @@ const SSE_DONE = new TextEncoder().encode("data: [DONE]\n\n");
 
 /** Rótulo legível por ferramenta, para a timeline. */
 function toolLabel(name: string, args: any): string {
+  if (name.startsWith("mcp_")) {
+    const parts = name.split("_");
+    const server = parts.slice(1, -2).join(" ") || "Servidor";
+    const action = parts.slice(3).join(" ").replace(/_/g, " ");
+    return `${server} (MCP): ${action}${args?.title ? ` — ${String(args.title).slice(0, 60)}` : ""}`;
+  }
   const svc = name.split("_")[0];
   const map: Record<string, string> = {
     github: "GitHub", google: "Google Workspace", gmail: "Gmail",
@@ -695,6 +806,7 @@ const IRREVERSIBLE_TOOLS = new Set([
 ]);
 
 function isIrreversible(name: string) {
+  if (name.startsWith("mcp_")) return true;
   if (IRREVERSIBLE_TOOLS.has(name)) return true;
   return /_(create|update|write|delete|send|commit|archive|move|edit)(_|$)/.test(name);
 }
@@ -711,6 +823,7 @@ function actionKey(name: string, args: any): string {
 /** Descrição legível da ação irreversível, mostrada no card de confirmação. */
 function actionLabel(name: string, args: any): string {
   const t = (v: unknown) => String(v ?? "").slice(0, 120);
+  if (name.startsWith("mcp_")) return `Executar ação externa em ${toolLabel(name, args)} — confirmação obrigatória`;
   switch (name) {
     case "github_create_issue":
       return `Abrir uma issue no GitHub em ${t(args.repo)} com o título: "${t(args.title)}"`;
@@ -1292,7 +1405,9 @@ serve(async (req) => {
         connectedProviders.add(r.provider);
       }
     }
-    const tools = buildToolsForProviders(connectedProviders);
+    const nativeTools = buildToolsForProviders(connectedProviders);
+    const { tools: mcpTools } = await loadMcpTools(admin, userId);
+    const tools = [...nativeTools, ...mcpTools];
 
     const systemPrompt = agent && agentSystemPrompts[agent] ? agentSystemPrompts[agent] : defaultSystemPrompt;
 
