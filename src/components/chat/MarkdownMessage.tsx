@@ -1,9 +1,10 @@
 import { Children, isValidElement, memo, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
+import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
-import { Check, Copy, Download, Eye, EyeOff } from 'lucide-react';
+import { Check, Copy, Download, Eye, EyeOff, ExternalLink } from 'lucide-react';
 import { ImageLightbox } from './ImageLightbox';
 
 function isHTMLContent(code: string, lang?: string) {
@@ -120,13 +121,12 @@ const PROSE = `prose prose-sm dark:prose-invert max-w-none
   prose-li:marker:text-muted-foreground
   prose-strong:text-foreground prose-strong:font-semibold
   prose-em:text-foreground/75
-  prose-a:text-primary prose-a:font-medium prose-a:underline prose-a:underline-offset-2 prose-a:decoration-primary/30 hover:prose-a:decoration-primary
+  prose-a:text-primary prose-a:font-medium prose-a:underline prose-a:underline-offset-2 prose-a:decoration-primary/40 hover:prose-a:decoration-primary
   prose-blockquote:border-l-[3px] prose-blockquote:border-primary/40 prose-blockquote:bg-muted/30
   prose-blockquote:rounded-r-lg prose-blockquote:py-1.5 prose-blockquote:pl-4 prose-blockquote:pr-3 prose-blockquote:my-4
   prose-blockquote:text-muted-foreground prose-blockquote:not-italic prose-blockquote:font-normal
   prose-hr:border-border/60 prose-hr:my-6
-  prose-table:text-[14px] prose-th:text-foreground prose-th:font-semibold prose-th:border-border/60
-  prose-td:border-border/50 prose-td:py-1.5
+  prose-table:text-[14px]
   prose-pre:p-0 prose-pre:bg-transparent prose-pre:border-0 prose-pre:my-0
   [&>*:first-child]:mt-0 [&>*:last-child]:mb-0`;
 
@@ -164,6 +164,38 @@ function MarkdownParagraph({ children, ...props }: { children?: ReactNode }) {
 
 const MARKDOWN_COMPONENTS = {
   p: MarkdownParagraph,
+  a({ href, children, ...props }: any) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex max-w-full items-baseline gap-1 break-words text-primary underline decoration-primary/40 underline-offset-2 transition-colors hover:text-primary/80 hover:decoration-primary focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+        {...props}
+      >
+        <span>{children}</span>
+        <ExternalLink className="inline-block h-3 w-3 shrink-0 translate-y-[-1px]" aria-hidden="true" />
+      </a>
+    );
+  },
+  table({ children }: any) {
+    return <div className="my-5 w-full overflow-x-auto rounded-xl border border-border/60 bg-muted/10"><table className="w-full min-w-[520px] border-collapse text-left text-[14px]">{children}</table></div>;
+  },
+  thead({ children }: any) {
+    return <thead className="border-b border-border/70 bg-muted/45 text-foreground">{children}</thead>;
+  },
+  tbody({ children }: any) {
+    return <tbody className="divide-y divide-border/45">{children}</tbody>;
+  },
+  tr({ children }: any) {
+    return <tr className="transition-colors hover:bg-muted/25">{children}</tr>;
+  },
+  th({ children }: any) {
+    return <th className="whitespace-nowrap px-3.5 py-2.5 text-left text-xs font-semibold tracking-wide text-foreground">{children}</th>;
+  },
+  td({ children }: any) {
+    return <td className="border-r border-border/30 px-3.5 py-2.5 align-top leading-relaxed text-foreground/85 last:border-r-0">{children}</td>;
+  },
   code({ className, children, ...props }: any) {
     const match = /language-(\w+)/.exec(className || '');
     const raw = String(children ?? '');
@@ -228,7 +260,7 @@ export const MarkdownMessage = memo(function MarkdownMessage({
   return (
     <div className={PROSE} style={{ contain: 'layout style' }}>
       <ReactMarkdown
-        remarkPlugins={[remarkMath]}
+        remarkPlugins={[remarkMath, remarkGfm]}
         rehypePlugins={[rehypeKatex]}
         components={MARKDOWN_COMPONENTS}
       >
