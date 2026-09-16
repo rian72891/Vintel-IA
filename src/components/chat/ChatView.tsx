@@ -14,7 +14,7 @@ import { generateImage, ImageQuality } from '@/lib/generateImage';
 import { textToSpeech } from '@/lib/api/elevenlabs';
 import { firecrawlApi } from '@/lib/api/firecrawl';
 import { generatePDF, generateHTML, generateTXT, generateZIP, downloadFile } from '@/lib/fileGeneration';
-import { Loader2, ImageIcon, FileText, Mic, Sparkles, Search, Globe, Download, MessageCircle, Volume2 } from 'lucide-react';
+import { Loader2, FileText, Sparkles, Search, Globe, Download, MessageCircle, Volume2 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
@@ -28,6 +28,7 @@ import { downloadMarkdown } from '@/lib/exportConversation';
 import { isSupportedDocument, ingestConversationDocument } from '@/lib/conversationDocuments';
 import { agentIconMap } from '@/lib/agentIcons';
 import { isImageEditRequest } from '@/lib/imageIntent';
+import { AgentAvatar } from './AgentAvatar';
 
 /**
  * Linha de mensagem isolada e memoizada: garante que mensagens já
@@ -1052,21 +1053,7 @@ export function ChatView() {
         {isStreaming && !streamingContent && steps.length === 0 && (
 
           <div className="flex gap-3 px-4 py-3 max-w-4xl mx-auto w-full">
-            <div className="h-7 w-7 rounded-full bg-primary/10 border border-primary/15 flex items-center justify-center shrink-0">
-              {loadingLabel.includes('imagem') ? (
-                <ImageIcon className="h-3.5 w-3.5 text-primary animate-pulse" />
-              ) : loadingLabel.includes('PDF') || loadingLabel.includes('HTML') || loadingLabel.includes('texto') || loadingLabel.includes('ZIP') ? (
-                <FileText className="h-3.5 w-3.5 text-primary animate-pulse" />
-              ) : loadingLabel.includes('áudio') ? (
-                <Mic className="h-3.5 w-3.5 text-primary animate-pulse" />
-              ) : loadingLabel.includes('Buscando') ? (
-                <Search className="h-3.5 w-3.5 text-primary animate-pulse" />
-              ) : loadingLabel.includes('Extraindo') ? (
-                <Globe className="h-3.5 w-3.5 text-primary animate-pulse" />
-              ) : (
-                <Loader2 className="h-3.5 w-3.5 text-primary animate-spin" />
-              )}
-            </div>
+            <AgentAvatar isStreaming className="h-7 w-7" />
             <div className="flex-1 min-w-0 space-y-2.5 max-w-xl">
               {loadingLabel ? (
                 <>
