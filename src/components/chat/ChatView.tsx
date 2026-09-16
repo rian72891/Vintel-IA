@@ -1021,7 +1021,7 @@ export function ChatView() {
             <AgentTrace
               steps={steps}
               durationMs={traceStartedAtRef.current == null ? 0 : performance.now() - traceStartedAtRef.current}
-              live
+              live={isStreaming}
             />
           </div>
         )}

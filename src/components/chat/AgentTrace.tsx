@@ -62,8 +62,14 @@ export function AgentTrace({ steps, durationMs = 0, live = false }: AgentTracePr
   const running = steps.some((step) => step.status === 'running');
   const waiting = steps.some((step) => step.status === 'waiting');
   const errored = steps.some((step) => step.status === 'error');
-  const finished = !running && !waiting;
-  const currentStep = [...steps].reverse().find((step) => step.status === 'running' || step.status === 'waiting');
+  // `live` is the authoritative lifecycle signal from ChatView. A stale
+  // running/waiting step must not keep the visual trace alive after onDone.
+  const active = live && (running || waiting);
+  const pausedForConfirmation = !live && waiting;
+  const finished = !active && !pausedForConfirmation;
+  const currentStep = active || pausedForConfirmation
+    ? [...steps].reverse().find((step) => step.status === 'running' || step.status === 'waiting')
+    : undefined;
   const currentLabel = currentStep?.label;
 
   useEffect(() => {
@@ -162,15 +168,19 @@ export function AgentTrace({ steps, durationMs = 0, live = false }: AgentTracePr
       >
         <span
           className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border ${
-            running
+            active && running
               ? 'border-primary/25 bg-primary/10 text-primary'
+            : pausedForConfirmation
+              ? 'border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400'
               : errored
                 ? 'border-destructive/20 bg-destructive/10 text-destructive'
                 : 'border-border bg-muted/60 text-muted-foreground'
           }`}
         >
-          {running ? (
+          {active && running ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+          ) : pausedForConfirmation ? (
+            <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
           ) : errored ? (
             <CircleAlert className="h-3.5 w-3.5" aria-hidden="true" />
           ) : (
