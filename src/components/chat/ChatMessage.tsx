@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { Message } from '@/types/agent';
 import { cn } from '@/lib/utils';
-import { User, Download, Copy, Check, Volume2, Pause, FileText, Code, FileArchive, File, Mic, FileCode, Share2, Loader2, CheckCircle2, Pencil, Eye, EyeOff, RefreshCw, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Download, Copy, Check, Volume2, Pause, FileText, Code, FileArchive, File, Mic, FileCode, Share2, Loader2, CheckCircle2, Pencil, Eye, EyeOff, RefreshCw, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useState, useCallback, useRef, useMemo, memo } from 'react';
@@ -483,11 +483,6 @@ function ChatMessageBase({ message, audioUrl, isStreaming, onEdit, onRegenerate 
           </>
         ) : null}
       </div>
-      {isUser && (
-        <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-1">
-          <User className="h-3.5 w-3.5 text-primary" />
-        </div>
-      )}
       {lightboxImage && (
         <ImageLightbox
           src={lightboxImage.src}
