@@ -5,12 +5,14 @@ import { useChatStore } from '@/store/chatStore';
 import { cn } from '@/lib/utils';
 import { SettingsDialog } from './SettingsDialog';
 import { useAuth } from '@/hooks/useAuth';
+import { useProfileAvatar } from '@/hooks/useProfileAvatar';
 import { PlanBadge } from '@/components/PlanBadge';
 import { UsageBar } from '@/components/UsageBar';
 
 export function Sidebar() {
   const { conversations, activeConversationId, sidebarOpen, setSidebarOpen, setActiveConversation, setSelectedAgent, deleteConversation, renameConversation, loadConversations, loaded } = useChatStore();
   const { user, signOut } = useAuth();
+  const { avatarUrl } = useProfileAvatar(user);
   const navigate = useNavigate();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
@@ -177,7 +179,11 @@ export function Sidebar() {
               {/* User card sem engrenagem */}
               <div className="flex items-center gap-2 px-2 py-2 rounded-xl bg-muted/30">
                 <div className="h-9 w-9 rounded-full bg-primary/15 border border-primary/20 flex items-center justify-center shrink-0">
-                  <span className="text-xs font-semibold text-primary">{userInitial}</span>
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt={`Foto de ${userName}`} className="h-full w-full rounded-full object-cover" />
+                  ) : (
+                    <span className="text-xs font-semibold text-primary">{userInitial}</span>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-foreground truncate">{userName}</p>

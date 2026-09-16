@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useChatStore } from '@/store/chatStore';
 import { useAuth } from '@/hooks/useAuth';
@@ -20,6 +20,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
 import { ELEVENLABS_VOICE_IDS } from '@/lib/api/elevenlabs';
+import { useProfileAvatar } from '@/hooks/useProfileAvatar';
 
 interface SettingsDialogProps {
   open: boolean;
@@ -46,6 +47,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const navigate = useNavigate();
   const { temperature, setTemperature } = useChatStore();
   const { user } = useAuth();
+  const { avatarUrl, customAvatarUrl, loading: avatarLoading, uploadAvatar, removeAvatar } = useProfileAvatar(user);
   const { plan, subscribed, checkSubscription } = useSubscription();
   const { getUsagePercent, getUsageLabel, refreshUsage } = useUsage();
   const { connected } = useConnectors();
@@ -57,6 +59,9 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   // Profile
   const [name, setName] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [pendingAvatar, setPendingAvatar] = useState<File | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   // Capabilities
   const [caps, setCaps] = useState<Record<string, boolean>>({});
@@ -123,6 +128,13 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuário';
   const userInitial = (user?.user_metadata?.full_name?.[0] || user?.email?.[0] || '?').toUpperCase();
 
+  useEffect(() => {
+    if (open) return;
+    if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+    setAvatarPreview(null);
+    setPendingAvatar(null);
+  }, [open]);
+
   const planColors: Record<string, string> = {
     free: 'bg-zinc-500/15 text-zinc-400 border-zinc-500/30',
     starter: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
@@ -143,6 +155,39 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       toast.error(e?.message || 'Erro ao salvar perfil');
     } finally {
       setSavingProfile(false);
+    }
+  };
+
+  const handleAvatarSelect = (file?: File) => {
+    if (!file) return;
+    if (!['image/jpeg', 'image/png'].includes(file.type)) {
+      toast.error('Escolha uma imagem JPG ou PNG.');
+      return;
+    }
+    if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+    setPendingAvatar(file);
+    setAvatarPreview(URL.createObjectURL(file));
+  };
+
+  const handleAvatarUpload = async () => {
+    if (!pendingAvatar) return;
+    try {
+      await uploadAvatar(pendingAvatar);
+      if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+      setAvatarPreview(null);
+      setPendingAvatar(null);
+      toast.success('Foto de perfil atualizada!');
+    } catch (e: any) {
+      toast.error(e?.message || 'Não foi possível atualizar a foto.');
+    }
+  };
+
+  const handleAvatarRemove = async () => {
+    try {
+      await removeAvatar();
+      toast.success('Foto removida.');
+    } catch (e: any) {
+      toast.error(e?.message || 'Não foi possível remover a foto.');
     }
   };
 
@@ -341,8 +386,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             {/* Header */}
             <div className="p-4 border-b border-border">
               <div className="flex items-center gap-3">
-                <div className="h-11 w-11 rounded-full bg-primary/15 border border-primary/20 flex items-center justify-center shrink-0">
-                  <span className="text-sm font-semibold text-primary">{userInitial}</span>
+                <div className="h-11 w-11 overflow-hidden rounded-full bg-primary/15 border border-primary/20 flex items-center justify-center shrink-0">
+                  {avatarUrl ? <img src={avatarUrl} alt={`Foto de ${userName}`} className="h-full w-full object-cover" /> : <span className="text-sm font-semibold text-primary">{userInitial}</span>}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold truncate">{userName}</p>
@@ -400,9 +445,39 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             <BackHeader title="Perfil" />
             <div className="p-6 space-y-5">
               <div className="flex flex-col items-center">
-                <div className="h-20 w-20 rounded-full bg-primary/15 border border-primary/20 flex items-center justify-center">
-                  <span className="text-2xl font-semibold text-primary">{userInitial}</span>
+                <div className="h-20 w-20 overflow-hidden rounded-full bg-primary/15 border border-primary/20 flex items-center justify-center">
+                  {avatarPreview || avatarUrl ? (
+                    <img src={avatarPreview || avatarUrl || ''} alt="Prévia da foto de perfil" className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="text-2xl font-semibold text-primary">{userInitial}</span>
+                  )}
                 </div>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  className="hidden"
+                  onChange={(event) => handleAvatarSelect(event.target.files?.[0])}
+                />
+                <div className="mt-3 flex items-center gap-2">
+                  <button type="button" onClick={() => avatarInputRef.current?.click()} className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-muted">
+                    Escolher foto
+                  </button>
+                  {customAvatarUrl && !pendingAvatar && (
+                    <button type="button" onClick={handleAvatarRemove} disabled={avatarLoading} className="rounded-lg px-3 py-1.5 text-xs text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50">
+                      Remover foto
+                    </button>
+                  )}
+                </div>
+                {pendingAvatar && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="max-w-[150px] truncate text-[11px] text-muted-foreground">Pronta para salvar</span>
+                    <button type="button" onClick={handleAvatarUpload} disabled={avatarLoading} className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50">
+                      {avatarLoading ? 'Salvando…' : 'Usar esta foto'}
+                    </button>
+                  </div>
+                )}
+                <p className="mt-2 text-center text-[11px] text-muted-foreground">JPG ou PNG · será ajustada para 256×256</p>
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs text-muted-foreground">Nome</label>
