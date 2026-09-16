@@ -7,7 +7,7 @@ export type BackgroundTask = {
   id: string;
   user_id?: string;
   conversation_id: string | null;
-  status: 'running' | 'completed' | 'failed' | 'cancelled' | string;
+  status: 'running' | 'completed' | 'failed' | 'cancelled' | 'waiting_confirmation' | string;
   input: Record<string, unknown> | null;
   result: Record<string, unknown> | null;
   created_at: string;

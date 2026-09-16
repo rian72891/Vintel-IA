@@ -41,4 +41,17 @@ describe('background task notifications', () => {
       expect.objectContaining({ tag: 'background-task-task-1' }),
     );
   });
+
+  it('describes confirmation-pending tasks without treating them as completed', () => {
+    const waitingTask: BackgroundTask = {
+      ...task,
+      id: 'task-waiting',
+      status: 'waiting_confirmation',
+      result: { steps: [], awaiting_confirmation: true },
+    };
+
+    expect(getBackgroundTaskSummary(waitingTask)).toBe('A tarefa está pausada até você confirmar a ação solicitada.');
+    notifyBackgroundTask(waitingTask);
+    expect(window.Notification).not.toHaveBeenCalled();
+  });
 });

@@ -12,6 +12,7 @@ export function getBackgroundTaskSummary(task: BackgroundTask): string {
   if (typeof result?.summary === 'string' && result.summary.trim()) return result.summary.trim();
   if (typeof result?.content === 'string' && result.content.trim()) return result.content.trim().slice(0, 180);
   if (typeof result?.error === 'string' && result.error.trim()) return result.error.trim();
+  if (task.status === 'waiting_confirmation') return 'A tarefa está pausada até você confirmar a ação solicitada.';
   return task.status === 'running' ? 'Processando em segundo plano…' : 'Sem resumo disponível.';
 }
 

@@ -14,6 +14,7 @@ const statusCopy = {
   completed: 'Concluída',
   failed: 'Falhou',
   cancelled: 'Cancelada',
+  waiting_confirmation: 'Aguardando sua confirmação',
 };
 
 export default function MinhasTarefas() {
@@ -74,11 +75,12 @@ export default function MinhasTarefas() {
           {tasks.map((task) => {
             const isRunning = task.status === 'running';
             const isCompleted = task.status === 'completed';
+            const isWaitingConfirmation = task.status === 'waiting_confirmation';
             return (
               <article key={task.id} className="rounded-2xl border border-border bg-card p-4">
                 <div className="flex items-start gap-3">
-                  <div className={cn('mt-0.5 rounded-full p-1.5', isRunning ? 'bg-primary/10 text-primary' : isCompleted ? 'bg-emerald-500/10 text-emerald-600' : 'bg-destructive/10 text-destructive')}>
-                    {isRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : isCompleted ? <CheckCircle2 className="h-4 w-4" /> : <CircleAlert className="h-4 w-4" />}
+                  <div className={cn('mt-0.5 rounded-full p-1.5', isRunning ? 'bg-primary/10 text-primary' : isCompleted ? 'bg-emerald-500/10 text-emerald-600' : isWaitingConfirmation ? 'bg-amber-500/10 text-amber-600' : 'bg-destructive/10 text-destructive')}>
+                    {isRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : isCompleted ? <CheckCircle2 className="h-4 w-4" /> : isWaitingConfirmation ? <Clock3 className="h-4 w-4" /> : <CircleAlert className="h-4 w-4" />}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center justify-between gap-2">

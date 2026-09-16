@@ -1677,7 +1677,7 @@ serve(async (req) => {
 
             // Pausa o turno: o usuário precisa confirmar as ações irreversíveis pendentes.
             if (awaitingConfirmation) {
-              await patchTask({ status: "completed", result: { steps, awaiting_confirmation: true } });
+              await patchTask({ status: "waiting_confirmation", result: { steps, awaiting_confirmation: true } });
               finished = true;
               return;
             }
@@ -1692,6 +1692,15 @@ serve(async (req) => {
           step({ id: "final", status: "done", label: "Resposta pronta" });
           finished = true;
           break;
+        }
+
+        if (!finished) {
+          const error = "A tarefa era complexa demais e não foi concluída dentro do limite de passos — tente dividir o pedido em partes menores";
+          step({ id: "iteration_limit", status: "error", label: "Limite de passos atingido", detail: error });
+          finalContent = `\n\n⚠️ ${error}`;
+          emit(sseChunk(finalContent));
+          await patchTask({ status: "failed", result: { error, steps } });
+          return;
         }
 
         if (taskId) {
