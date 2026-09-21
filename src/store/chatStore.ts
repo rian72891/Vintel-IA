@@ -78,7 +78,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     const { data } = await supabase
       .from('conversations')
-      .select('*')
+      .select('*, messages(count)')
       .order('updated_at', { ascending: false });
 
     if (data) {
@@ -86,6 +86,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         id: c.id,
         title: c.title,
         messages: [],
+        messageCount: Array.isArray(c.messages) ? Number(c.messages[0]?.count ?? 0) : 0,
         agent: c.agent as AgentType | undefined,
         createdAt: new Date(c.created_at),
         updatedAt: new Date(c.updated_at),
@@ -112,7 +113,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }));
       set((state) => ({
         conversations: state.conversations.map((c) =>
-          c.id === conversationId ? { ...c, messages: msgs } : c
+          c.id === conversationId ? { ...c, messages: msgs, messageCount: msgs.length } : c
         ),
       }));
     }
@@ -138,6 +139,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       id: data.id,
       title: data.title,
       messages: [],
+      messageCount: 0,
       agent: data.agent as AgentType | undefined,
       createdAt: new Date(data.created_at),
       updatedAt: new Date(data.updated_at),
@@ -196,14 +198,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
       await supabase.from('conversations').update({ title: newTitle, updated_at: new Date().toISOString() }).eq('id', conversationId);
       set((state) => ({
         conversations: state.conversations.map((c) =>
-          c.id === conversationId ? { ...c, title: newTitle, messages: [...c.messages, msg], updatedAt: new Date() } : c
+          c.id === conversationId ? { ...c, title: newTitle, messages: [...c.messages, msg], messageCount: (c.messageCount ?? c.messages.length) + 1, updatedAt: new Date() } : c
         ),
       }));
     } else {
       await supabase.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', conversationId);
       set((state) => ({
         conversations: state.conversations.map((c) =>
-          c.id === conversationId ? { ...c, messages: [...c.messages, msg], updatedAt: new Date() } : c
+          c.id === conversationId ? { ...c, messages: [...c.messages, msg], messageCount: (c.messageCount ?? c.messages.length) + 1, updatedAt: new Date() } : c
         ),
       }));
     }

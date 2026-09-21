@@ -759,7 +759,7 @@ function sseChunk(content: string) {
   return new TextEncoder().encode(`data: ${JSON.stringify(payload)}\n\n`);
 }
 /** Evento de progresso (trace visual) — ignorado por clients que só leem `choices`. */
-function sseStep(step: { id: string; status: "running" | "done" | "error" | "waiting"; label: string; detail?: string }) {
+function sseStep(step: { id: string; status: "running" | "done" | "error" | "waiting"; label: string; detail?: string; result?: unknown }) {
   return new TextEncoder().encode(`data: ${JSON.stringify({ type: "step", ...step })}\n\n`);
 }
 
@@ -1664,7 +1664,7 @@ serve(async (req) => {
       if (error) console.warn("[bg] update falhou:", error.message);
     };
 
-    const step = (s: { id: string; status: "running" | "done" | "error" | "waiting"; label: string; detail?: string }) => {
+    const step = (s: { id: string; status: "running" | "done" | "error" | "waiting"; label: string; detail?: string; result?: unknown }) => {
       steps.push(s);
       emit(sseStep(s));
     };
@@ -1780,6 +1780,19 @@ serve(async (req) => {
                   status: failed ? "error" : "done",
                   label,
                   detail: failed ? String((result as any).error).slice(0, 160) : name,
+                  ...(name === "web_search" && !failed
+                    ? {
+                        result: {
+                          sources: (Array.isArray((result as any)?.results) ? (result as any).results : [])
+                            .map((source: any) => ({
+                              title: String(source?.title || source?.url || "Fonte web").slice(0, 240),
+                              url: typeof source?.url === "string" ? source.url : "",
+                            }))
+                            .filter((source: any) => source.url)
+                            .slice(0, 10),
+                        },
+                      }
+                    : {}),
                 });
                 return { tc, result };
               })

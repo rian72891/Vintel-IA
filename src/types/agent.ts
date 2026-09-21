@@ -28,6 +28,8 @@ export interface Conversation {
   id: string;
   title: string;
   messages: Message[];
+  /** Contagem total conhecida no servidor, útil quando o histórico ainda não foi carregado. */
+  messageCount?: number;
   agent?: AgentType;
   createdAt: Date;
   updatedAt: Date;

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, MessageSquare, X, Trash2, Pencil, Check, Settings, LogOut, Menu, Search, Plug, ListTodo } from 'lucide-react';
+import { Plus, MessageSquare, X, Trash2, Pencil, Check, Settings, LogOut, Menu, Search, Plug, ListTodo, Sparkles, ArrowUpRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useChatStore } from '@/store/chatStore';
 import { cn } from '@/lib/utils';
@@ -8,9 +8,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfileAvatar } from '@/hooks/useProfileAvatar';
 import { PlanBadge } from '@/components/PlanBadge';
 import { UsageBar } from '@/components/UsageBar';
+import { buildConversationSummary, LONG_CONVERSATION_THRESHOLD } from '@/lib/longConversationSummary';
 
 export function Sidebar() {
-  const { conversations, activeConversationId, sidebarOpen, setSidebarOpen, setActiveConversation, setSelectedAgent, deleteConversation, renameConversation, loadConversations, loaded } = useChatStore();
+  const { conversations, activeConversationId, sidebarOpen, setSidebarOpen, setActiveConversation, setSelectedAgent, createConversation, addMessage, deleteConversation, renameConversation, loadConversations, loadMessages, loaded } = useChatStore();
   const { user, signOut } = useAuth();
   const { avatarUrl } = useProfileAvatar(user);
   const navigate = useNavigate();
@@ -18,6 +19,7 @@ export function Sidebar() {
   const [editTitle, setEditTitle] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [startingFreshId, setStartingFreshId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loaded && user) {
@@ -40,6 +42,24 @@ export function Sidebar() {
       renameConversation(editingId, editTitle.trim());
     }
     setEditingId(null);
+  };
+
+  const startFreshWithSummary = async (conversationId: string) => {
+    const source = useChatStore.getState().conversations.find((conversation) => conversation.id === conversationId);
+    if (!source || (source.messageCount ?? source.messages.length) <= LONG_CONVERSATION_THRESHOLD) return;
+    setStartingFreshId(conversationId);
+    try {
+      if (source.messages.length === 0) await loadMessages(conversationId);
+      const hydrated = useChatStore.getState().conversations.find((conversation) => conversation.id === conversationId) ?? source;
+      const summary = buildConversationSummary(hydrated);
+      setSelectedAgent(hydrated.agent ?? null);
+      const newId = await createConversation(hydrated.agent);
+      if (!newId) return;
+      await addMessage(newId, { role: 'assistant', content: summary, agent: hydrated.agent });
+      await renameConversation(newId, `Continuação: ${hydrated.title}`.slice(0, 60));
+    } finally {
+      setStartingFreshId(null);
+    }
   };
 
   const filteredConversations = conversations.filter((c) =>
@@ -149,10 +169,29 @@ export function Sidebar() {
                     <>
                       <button
                         onClick={() => setActiveConversation(conv.id)}
-                        className="flex-1 px-3 py-2.5 text-left truncate touch-feedback"
+                        className="min-w-0 flex-1 px-3 py-2.5 text-left truncate touch-feedback"
                       >
-                        <span className="truncate text-[13px]">{conv.title}</span>
+                        <span className="flex min-w-0 items-center gap-2">
+                          <span className="truncate text-[13px]">{conv.title}</span>
+                          {(conv.messageCount ?? conv.messages.length) > LONG_CONVERSATION_THRESHOLD && (
+                            <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-medium text-primary" title="Conversa longa">
+                              {conv.messageCount ?? conv.messages.length}+ mensagens
+                            </span>
+                          )}
+                        </span>
                       </button>
+                      {(conv.messageCount ?? conv.messages.length) > LONG_CONVERSATION_THRESHOLD && (
+                        <button
+                          type="button"
+                          onClick={(event) => { event.stopPropagation(); void startFreshWithSummary(conv.id); }}
+                          disabled={startingFreshId === conv.id}
+                          className="mr-1 flex shrink-0 items-center gap-1 rounded-lg px-1.5 py-1 text-[10px] text-primary transition-colors hover:bg-primary/10 disabled:opacity-60"
+                          title="Continuar em uma conversa nova com um resumo"
+                        >
+                          {startingFreshId === conv.id ? <Sparkles className="h-3 w-3 animate-pulse" /> : <ArrowUpRight className="h-3 w-3" />}
+                          Nova
+                        </button>
+                      )}
                       <div className="hidden group-hover:flex items-center pr-1.5 gap-0.5">
                         <button aria-label={`Renomear conversa ${conv.title}`} onClick={() => startRename(conv.id, conv.title)} className="p-1.5 rounded-lg hover:bg-background/50 transition-colors touch-feedback">
                           <Pencil className="h-3 w-3" />

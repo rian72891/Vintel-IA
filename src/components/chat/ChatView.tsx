@@ -60,6 +60,7 @@ const MessageRow = memo(function MessageRow({
       )}
       <ChatMessage
         message={msg}
+        trace={trace}
         audioUrl={audioUrl}
         onEdit={msg.role === 'user' ? edit : undefined}
         onRegenerate={msg.role === 'assistant' ? regenerate : undefined}

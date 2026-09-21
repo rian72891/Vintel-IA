@@ -12,11 +12,13 @@ import { getFeedback, setFeedback as saveFeedback, type Feedback } from '@/lib/m
 import { getSelectedVoiceId, textToSpeech } from '@/lib/api/elevenlabs';
 import { useVoiceAvailable } from '@/lib/voiceAvailability';
 import { AgentAvatar } from './AgentAvatar';
+import { SourcesList, type SourceCitation } from './SourcesList';
 
 const actionBtn = 'p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors';
 
 interface ChatMessageProps {
   message: Message;
+  trace?: import('@/lib/streamChat').TraceStep[];
   audioUrl?: string | null;
   isStreaming?: boolean;
   onEdit?: (content: string) => void;
@@ -47,7 +49,7 @@ const getFileIcon = (filename: string) => {
   }
 };
 
-function ChatMessageBase({ message, audioUrl, isStreaming, onEdit, onRegenerate }: ChatMessageProps) {
+function ChatMessageBase({ message, trace, audioUrl, isStreaming, onEdit, onRegenerate }: ChatMessageProps) {
   const isUser = message.role === 'user';
   const isVoiceMessage = isUser && message.content.startsWith('🎤 ');
   const [copiedBlock, setCopiedBlock] = useState<number | null>(null);
@@ -66,6 +68,21 @@ function ChatMessageBase({ message, audioUrl, isStreaming, onEdit, onRegenerate 
   const [ttsPlaying, setTtsPlaying] = useState(false);
   const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
   const [lightboxImage, setLightboxImage] = useState<{ src: string; alt?: string; filename?: string } | null>(null);
+  const sources = useMemo<SourceCitation[]>(() => {
+    if (isUser || !trace) return [];
+    const collected: SourceCitation[] = [];
+    for (const step of trace) {
+      if (step.detail !== 'web_search') continue;
+      const result = step.result as { sources?: SourceCitation[] } | undefined;
+      if (Array.isArray(result?.sources)) collected.push(...result.sources);
+    }
+    const seen = new Set<string>();
+    return collected.filter((source) => {
+      if (!source?.url || seen.has(source.url)) return false;
+      seen.add(source.url);
+      return true;
+    });
+  }, [isUser, trace]);
 
 
   const speakResponse = useCallback(async () => {
@@ -444,6 +461,7 @@ function ChatMessageBase({ message, audioUrl, isStreaming, onEdit, onRegenerate 
         ) : cleanContent ? (
           <>
             <MarkdownMessage content={cleanContent} isStreaming={isStreaming} />
+            {!isStreaming && <SourcesList sources={sources} />}
             {!isStreaming && (
               <div className="mt-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                 <button onClick={copyResponse} aria-label="Copiar resposta" title="Copiar resposta" className={actionBtn}>
@@ -499,6 +517,7 @@ function ChatMessageBase({ message, audioUrl, isStreaming, onEdit, onRegenerate 
 export const ChatMessage = memo(ChatMessageBase, (prev, next) =>
   prev.message.id === next.message.id &&
   prev.message.content === next.message.content &&
+  prev.trace === next.trace &&
   prev.message.attachments === next.message.attachments &&
   prev.audioUrl === next.audioUrl &&
   prev.isStreaming === next.isStreaming &&
