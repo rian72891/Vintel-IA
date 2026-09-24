@@ -12,6 +12,7 @@ describe('image intent classification', () => {
 
   it('recognizes editing wording when an image is attached', () => {
     expect(isImageEditRequest('edite isso para ficar mais escuro', true)).toBe(true);
+    expect(isImageEditRequest('/imaginehd deixe isso em preto e branco', true)).toBe(true);
   });
 
   it('keeps an attached-image question in normal multimodal chat', () => {

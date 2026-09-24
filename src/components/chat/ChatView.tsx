@@ -739,22 +739,25 @@ export function ChatView() {
 
     if (imageEdit) {
       if (!checkUsage('images')) { showUpgrade('imagens'); return; }
-      const imageAtt = processedAttachments.find(a => a.type === 'image')!;
+      const imageAtt = processedAttachments.find(a => a.type === 'image');
+      const isEditingExisting = Boolean(imageAtt);
       const prompt = content.replace(/^\/(imagine|imaginehd)\s*/, '').trim() || 'Recrie esta imagem com melhorias';
       const quality: ImageQuality = content.startsWith('/imaginehd ') ? 'hd' : 'fast';
+      const actionLabel = isEditingExisting ? `🎨 Editar imagem: ${prompt}` : `🎨 Gerar imagem: ${prompt}`;
+      const actionVerb = isEditingExisting ? 'editar' : 'gerar';
 
       await addMessage(activeConversationId, {
         role: 'user',
-        content: `🎨 Editar imagem: ${prompt}`,
+        content: actionLabel,
         attachments: processedAttachments,
       });
       setIsStreaming(true);
-      setLoadingLabel('Editando imagem com IA...');
+      setLoadingLabel(isEditingExisting ? 'Editando imagem com IA...' : 'Gerando imagem com IA...');
       resetStream();
 
       try {
-        const result = await generateImage(prompt, quality, imageAtt.url);
-        const desc = result.description || `Imagem editada: ${prompt}`;
+        const result = await generateImage(prompt, quality, imageAtt?.url);
+        const desc = result.description || `${isEditingExisting ? 'Imagem editada' : 'Imagem gerada'}: ${prompt}`;
         await addMessage(activeConversationId, {
           role: 'assistant',
           content: desc,
@@ -762,10 +765,10 @@ export function ChatView() {
         });
         await incrementUsage('images');
       } catch (e: any) {
-        toast.error(e.message || 'Erro ao editar imagem.');
+        toast.error(e.message || `Erro ao ${actionVerb} imagem.`);
         await addMessage(activeConversationId, {
           role: 'assistant',
-          content: `❌ Não foi possível editar a imagem. ${e.message || 'Tente novamente.'}`,
+          content: `❌ Não foi possível ${actionVerb} a imagem. ${e.message || 'Tente novamente.'}`,
         });
       } finally {
         setIsStreaming(false);
