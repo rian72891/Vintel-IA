@@ -5,11 +5,8 @@ export const imageEditKeywords = [
 ];
 
 export function isImageEditRequest(content: string, hasImageAttachment: boolean): boolean {
+  const lower = content.toLowerCase();
+  if (content.startsWith('/imagine ') || content.startsWith('/imaginehd ')) return true;
   if (!hasImageAttachment) return false;
-  const lowerContent = content.toLowerCase();
-  return (
-    content.startsWith('/imagine ') ||
-    content.startsWith('/imaginehd ') ||
-    imageEditKeywords.some((keyword) => lowerContent.includes(keyword))
-  );
+  return imageEditKeywords.some((keyword) => lower.includes(keyword));
 }

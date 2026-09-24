@@ -2,18 +2,28 @@ import { describe, expect, it } from 'vitest';
 import { isImageEditRequest } from '@/lib/imageIntent';
 
 describe('image intent classification', () => {
-  it('sends a short question with an image to normal multimodal chat', () => {
+  it('recognizes /imaginehd without an image as generation from scratch', () => {
+    expect(isImageEditRequest('/imaginehd crie uma imagem de um cavalo', false)).toBe(true);
+  });
+
+  it('recognizes /imagine without an image as generation from scratch', () => {
+    expect(isImageEditRequest('/imagine um gato', false)).toBe(true);
+  });
+
+  it('recognizes editing wording when an image is attached', () => {
+    expect(isImageEditRequest('edite isso para ficar mais escuro', true)).toBe(true);
+  });
+
+  it('keeps an attached-image question in normal multimodal chat', () => {
+    expect(isImageEditRequest('responda essa questão', true)).toBe(false);
+  });
+
+  it('does not classify ordinary text without an image or command as image editing', () => {
+    expect(isImageEditRequest('como você está?', false)).toBe(false);
+  });
+
+  it('continues to protect other image-analysis questions from false positives', () => {
     expect(isImageEditRequest('Responda as questões de geografia', true)).toBe(false);
     expect(isImageEditRequest('O que aparece nesta foto?', true)).toBe(false);
-  });
-
-  it('recognizes explicit image editing commands and wording', () => {
-    expect(isImageEditRequest('/imaginehd transforme em aquarela', true)).toBe(true);
-    expect(isImageEditRequest('Edite a imagem e remova o fundo', true)).toBe(true);
-    expect(isImageEditRequest('gere uma versão em estilo retrô', true)).toBe(true);
-  });
-
-  it('never classifies text-only requests as image editing', () => {
-    expect(isImageEditRequest('Edite este texto', false)).toBe(false);
   });
 });
