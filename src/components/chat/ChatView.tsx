@@ -743,13 +743,11 @@ export function ChatView() {
       const isEditingExisting = Boolean(imageAtt);
       const prompt = content.replace(/^\/(imagine|imaginehd)\s*/, '').trim() || 'Recrie esta imagem com melhorias';
       const quality: ImageQuality = content.startsWith('/imaginehd ') ? 'hd' : 'fast';
-      const actionLabel = isEditingExisting ? `🎨 Editar imagem: ${prompt}` : `🎨 Gerar imagem: ${prompt}`;
-      const actionVerb = isEditingExisting ? 'editar' : 'gerar';
 
       await addMessage(activeConversationId, {
         role: 'user',
-        content: actionLabel,
-        attachments: processedAttachments,
+        content: isEditingExisting ? `🎨 Editar imagem: ${prompt}` : `🎨 Gerar imagem: ${prompt}`,
+        attachments: processedAttachments.length > 0 ? processedAttachments : undefined,
       });
       setIsStreaming(true);
       setLoadingLabel(isEditingExisting ? 'Editando imagem com IA...' : 'Gerando imagem com IA...');
@@ -765,6 +763,7 @@ export function ChatView() {
         });
         await incrementUsage('images');
       } catch (e: any) {
+        const actionVerb = isEditingExisting ? 'editar' : 'gerar';
         toast.error(e.message || `Erro ao ${actionVerb} imagem.`);
         await addMessage(activeConversationId, {
           role: 'assistant',
