@@ -9,7 +9,7 @@ interface ImageLightboxProps {
   onDownload: (src: string, filename?: string) => void;
 }
 
-function distanceBetweenTouches(touches: TouchList) {
+function distanceBetweenTouches(touches: React.TouchList) {
   if (touches.length < 2) return 0;
   const first = touches[0];
   const second = touches[1];
