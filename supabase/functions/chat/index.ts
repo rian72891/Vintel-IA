@@ -1818,7 +1818,7 @@ serve(async (req) => {
         for (let i = 0; i < 5; i++) {
           const thinkId = `think_${i}`;
           step({ id: thinkId, status: "running", label: i === 0 ? "Pensando…" : "Analisando resultados…" });
-          const chosen = await callChain({ tools });
+          const chosen = await callChain({ tools, stream: true });
           if (!chosen.provider) {
             const status = (chosen as any).status;
             const txt = String((chosen as any).detail ?? "");
