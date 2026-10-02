@@ -764,7 +764,7 @@ function sseStep(step: { id: string; status: "running" | "done" | "error" | "wai
 }
 
 /** Evento de confirmação de ação irreversível. */
-function sseConfirm(c: { id: string; tool: string; args: any; label: string }) {
+function sseConfirm(c: { id: string; tool: string; args: any; label: string; taskId?: string | null }) {
   return new TextEncoder().encode(`data: ${JSON.stringify({ type: "confirm", ...c })}\n\n`);
 }
 
