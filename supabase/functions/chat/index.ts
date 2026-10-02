@@ -1749,10 +1749,72 @@ serve(async (req) => {
       emit(sseStep(s));
     };
 
+    /** Chamadas pendentes de confirmação neste turno, salvas em background_tasks. */
+    const pendingCalls: Record<string, any> = {};
+    /** Ações aprovadas executadas diretamente na retomada (actionKey → resultado). */
+    const executedApproved = new Map<string, unknown>();
+
+    /**
+     * Retomada após confirmação: busca as chamadas salvas e executa-as com os
+     * argumentos EXATOS aprovados, sem pedir ao modelo para gerá-las de novo.
+     */
+    const resumeApprovedCalls = async () => {
+      if (!userId) return;
+      const keys = Object.keys(decisions);
+      if (!keys.length) return;
+      const { data: waiting } = await admin
+        .from("background_tasks")
+        .select("id, pending_tool_call")
+        .eq("user_id", userId)
+        .eq("status", "waiting_confirmation")
+        .not("pending_tool_call", "is", null)
+        .order("updated_at", { ascending: false })
+        .limit(20);
+      for (const row of (waiting ?? []) as any[]) {
+        const pending = (row.pending_tool_call ?? {}) as Record<string, any>;
+        const remaining: Record<string, any> = { ...pending };
+        let touched = false;
+        for (const key of keys) {
+          const call = pending[key];
+          if (!call || executedApproved.has(key)) continue;
+          touched = true;
+          delete remaining[key];
+          const label = toolLabel(call.name, call.args);
+          const tc = {
+            id: call.id || `resume_${key}`,
+            type: "function",
+            ...(call.thought_signature ? { thought_signature: call.thought_signature } : {}),
+            function: { name: call.name, arguments: JSON.stringify(call.args ?? {}) },
+          };
+          let result: unknown;
+          if (decisions[key] === "approved") {
+            step({ id: tc.id, status: "running", label, detail: "Executando ação confirmada" });
+            result = await executeTool(call.name, call.args ?? {}, { admin, userId, tokens });
+            const failed = result && typeof result === "object" && "error" in (result as any);
+            step({ id: tc.id, status: failed ? "error" : "done", label, detail: failed ? String((result as any).error).slice(0, 160) : "Executada após sua confirmação" });
+          } else {
+            result = { cancelled: true, reason: "Ação cancelada pelo usuário. Não execute novamente; siga sem ela e comente brevemente." };
+            step({ id: tc.id, status: "error", label, detail: "Cancelado pelo usuário" });
+          }
+          executedApproved.set(key, result);
+          convo.push({ role: "assistant", content: "", tool_calls: [tc] });
+          convo.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result).slice(0, 8000) });
+        }
+        if (touched) {
+          const left = Object.keys(remaining).length;
+          await admin.from("background_tasks").update({
+            pending_tool_call: left ? remaining : null,
+            ...(left ? {} : { status: "completed" }),
+          }).eq("id", row.id);
+        }
+      }
+    };
+
     const runAgent = async () => {
       let finalContent = "";
       let finished = false;
       try {
+        await resumeApprovedCalls();
         for (let i = 0; i < 5; i++) {
           const thinkId = `think_${i}`;
           step({ id: thinkId, status: "running", label: i === 0 ? "Pensando…" : "Analisando resultados…" });
@@ -1826,6 +1888,12 @@ serve(async (req) => {
                   const key = actionKey(name, parsedArgs);
                   const decision = decisions[key];
 
+                  // Já executada diretamente na retomada: nunca repete a ação.
+                  if (executedApproved.has(key)) {
+                    step({ id: tc.id, status: "done", label, detail: "Já executada após sua confirmação" });
+                    return { tc, result: executedApproved.get(key) };
+                  }
+
                   if (decision === "cancelled") {
                     step({ id: tc.id, status: "error", label, detail: "Cancelado pelo usuário" });
                     return { tc, result: { cancelled: true, reason: "Ação cancelada pelo usuário. Não execute novamente; siga sem ela e comente brevemente." } };
@@ -1834,8 +1902,12 @@ serve(async (req) => {
                   if (decision !== "approved") {
                     awaitingConfirmation = true;
                     const human = actionLabel(name, parsedArgs);
+                    pendingCalls[key] = {
+                      id: tc.id, name, args: parsedArgs, label: human,
+                      thought_signature: tc.thought_signature ?? null,
+                    };
                     step({ id: tc.id, status: "waiting", label: `Aguardando confirmação — ${label}`, detail: human });
-                    emit(sseConfirm({ id: key, tool: name, args: parsedArgs, label: human }));
+                    emit(sseConfirm({ id: key, tool: name, args: parsedArgs, label: human, taskId }));
                     return { tc, result: { pending_user_confirmation: true, action: human } };
                   }
                 }
@@ -1873,18 +1945,19 @@ serve(async (req) => {
 
             // Pausa o turno: o usuário precisa confirmar as ações irreversíveis pendentes.
             if (awaitingConfirmation) {
-              await patchTask({ status: "waiting_confirmation", result: { steps, awaiting_confirmation: true } });
+              await patchTask({
+                status: "waiting_confirmation",
+                pending_tool_call: pendingCalls,
+                result: { steps, awaiting_confirmation: true },
+              });
               finished = true;
               return;
             }
             continue;
           }
 
-          // Final text — stream as one chunk so the frontend renders it.
-          // `convo` mantém o texto original (com <thinking>); só filtramos a exibição.
-          step({ id: "final", status: "running", label: "Escrevendo resposta…" });
-          finalContent = stripThinking(msg.content || "");
-          if (finalContent) emit(sseChunk(finalContent));
+          // Texto final já foi transmitido incrementalmente acima.
+          finalContent = streamedVisible || stripThinking(msg.content || "");
           step({ id: "final", status: "done", label: "Resposta pronta" });
           finished = true;
           break;
