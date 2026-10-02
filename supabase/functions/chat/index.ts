@@ -764,7 +764,7 @@ function sseStep(step: { id: string; status: "running" | "done" | "error" | "wai
 }
 
 /** Evento de confirmação de ação irreversível. */
-function sseConfirm(c: { id: string; tool: string; args: any; label: string }) {
+function sseConfirm(c: { id: string; tool: string; args: any; label: string; taskId?: string | null }) {
   return new TextEncoder().encode(`data: ${JSON.stringify({ type: "confirm", ...c })}\n\n`);
 }
 
@@ -984,8 +984,88 @@ const OAI_PROVIDERS: OaiProvider[] = [
   { name: "Mistral", base: "https://api.mistral.ai/v1/chat/completions", model: "mistral-small-latest", env: "MISTRAL_API_KEY" },
   // "llama-3.3-70b" foi descontinuado na Cerebras; o catálogo atual expõe "gpt-oss-120b".
   { name: "Cerebras", base: "https://api.cerebras.ai/v1/chat/completions", model: "gpt-oss-120b", env: "CEREBRAS_API_KEY" },
-  { name: "OpenRouter", base: "https://openrouter.ai/api/v1/chat/completions", model: "meta-llama/llama-3.1-8b-instruct:free", env: "OPENROUTER_API_KEY" },
+  // Modelo gratuito confirmado no catálogo do OpenRouter (pricing 0, suporta tools).
+  { name: "OpenRouter", base: "https://openrouter.ai/api/v1/chat/completions", model: "google/gemma-4-31b-it:free", env: "OPENROUTER_API_KEY" },
 ];
+
+/**
+ * Consome o SSE de um provedor (Gemini ou OpenAI-compatible) incrementalmente.
+ * Texto é repassado a `onText` assim que chega; chamadas de ferramenta são
+ * acumuladas até o chunk de conclusão (finish_reason / finishReason).
+ */
+async function consumeAgentStream(
+  kind: "gemini" | "openai",
+  body: ReadableStream<Uint8Array>,
+  iter: number,
+  onText: (t: string) => void,
+): Promise<{ text: string; calls: any[]; finished: boolean }> {
+  const decoder = new TextDecoder();
+  const reader = body.getReader();
+  let buffer = "";
+  let text = "";
+  let finished = false;
+  const geminiCalls: any[] = [];
+  const oaiCalls = new Map<number, { id: string; name: string; args: string }>();
+
+  const handle = (json: string) => {
+    if (!json || json === "[DONE]") { if (json === "[DONE]") finished = true; return; }
+    let parsed: any;
+    try { parsed = JSON.parse(json); } catch { return; }
+    if (kind === "gemini") {
+      const cand = parsed.candidates?.[0];
+      for (const p of cand?.content?.parts ?? []) {
+        if (p.thought) continue;
+        if (typeof p.text === "string" && p.text) { text += p.text; onText(p.text); }
+        if (p.functionCall) {
+          geminiCalls.push({
+            id: `call_${iter}_${geminiCalls.length}`,
+            type: "function",
+            thought_signature: p.thoughtSignature ?? p.thought_signature ?? null,
+            function: { name: p.functionCall.name, arguments: JSON.stringify(p.functionCall.args ?? {}) },
+          });
+        }
+      }
+      if (cand?.finishReason) finished = true;
+    } else {
+      const choice = parsed.choices?.[0];
+      const delta = choice?.delta ?? {};
+      if (typeof delta.content === "string" && delta.content) { text += delta.content; onText(delta.content); }
+      for (const tc of delta.tool_calls ?? []) {
+        const idx = typeof tc.index === "number" ? tc.index : oaiCalls.size;
+        const cur = oaiCalls.get(idx) ?? { id: "", name: "", args: "" };
+        if (tc.id) cur.id = tc.id;
+        if (tc.function?.name) cur.name += tc.function.name;
+        if (tc.function?.arguments) {
+          cur.args += typeof tc.function.arguments === "string" ? tc.function.arguments : JSON.stringify(tc.function.arguments);
+        }
+        oaiCalls.set(idx, cur);
+      }
+      if (choice?.finish_reason) finished = true;
+    }
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let idx: number;
+    while ((idx = buffer.indexOf("\n")) !== -1) {
+      const line = buffer.slice(0, idx).replace(/\r$/, "");
+      buffer = buffer.slice(idx + 1);
+      if (line.startsWith("data:")) handle(line.slice(5).trim());
+    }
+  }
+  if (buffer.startsWith("data:")) handle(buffer.slice(5).trim());
+
+  const calls = kind === "gemini"
+    ? geminiCalls
+    : [...oaiCalls.entries()].sort((a, b) => a[0] - b[0]).map(([i, c]) => ({
+        id: c.id || `call_${iter}_${i}`,
+        type: "function",
+        function: { name: c.name, arguments: c.args || "{}" },
+      }));
+  return { text, calls, finished };
+}
 
 /** Remove campos específicos do Gemini e normaliza o conteúdo para o formato OpenAI. */
 function sanitizeConvoForOpenAI(convo: any[]) {
@@ -1669,14 +1749,76 @@ serve(async (req) => {
       emit(sseStep(s));
     };
 
+    /** Chamadas pendentes de confirmação neste turno, salvas em background_tasks. */
+    const pendingCalls: Record<string, any> = {};
+    /** Ações aprovadas executadas diretamente na retomada (actionKey → resultado). */
+    const executedApproved = new Map<string, unknown>();
+
+    /**
+     * Retomada após confirmação: busca as chamadas salvas e executa-as com os
+     * argumentos EXATOS aprovados, sem pedir ao modelo para gerá-las de novo.
+     */
+    const resumeApprovedCalls = async () => {
+      if (!userId) return;
+      const keys = Object.keys(decisions);
+      if (!keys.length) return;
+      const { data: waiting } = await admin
+        .from("background_tasks")
+        .select("id, pending_tool_call")
+        .eq("user_id", userId)
+        .eq("status", "waiting_confirmation")
+        .not("pending_tool_call", "is", null)
+        .order("updated_at", { ascending: false })
+        .limit(20);
+      for (const row of (waiting ?? []) as any[]) {
+        const pending = (row.pending_tool_call ?? {}) as Record<string, any>;
+        const remaining: Record<string, any> = { ...pending };
+        let touched = false;
+        for (const key of keys) {
+          const call = pending[key];
+          if (!call || executedApproved.has(key)) continue;
+          touched = true;
+          delete remaining[key];
+          const label = toolLabel(call.name, call.args);
+          const tc = {
+            id: call.id || `resume_${key}`,
+            type: "function",
+            ...(call.thought_signature ? { thought_signature: call.thought_signature } : {}),
+            function: { name: call.name, arguments: JSON.stringify(call.args ?? {}) },
+          };
+          let result: unknown;
+          if (decisions[key] === "approved") {
+            step({ id: tc.id, status: "running", label, detail: "Executando ação confirmada" });
+            result = await executeTool(call.name, call.args ?? {}, { admin, userId, tokens });
+            const failed = result && typeof result === "object" && "error" in (result as any);
+            step({ id: tc.id, status: failed ? "error" : "done", label, detail: failed ? String((result as any).error).slice(0, 160) : "Executada após sua confirmação" });
+          } else {
+            result = { cancelled: true, reason: "Ação cancelada pelo usuário. Não execute novamente; siga sem ela e comente brevemente." };
+            step({ id: tc.id, status: "error", label, detail: "Cancelado pelo usuário" });
+          }
+          executedApproved.set(key, result);
+          convo.push({ role: "assistant", content: "", tool_calls: [tc] });
+          convo.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(result).slice(0, 8000) });
+        }
+        if (touched) {
+          const left = Object.keys(remaining).length;
+          await admin.from("background_tasks").update({
+            pending_tool_call: left ? remaining : null,
+            ...(left ? {} : { status: "completed" }),
+          }).eq("id", row.id);
+        }
+      }
+    };
+
     const runAgent = async () => {
       let finalContent = "";
       let finished = false;
       try {
+        await resumeApprovedCalls();
         for (let i = 0; i < 5; i++) {
           const thinkId = `think_${i}`;
           step({ id: thinkId, status: "running", label: i === 0 ? "Pensando…" : "Analisando resultados…" });
-          const chosen = await callChain({ tools });
+          const chosen = await callChain({ tools, stream: true });
           if (!chosen.provider) {
             const status = (chosen as any).status;
             const txt = String((chosen as any).detail ?? "");
@@ -1695,49 +1837,37 @@ serve(async (req) => {
             step({ id: `provider_${i}`, status: "done", label: `Respondido via ${chosen.provider} (fallback)` });
           }
 
-          const data = await chosen.res.json();
+          // Streaming real: texto vai ao frontend conforme chega; tool calls são acumuladas.
+          const filter = createThinkingFilter();
+          let streamedVisible = "";
+          let wroteStep = false;
+          const onText = (t: string) => {
+            const visible = filter.push(t);
+            if (!visible) return;
+            if (!wroteStep) { wroteStep = true; step({ id: thinkId, status: "done", label: "Escrevendo resposta…" }); }
+            streamedVisible += visible;
+            emit(sseChunk(visible));
+          };
+          const out = await consumeAgentStream(chosen.kind, chosen.res.body!, i, onText);
+          const tail = filter.flush();
+          if (tail) { streamedVisible += tail; emit(sseChunk(tail)); }
+          const text = out.text;
+          let calls = out.calls;
 
-          let text = "";
-          let calls: any[] = [];
-
-          if (chosen.kind === "gemini") {
-            const parts = data.candidates?.[0]?.content?.parts;
-            if (!parts) {
-              step({ id: thinkId, status: "error", label: "Resposta vazia do modelo" });
-              finalContent = "\n\n⚠️ Resposta vazia do modelo.";
-              emit(sseChunk(finalContent));
-              await patchTask({ status: "failed", result: { error: "Resposta vazia do modelo", steps } });
-              return;
-            }
-            // Converte a resposta do Gemini de volta para o formato OpenAI usado no loop.
-            text = parts.filter((p: any) => typeof p.text === "string").map((p: any) => p.text).join("");
-            calls = parts.filter((p: any) => p.functionCall).map((p: any, idx: number) => ({
-              id: `call_${i}_${idx}`,
-              type: "function",
-              thought_signature: p.thoughtSignature ?? p.thought_signature ?? null,
-              function: { name: p.functionCall.name, arguments: JSON.stringify(p.functionCall.args ?? {}) },
-            }));
-          } else {
-            const message = data.choices?.[0]?.message;
-            if (!message) {
-              step({ id: thinkId, status: "error", label: "Resposta vazia do modelo" });
-              finalContent = "\n\n⚠️ Resposta vazia do modelo.";
-              emit(sseChunk(finalContent));
-              await patchTask({ status: "failed", result: { error: "Resposta vazia do modelo", steps } });
-              return;
-            }
-            text = typeof message.content === "string" ? message.content : "";
-            calls = (message.tool_calls ?? []).map((tc: any, idx: number) => ({
-              id: tc.id || `call_${i}_${idx}`,
-              type: "function",
-              function: {
-                name: tc.function?.name,
-                arguments: typeof tc.function?.arguments === "string" ? tc.function.arguments : JSON.stringify(tc.function?.arguments ?? {}),
-              },
-            }));
+          if (calls.length && !out.finished) {
+            // Stream interrompido no meio de uma chamada de ferramenta: não executa nada parcial.
+            calls = [];
+            step({ id: thinkId, status: "error", label: "Resposta interrompida durante chamada de ferramenta" });
+          }
+          if (!text && !calls.length) {
+            step({ id: thinkId, status: "error", label: "Resposta vazia do modelo" });
+            finalContent = "\n\n⚠️ Resposta vazia do modelo.";
+            emit(sseChunk(finalContent));
+            await patchTask({ status: "failed", result: { error: "Resposta vazia do modelo", steps } });
+            return;
           }
 
-          step({ id: thinkId, status: "done", label: i === 0 ? "Raciocínio concluído" : "Resultados analisados" });
+          if (!wroteStep) step({ id: thinkId, status: "done", label: i === 0 ? "Raciocínio concluído" : "Resultados analisados" });
 
           const msg: any = { role: "assistant", content: text, ...(calls.length ? { tool_calls: calls } : {}) };
           convo.push(msg);
@@ -1758,6 +1888,12 @@ serve(async (req) => {
                   const key = actionKey(name, parsedArgs);
                   const decision = decisions[key];
 
+                  // Já executada diretamente na retomada: nunca repete a ação.
+                  if (executedApproved.has(key)) {
+                    step({ id: tc.id, status: "done", label, detail: "Já executada após sua confirmação" });
+                    return { tc, result: executedApproved.get(key) };
+                  }
+
                   if (decision === "cancelled") {
                     step({ id: tc.id, status: "error", label, detail: "Cancelado pelo usuário" });
                     return { tc, result: { cancelled: true, reason: "Ação cancelada pelo usuário. Não execute novamente; siga sem ela e comente brevemente." } };
@@ -1766,8 +1902,12 @@ serve(async (req) => {
                   if (decision !== "approved") {
                     awaitingConfirmation = true;
                     const human = actionLabel(name, parsedArgs);
+                    pendingCalls[key] = {
+                      id: tc.id, name, args: parsedArgs, label: human,
+                      thought_signature: tc.thought_signature ?? null,
+                    };
                     step({ id: tc.id, status: "waiting", label: `Aguardando confirmação — ${label}`, detail: human });
-                    emit(sseConfirm({ id: key, tool: name, args: parsedArgs, label: human }));
+                    emit(sseConfirm({ id: key, tool: name, args: parsedArgs, label: human, taskId }));
                     return { tc, result: { pending_user_confirmation: true, action: human } };
                   }
                 }
@@ -1805,18 +1945,19 @@ serve(async (req) => {
 
             // Pausa o turno: o usuário precisa confirmar as ações irreversíveis pendentes.
             if (awaitingConfirmation) {
-              await patchTask({ status: "waiting_confirmation", result: { steps, awaiting_confirmation: true } });
+              await patchTask({
+                status: "waiting_confirmation",
+                pending_tool_call: pendingCalls,
+                result: { steps, awaiting_confirmation: true },
+              });
               finished = true;
               return;
             }
             continue;
           }
 
-          // Final text — stream as one chunk so the frontend renders it.
-          // `convo` mantém o texto original (com <thinking>); só filtramos a exibição.
-          step({ id: "final", status: "running", label: "Escrevendo resposta…" });
-          finalContent = stripThinking(msg.content || "");
-          if (finalContent) emit(sseChunk(finalContent));
+          // Texto final já foi transmitido incrementalmente acima.
+          finalContent = streamedVisible || stripThinking(msg.content || "");
           step({ id: "final", status: "done", label: "Resposta pronta" });
           finished = true;
           break;

@@ -30,6 +30,8 @@ export type ConfirmRequest = {
   tool: string;
   args: Record<string, unknown>;
   label: string;
+  /** Tarefa em background onde a chamada pendente foi salva. */
+  taskId?: string | null;
 };
 
 export type ApprovalMap = Record<string, 'approved' | 'cancelled'>;
