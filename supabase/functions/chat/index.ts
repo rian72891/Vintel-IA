@@ -984,8 +984,88 @@ const OAI_PROVIDERS: OaiProvider[] = [
   { name: "Mistral", base: "https://api.mistral.ai/v1/chat/completions", model: "mistral-small-latest", env: "MISTRAL_API_KEY" },
   // "llama-3.3-70b" foi descontinuado na Cerebras; o catálogo atual expõe "gpt-oss-120b".
   { name: "Cerebras", base: "https://api.cerebras.ai/v1/chat/completions", model: "gpt-oss-120b", env: "CEREBRAS_API_KEY" },
-  { name: "OpenRouter", base: "https://openrouter.ai/api/v1/chat/completions", model: "meta-llama/llama-3.1-8b-instruct:free", env: "OPENROUTER_API_KEY" },
+  // Modelo gratuito confirmado no catálogo do OpenRouter (pricing 0, suporta tools).
+  { name: "OpenRouter", base: "https://openrouter.ai/api/v1/chat/completions", model: "google/gemma-4-31b-it:free", env: "OPENROUTER_API_KEY" },
 ];
+
+/**
+ * Consome o SSE de um provedor (Gemini ou OpenAI-compatible) incrementalmente.
+ * Texto é repassado a `onText` assim que chega; chamadas de ferramenta são
+ * acumuladas até o chunk de conclusão (finish_reason / finishReason).
+ */
+async function consumeAgentStream(
+  kind: "gemini" | "openai",
+  body: ReadableStream<Uint8Array>,
+  iter: number,
+  onText: (t: string) => void,
+): Promise<{ text: string; calls: any[]; finished: boolean }> {
+  const decoder = new TextDecoder();
+  const reader = body.getReader();
+  let buffer = "";
+  let text = "";
+  let finished = false;
+  const geminiCalls: any[] = [];
+  const oaiCalls = new Map<number, { id: string; name: string; args: string }>();
+
+  const handle = (json: string) => {
+    if (!json || json === "[DONE]") { if (json === "[DONE]") finished = true; return; }
+    let parsed: any;
+    try { parsed = JSON.parse(json); } catch { return; }
+    if (kind === "gemini") {
+      const cand = parsed.candidates?.[0];
+      for (const p of cand?.content?.parts ?? []) {
+        if (p.thought) continue;
+        if (typeof p.text === "string" && p.text) { text += p.text; onText(p.text); }
+        if (p.functionCall) {
+          geminiCalls.push({
+            id: `call_${iter}_${geminiCalls.length}`,
+            type: "function",
+            thought_signature: p.thoughtSignature ?? p.thought_signature ?? null,
+            function: { name: p.functionCall.name, arguments: JSON.stringify(p.functionCall.args ?? {}) },
+          });
+        }
+      }
+      if (cand?.finishReason) finished = true;
+    } else {
+      const choice = parsed.choices?.[0];
+      const delta = choice?.delta ?? {};
+      if (typeof delta.content === "string" && delta.content) { text += delta.content; onText(delta.content); }
+      for (const tc of delta.tool_calls ?? []) {
+        const idx = typeof tc.index === "number" ? tc.index : oaiCalls.size;
+        const cur = oaiCalls.get(idx) ?? { id: "", name: "", args: "" };
+        if (tc.id) cur.id = tc.id;
+        if (tc.function?.name) cur.name += tc.function.name;
+        if (tc.function?.arguments) {
+          cur.args += typeof tc.function.arguments === "string" ? tc.function.arguments : JSON.stringify(tc.function.arguments);
+        }
+        oaiCalls.set(idx, cur);
+      }
+      if (choice?.finish_reason) finished = true;
+    }
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let idx: number;
+    while ((idx = buffer.indexOf("\n")) !== -1) {
+      const line = buffer.slice(0, idx).replace(/\r$/, "");
+      buffer = buffer.slice(idx + 1);
+      if (line.startsWith("data:")) handle(line.slice(5).trim());
+    }
+  }
+  if (buffer.startsWith("data:")) handle(buffer.slice(5).trim());
+
+  const calls = kind === "gemini"
+    ? geminiCalls
+    : [...oaiCalls.entries()].sort((a, b) => a[0] - b[0]).map(([i, c]) => ({
+        id: c.id || `call_${iter}_${i}`,
+        type: "function",
+        function: { name: c.name, arguments: c.args || "{}" },
+      }));
+  return { text, calls, finished };
+}
 
 /** Remove campos específicos do Gemini e normaliza o conteúdo para o formato OpenAI. */
 function sanitizeConvoForOpenAI(convo: any[]) {
