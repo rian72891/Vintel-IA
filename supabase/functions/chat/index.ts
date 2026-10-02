@@ -1805,7 +1805,7 @@ serve(async (req) => {
             return;
           }
 
-          step({ id: thinkId, status: "done", label: i === 0 ? "Raciocínio concluído" : "Resultados analisados" });
+          if (!wroteStep) step({ id: thinkId, status: "done", label: i === 0 ? "Raciocínio concluído" : "Resultados analisados" });
 
           const msg: any = { role: "assistant", content: text, ...(calls.length ? { tool_calls: calls } : {}) };
           convo.push(msg);
