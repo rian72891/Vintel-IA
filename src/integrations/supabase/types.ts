@@ -20,6 +20,7 @@ export type Database = {
           created_at: string
           id: string
           input: Json
+          pending_tool_call: Json | null
           result: Json | null
           status: string
           updated_at: string
@@ -30,6 +31,7 @@ export type Database = {
           created_at?: string
           id?: string
           input?: Json
+          pending_tool_call?: Json | null
           result?: Json | null
           status?: string
           updated_at?: string
@@ -40,6 +42,7 @@ export type Database = {
           created_at?: string
           id?: string
           input?: Json
+          pending_tool_call?: Json | null
           result?: Json | null
           status?: string
           updated_at?: string
