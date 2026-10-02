@@ -1775,46 +1775,34 @@ serve(async (req) => {
             step({ id: `provider_${i}`, status: "done", label: `Respondido via ${chosen.provider} (fallback)` });
           }
 
-          const data = await chosen.res.json();
+          // Streaming real: texto vai ao frontend conforme chega; tool calls são acumuladas.
+          const filter = createThinkingFilter();
+          let streamedVisible = "";
+          let wroteStep = false;
+          const onText = (t: string) => {
+            const visible = filter.push(t);
+            if (!visible) return;
+            if (!wroteStep) { wroteStep = true; step({ id: thinkId, status: "done", label: "Escrevendo resposta…" }); }
+            streamedVisible += visible;
+            emit(sseChunk(visible));
+          };
+          const out = await consumeAgentStream(chosen.kind, chosen.res.body!, i, onText);
+          const tail = filter.flush();
+          if (tail) { streamedVisible += tail; emit(sseChunk(tail)); }
+          const text = out.text;
+          let calls = out.calls;
 
-          let text = "";
-          let calls: any[] = [];
-
-          if (chosen.kind === "gemini") {
-            const parts = data.candidates?.[0]?.content?.parts;
-            if (!parts) {
-              step({ id: thinkId, status: "error", label: "Resposta vazia do modelo" });
-              finalContent = "\n\n⚠️ Resposta vazia do modelo.";
-              emit(sseChunk(finalContent));
-              await patchTask({ status: "failed", result: { error: "Resposta vazia do modelo", steps } });
-              return;
-            }
-            // Converte a resposta do Gemini de volta para o formato OpenAI usado no loop.
-            text = parts.filter((p: any) => typeof p.text === "string").map((p: any) => p.text).join("");
-            calls = parts.filter((p: any) => p.functionCall).map((p: any, idx: number) => ({
-              id: `call_${i}_${idx}`,
-              type: "function",
-              thought_signature: p.thoughtSignature ?? p.thought_signature ?? null,
-              function: { name: p.functionCall.name, arguments: JSON.stringify(p.functionCall.args ?? {}) },
-            }));
-          } else {
-            const message = data.choices?.[0]?.message;
-            if (!message) {
-              step({ id: thinkId, status: "error", label: "Resposta vazia do modelo" });
-              finalContent = "\n\n⚠️ Resposta vazia do modelo.";
-              emit(sseChunk(finalContent));
-              await patchTask({ status: "failed", result: { error: "Resposta vazia do modelo", steps } });
-              return;
-            }
-            text = typeof message.content === "string" ? message.content : "";
-            calls = (message.tool_calls ?? []).map((tc: any, idx: number) => ({
-              id: tc.id || `call_${i}_${idx}`,
-              type: "function",
-              function: {
-                name: tc.function?.name,
-                arguments: typeof tc.function?.arguments === "string" ? tc.function.arguments : JSON.stringify(tc.function?.arguments ?? {}),
-              },
-            }));
+          if (calls.length && !out.finished) {
+            // Stream interrompido no meio de uma chamada de ferramenta: não executa nada parcial.
+            calls = [];
+            step({ id: thinkId, status: "error", label: "Resposta interrompida durante chamada de ferramenta" });
+          }
+          if (!text && !calls.length) {
+            step({ id: thinkId, status: "error", label: "Resposta vazia do modelo" });
+            finalContent = "\n\n⚠️ Resposta vazia do modelo.";
+            emit(sseChunk(finalContent));
+            await patchTask({ status: "failed", result: { error: "Resposta vazia do modelo", steps } });
+            return;
           }
 
           step({ id: thinkId, status: "done", label: i === 0 ? "Raciocínio concluído" : "Resultados analisados" });
