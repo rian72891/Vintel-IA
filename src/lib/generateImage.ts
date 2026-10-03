@@ -27,5 +27,7 @@ export async function generateImage(
     throw new Error(data.error || `Erro ${resp.status}`);
   }
 
-  return await resp.json();
+  const data = await resp.json().catch(() => ({}));
+  if (data?.error || !data?.imageUrl) throw new Error(data?.error || 'Erro ao gerar imagem.');
+  return data;
 }
