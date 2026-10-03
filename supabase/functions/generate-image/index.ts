@@ -82,14 +82,14 @@ serve(async (req) => {
 
     if (response.status === 429) {
       return new Response(
-        JSON.stringify({ error: "Muitas requisições. Aguarde alguns segundos e tente novamente." }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "A cota de geração de imagens está esgotada no momento. Tente novamente mais tarde.", code: 429 }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
     if (response.status === 503) {
       return new Response(
-        JSON.stringify({ error: "O serviço de imagens está sobrecarregado. Tente novamente em instantes." }),
-        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "O serviço de imagens está sobrecarregado. Tente novamente em instantes.", code: 503 }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
     if (!response.ok) {
@@ -117,7 +117,7 @@ serve(async (req) => {
           error:
             "O modelo respondeu com texto em vez de gerar uma imagem. Reformule o prompt de forma mais visual e descritiva (ex.: \"foto realista de...\", \"ilustração de...\", \"pôster com...\").",
         }),
-        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
