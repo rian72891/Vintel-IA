@@ -12,6 +12,8 @@ interface ChatState {
   temperature: number;
   verboseMode: 'short' | 'detailed';
   streamingEnabled: boolean;
+  /** Comando (ex.: /imagine) digitado na tela inicial, executado pelo ChatView. */
+  pendingCommand: { conversationId: string; text: string; files: File[] } | null;
 
   setSelectedAgent: (agent: AgentType | null) => void;
   setSidebarOpen: (open: boolean) => void;
@@ -19,6 +21,8 @@ interface ChatState {
   setTemperature: (temp: number) => void;
   setVerboseMode: (mode: 'short' | 'detailed') => void;
   setStreamingEnabled: (enabled: boolean) => void;
+  setPendingCommand: (cmd: { conversationId: string; text: string; files: File[] }) => void;
+  takePendingCommand: (conversationId: string) => { text: string; files: File[] } | null;
   createConversation: (agent?: AgentType) => Promise<string | null>;
   setActiveConversation: (id: string | null) => void;
   addMessage: (conversationId: string, message: Omit<Message, 'id' | 'timestamp'>) => Promise<void>;
@@ -49,6 +53,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   temperature: parseFloat(localStorage.getItem('vintel-temperature') || '0.7'),
   verboseMode: (localStorage.getItem('vintel-verbose') as 'short' | 'detailed') || 'detailed',
   streamingEnabled: localStorage.getItem('vintel-streaming') !== 'false',
+  pendingCommand: null,
 
   setSelectedAgent: (agent) => set({ selectedAgent: agent }),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
@@ -64,6 +69,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setStreamingEnabled: (enabled) => {
     localStorage.setItem('vintel-streaming', enabled.toString());
     set({ streamingEnabled: enabled });
+  },
+
+  setPendingCommand: (cmd) => set({ pendingCommand: cmd }),
+
+  takePendingCommand: (conversationId) => {
+    const cmd = get().pendingCommand;
+    if (!cmd || cmd.conversationId !== conversationId) return null;
+    set({ pendingCommand: null });
+    return { text: cmd.text, files: cmd.files };
   },
 
   setTheme: (theme) => {
