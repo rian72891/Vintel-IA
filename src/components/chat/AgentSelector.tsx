@@ -16,6 +16,7 @@ import { agentIconMap } from '@/lib/agentIcons';
 import { getMostUsedAgent } from '@/lib/agentUsage';
 import { speechToText } from '@/lib/api/elevenlabs-stt';
 import { useVoiceAvailable } from '@/lib/voiceAvailability';
+import { isChatCommand } from '@/lib/imageIntent';
 import { toast } from 'sonner';
 
 interface AgentSelectorProps {
@@ -54,7 +55,7 @@ const featureCards = [
 ];
 
 export function AgentSelector({ onRequireAuth }: AgentSelectorProps) {
-  const { conversations, createConversation, setSelectedAgent, setActiveConversation, loadMessages, addMessage } = useChatStore();
+  const { conversations, createConversation, setSelectedAgent, setActiveConversation, loadMessages, addMessage, setPendingCommand } = useChatStore();
   const { user } = useAuth();
   const [input, setInput] = useState('');
   const [files, setFiles] = useState<File[]>([]);
@@ -126,6 +127,14 @@ export function AgentSelector({ onRequireAuth }: AgentSelectorProps) {
     if (!user) { onRequireAuth(); return; }
     const convId = await createConversation();
     if (!convId) return;
+
+    // /imagine, /search, /pdf... são executados pelo ChatView, que sabe o que fazer.
+    if (isChatCommand(input.trim())) {
+      setPendingCommand({ conversationId: convId, text: input.trim(), files: [...files] });
+      setInput(''); setFiles([]);
+      return;
+    }
+
     const attachments = files.length > 0 ? await Promise.all(files.map(async (f) => ({
       type: f.type.startsWith('image/') ? 'image' as const : 'file' as const,
       name: f.name, url: URL.createObjectURL(f), mimeType: f.type,
