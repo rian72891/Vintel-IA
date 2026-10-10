@@ -9,3 +9,4 @@
 - [x] 5. Indicador de uso no chat ("X de Y mensagens hoje")
 - [x] 6. Multi-idioma (pt/en) com seletor nas configurações
 - [x] 7. Exportar conversa atual como Markdown (.md)
+- [x] 8. Gerador de imagens gratuito (fallback sem chave/cartão quando a cota do Gemini acaba; corte da marca d'água no app)
