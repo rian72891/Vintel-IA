@@ -6,6 +6,42 @@ interface GenerateResult {
   imageUrl: string;
   description?: string;
   model?: string;
+  free?: boolean;
+}
+
+/**
+ * O gerador gratuito entrega a imagem com a marca dele no rodapé. Pedimos a
+ * imagem um pouco mais alta e, aqui, cortamos essa faixa de baixo e quadrada-
+ * mos o resultado. Se qualquer coisa falhar, devolvemos a imagem original.
+ */
+async function cropFreeImage(dataUrl: string, size = 768): Promise<string> {
+  try {
+    if (!dataUrl.startsWith('data:image/') || typeof document === 'undefined') return dataUrl;
+
+    const img = new Image();
+    img.src = dataUrl;
+    await img.decode();
+
+    const srcW = img.naturalWidth;
+    const srcH = img.naturalHeight;
+    if (!srcW || !srcH) return dataUrl;
+
+    const usableH = Math.floor(srcH * 0.92); // remove a faixa do rodapé
+    const side = Math.min(srcW, usableH);
+    const sx = Math.floor((srcW - side) / 2);
+    const sy = Math.floor((usableH - side) / 2);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return dataUrl;
+
+    ctx.drawImage(img, sx, sy, side, side, 0, 0, size, size);
+    return canvas.toDataURL('image/jpeg', 0.92);
+  } catch {
+    return dataUrl;
+  }
 }
 
 export async function generateImage(
@@ -29,5 +65,9 @@ export async function generateImage(
 
   const data = await resp.json().catch(() => ({}));
   if (data?.error || !data?.imageUrl) throw new Error(data?.error || 'Erro ao gerar imagem.');
+
+  if (data.free) {
+    data.imageUrl = await cropFreeImage(data.imageUrl, quality === 'hd' ? 1024 : 768);
+  }
   return data;
 }

@@ -157,6 +157,9 @@ async function tryFreeGenerator(
   quality: string
 ): Promise<{ ok: true; result: ImageResult } | { ok: false; message: string }> {
   const size = quality === "hd" ? 1024 : 768;
+  // 12% a mais de altura: a faixa extra embaixo carrega a marca d'água e é
+  // cortada no app (src/lib/generateImage.ts) antes de mostrar a imagem.
+  const reqH = Math.round(size * 1.12);
   const text =
     quality === "hd"
       ? `high quality, highly detailed, professional composition and lighting: ${prompt}`
@@ -167,7 +170,7 @@ async function tryFreeGenerator(
     if (attempt > 0) await sleep(FREE_WAIT_MS);
 
     const url =
-      `${base}?width=${size}&height=${size}` +
+      `${base}?width=${size}&height=${reqH}` +
       `&model=${FREE_MODEL}&nologo=true&seed=${Math.floor(Math.random() * 1_000_000)}`;
 
     let res: Response;
