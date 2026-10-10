@@ -71,7 +71,7 @@ const MessageRow = memo(function MessageRow({
 
 export function ChatView() {
 
-  const { activeConversationId, getActiveConversation, addMessage, temperature, deleteConversation, editMessage, truncateFrom } = useChatStore();
+  const { activeConversationId, getActiveConversation, addMessage, temperature, deleteConversation, editMessage, truncateFrom, takePendingCommand } = useChatStore();
   const conversation = getActiveConversation();
   const bottomRef = useRef<HTMLDivElement>(null);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -896,6 +896,19 @@ export function ChatView() {
     }
 
   };
+
+  // Comando digitado na tela inicial (/imagine, /search, /pdf...): executa aqui,
+  // onde os comandos são de fato tratados.
+  const handleSendRef = useRef<typeof handleSend>(handleSend);
+  handleSendRef.current = handleSend;
+  useEffect(() => {
+    if (!activeConversationId) return;
+    const pending = takePendingCommand(activeConversationId);
+    if (!pending) return;
+    void handleSendRef.current(pending.text, pending.files.length ? pending.files : undefined);
+  }, [activeConversationId, takePendingCommand]);
+
+
 
   const msgUsageLabel = getUsageLabel('messages');
   const msgUsagePercent = getUsagePercent('messages');
