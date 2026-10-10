@@ -71,7 +71,7 @@ const MessageRow = memo(function MessageRow({
 
 export function ChatView() {
 
-  const { activeConversationId, getActiveConversation, addMessage, temperature, deleteConversation, editMessage, truncateFrom } = useChatStore();
+  const { activeConversationId, getActiveConversation, addMessage, temperature, deleteConversation, editMessage, truncateFrom, takePendingCommand } = useChatStore();
   const conversation = getActiveConversation();
   const bottomRef = useRef<HTMLDivElement>(null);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -896,6 +896,22 @@ export function ChatView() {
     }
 
   };
+
+  // Comando digitado na tela inicial (/imagine, /search, /pdf...): executa aqui,
+  // onde os comandos são de fato tratados. A assinatura de pendingCommand cobre
+  // a ordem em que React monta esta tela antes de o comando ser guardado.
+  const handleSendRef = useRef<typeof handleSend>(handleSend);
+  handleSendRef.current = handleSend;
+  const pendingCommand = useChatStore((s) => s.pendingCommand);
+  useEffect(() => {
+    if (!activeConversationId || !pendingCommand) return;
+    if (pendingCommand.conversationId !== activeConversationId) return;
+    const pending = takePendingCommand(activeConversationId);
+    if (!pending) return;
+    void handleSendRef.current(pending.text, pending.files.length ? pending.files : undefined);
+  }, [activeConversationId, pendingCommand, takePendingCommand]);
+
+
 
   const msgUsageLabel = getUsageLabel('messages');
   const msgUsagePercent = getUsagePercent('messages');
