@@ -54,6 +54,7 @@ function statusLabel(status: TraceStep['status']) {
 
 export function AgentTrace({ steps, durationMs = 0, live = false }: AgentTraceProps) {
   const [open, setOpen] = useState(false);
+  const [userToggled, setUserToggled] = useState(false);
   const [openSteps, setOpenSteps] = useState<Record<string, boolean>>({});
   const [elapsed, setElapsed] = useState(durationMs);
   const [now, setNow] = useState(() => performance.now());
@@ -71,6 +72,11 @@ export function AgentTrace({ steps, durationMs = 0, live = false }: AgentTracePr
     ? [...steps].reverse().find((step) => step.status === 'running' || step.status === 'waiting')
     : undefined;
   const currentLabel = currentStep?.label;
+
+  useEffect(() => {
+    if (userToggled) return;
+    setOpen(active || pausedForConfirmation);
+  }, [active, pausedForConfirmation, userToggled]);
 
   useEffect(() => {
     setTimings((previous) => {
@@ -163,7 +169,10 @@ export function AgentTrace({ steps, durationMs = 0, live = false }: AgentTracePr
       <button
         type="button"
         aria-expanded={open}
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => {
+          setUserToggled(true);
+          setOpen((value) => !value);
+        }}
         className="group flex w-full items-center gap-3 px-3.5 py-3 text-left transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       >
         <span
@@ -203,7 +212,7 @@ export function AgentTrace({ steps, durationMs = 0, live = false }: AgentTracePr
       </button>
 
       {open && (
-        <div className="border-t border-border/60 bg-muted/[0.08] px-3.5 pb-3 pt-2">
+        <div className="max-h-64 overflow-y-auto border-t border-border/60 bg-muted/[0.08] px-3.5 pb-3 pt-2">
           <ol className="relative space-y-1" aria-label="Etapas da execução">
             {steps.map((step, index) => {
               const result = getStepResult(step);

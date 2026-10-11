@@ -193,7 +193,7 @@ export function ChatView() {
     const el = scrollRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
-  }, [conversation?.messages.length, streamingContent]);
+  }, [conversation?.messages.length, streamingContent, steps.length]);
 
 
   // Auto-trigger AI response when landing page sends a message
