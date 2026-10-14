@@ -35,14 +35,14 @@ Deno.serve(async (req) => {
     const { provider, redirect_uri } = await req.json().catch(() => ({}));
     if (!provider || !redirect_uri) {
       return new Response(JSON.stringify({ error: 'Missing provider or redirect_uri' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     const cfg = PROVIDERS[provider];
     if (!cfg) {
       return new Response(JSON.stringify({ error: `Unsupported provider: ${provider}` }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({
         error: `${provider} OAuth não configurado. Adicione ${cfg.clientIdEnv} e ${cfg.clientIdEnv.replace('CLIENT_ID', 'CLIENT_SECRET')} nas configurações de Backend.`,
       }), {
-        status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
     return new Response(JSON.stringify({ error: msg }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });
