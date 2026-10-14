@@ -985,7 +985,7 @@ const OAI_PROVIDERS: OaiProvider[] = [
   // "llama-3.3-70b" foi descontinuado na Cerebras; o catálogo atual expõe "gpt-oss-120b".
   { name: "Cerebras", base: "https://api.cerebras.ai/v1/chat/completions", model: "gpt-oss-120b", env: "CEREBRAS_API_KEY" },
   // Modelo gratuito confirmado no catálogo do OpenRouter (pricing 0, suporta tools).
-  { name: "OpenRouter", base: "https://openrouter.ai/api/v1/chat/completions", model: "google/gemma-4-31b-it:free", env: "OPENROUTER_API_KEY" },
+  { name: "OpenRouter", base: "https://openrouter.ai/api/v1/chat/completions", model: Deno.env.get("OPENROUTER_MODEL")?.trim() || "google/gemma-4-31b-it:free", env: "OPENROUTER_API_KEY" },
 ];
 
 /**
