@@ -146,7 +146,8 @@ serve(async (req) => {
     throw new Error("Ação MCP desconhecida.");
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erro ao gerenciar servidor MCP.";
-    const status = /privad|local|inválida|obrigat|login|sessão/i.test(message) ? 400 : 500;
-    return new Response(JSON.stringify({ error: message }), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    console.error("mcp-admin error:", message);
+    // Erros esperados voltam como 200 + { error } para não derrubar a tela.
+    return new Response(JSON.stringify({ error: message }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
