@@ -79,7 +79,7 @@ export function ChatView() {
   const [loadingLabel, setLoadingLabel] = useState('');
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [connectionNotice, setConnectionNotice] = useState<string | null>(null);
-  const { checkUsage, incrementUsage, getUsageLabel, getUsagePercent } = useUsage();
+  const { checkUsage, incrementUsage, refreshUsage, getUsageLabel, getUsagePercent } = useUsage();
   const { t } = useI18n();
   const { plan } = useSubscription();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
@@ -475,7 +475,7 @@ export function ChatView() {
         content: desc,
         attachments: [{ type: 'image', name: prompt, url: result.imageUrl }],
       });
-      await incrementUsage('images');
+      await refreshUsage();
     } catch (e: any) {
       toast.error(e.message || 'Erro ao gerar imagem.');
       await addMessage(activeConversationId, {
@@ -761,7 +761,7 @@ export function ChatView() {
           content: desc,
           attachments: [{ type: 'image', name: `edited-${prompt.slice(0, 30)}`, url: result.imageUrl }],
         });
-        await incrementUsage('images');
+        await refreshUsage();
       } catch (e: any) {
         const actionVerb = isEditingExisting ? 'editar' : 'gerar';
         toast.error(e.message || `Erro ao ${actionVerb} imagem.`);

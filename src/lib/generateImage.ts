@@ -1,3 +1,5 @@
+import { supabase } from '@/integrations/supabase/client';
+
 const GENERATE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-image`;
 
 export type ImageQuality = 'fast' | 'hd';
@@ -49,11 +51,15 @@ export async function generateImage(
   quality: ImageQuality = 'fast',
   editImageUrl?: string
 ): Promise<GenerateResult> {
+  const { data, error } = await supabase.auth.getSession();
+  const accessToken = data.session?.access_token;
+  if (error || !accessToken) throw new Error('Faça login para gerar imagens.');
   const resp = await fetch(GENERATE_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      Authorization: `Bearer ${accessToken}`,
+      apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
     },
     body: JSON.stringify({ prompt, quality, editImageUrl }),
   });
@@ -63,11 +69,11 @@ export async function generateImage(
     throw new Error(data.error || `Erro ${resp.status}`);
   }
 
-  const data = await resp.json().catch(() => ({}));
-  if (data?.error || !data?.imageUrl) throw new Error(data?.error || 'Erro ao gerar imagem.');
+  const result = await resp.json().catch(() => ({}));
+  if (result?.error || !result?.imageUrl) throw new Error(result?.error || 'Erro ao gerar imagem.');
 
-  if (data.free) {
-    data.imageUrl = await cropFreeImage(data.imageUrl, quality === 'hd' ? 1024 : 768);
+  if (result.free) {
+    result.imageUrl = await cropFreeImage(result.imageUrl, quality === 'hd' ? 1024 : 768);
   }
-  return data;
+  return result;
 }
