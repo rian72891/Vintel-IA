@@ -15,6 +15,20 @@ beforeEach(() => {
 });
 
 describe('streamChat HTTP errors', () => {
+  it.each([
+    ['message_rate_limited', 'Você está enviando mensagens rápido demais. Aguarde alguns segundos e tente de novo.'],
+    ['limite_atingido', 'Você atingiu o limite de 10 mensagens diárias do plano free. Faça upgrade para continuar.'],
+  ])('preserves the distinct %s denial without retrying or rejecting', async (error, message) => {
+    const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ error, message }), { status: 429 }));
+    vi.stubGlobal('fetch', fetch);
+    const onError = vi.fn();
+    const onDone = vi.fn();
+    await streamChat({ messages: [], onDelta: vi.fn(), onError, onDone });
+    expect(onError).toHaveBeenCalledWith(message);
+    expect(onDone).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
   it('emits a terminal error step and calls onDone for a 404 response', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ error: 'Endpoint não encontrado' }), {

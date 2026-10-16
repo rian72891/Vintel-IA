@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { exceedsMessageBurst, messageWindowStart, MESSAGE_BURST_ERROR } from "./messageRateLimit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -1441,6 +1442,26 @@ serve(async (req) => {
         const { data: prof } = await admin
           .from("profiles").select("plan").eq("id", userId).maybeSingle();
         if (prof?.plan) plan = prof.plan;
+      }
+    }
+
+    // The current message is already persisted; the eleventh in this window is denied.
+    if (userId) {
+      const { count, error } = await admin
+        .from("messages")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("role", "user")
+        .gt("created_at", messageWindowStart());
+      if (error || count === null) {
+        return new Response(JSON.stringify({ error: "Não foi possível verificar o limite de mensagens. Tente novamente em instantes." }), {
+          status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (exceedsMessageBurst(count)) {
+        return new Response(JSON.stringify({ error: "message_rate_limited", message: MESSAGE_BURST_ERROR }), {
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": "60" },
+        });
       }
     }
 
