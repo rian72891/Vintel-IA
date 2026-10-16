@@ -1444,6 +1444,26 @@ serve(async (req) => {
       }
     }
 
+    // The current message is already persisted; the eleventh in this window is denied.
+    if (userId) {
+      const { count, error } = await admin
+        .from("messages")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("role", "user")
+        .gt("created_at", messageWindowStart());
+      if (error || count === null) {
+        return new Response(JSON.stringify({ error: "Não foi possível verificar o limite de mensagens. Tente novamente em instantes." }), {
+          status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (exceedsMessageBurst(count)) {
+        return new Response(JSON.stringify({ error: "message_rate_limited", message: MESSAGE_BURST_ERROR }), {
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": "60" },
+        });
+      }
+    }
+
     // Verificar limite de mensagens ANTES de chamar o gateway
     if (userId) {
       const { data: usage } = await admin

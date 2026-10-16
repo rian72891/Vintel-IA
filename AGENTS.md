@@ -5,4 +5,5 @@
 - A geração de imagens usa Gemini primeiro e o gerador gratuito `image.pollinations.ai` como fallback. O gerador gratuito exige que a edge function peça a imagem ~12% mais alta e o app corte a faixa inferior; sem esse corte a marca d'água aparece.
 - Authentication and plan/rate-limit denials return HTTP 401/429; callers must consume their error payloads without uncaught rejections. Provider generation errors retain the existing response contract to preserve the UI.
 - Image usage is incremented only in generate-image after success; ChatView refreshes usage and update-usage rejects image increments to avoid double counting.
+- Chat burst checks count persisted user messages across conversations before any provider call; the current message is already saved, so only counts exceeding the configured limit are denied.
 - `npx tsgo --noEmit -p tsconfig.app.json` e `bunx vitest run` precisam passar antes de encerrar qualquer mudança em `src/` ou `supabase/functions/`.
