@@ -20,6 +20,14 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: latest
+      - name: Deploy generate-image
+        run: supabase functions deploy generate-image --project-ref iihpyiwgcgtvtqdxmkgo --no-verify-jwt
+      - name: Deploy update-usage
+        run: supabase functions deploy update-usage --project-ref iihpyiwgcgtvtqdxmkgo --no-verify-jwt
+      - name: Deploy mcp-admin
+        run: supabase functions deploy mcp-admin --project-ref iihpyiwgcgtvtqdxmkgo --no-verify-jwt
+      - name: Deploy oauth-init
+        run: supabase functions deploy oauth-init --project-ref iihpyiwgcgtvtqdxmkgo --no-verify-jwt
       - name: Deploy chat
         run: supabase functions deploy chat --project-ref iihpyiwgcgtvtqdxmkgo --no-verify-jwt
       - name: Deploy github-agent
