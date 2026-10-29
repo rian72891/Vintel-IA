@@ -1,4 +1,4 @@
-project_id = "kbldaktnuzckxarisvca"
+project_id = "iihpyiwgcgtvtqdxmkgo"
 
 [functions.chat]
 verify_jwt = false
@@ -33,6 +33,12 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.oauth-callback]
+verify_jwt = false
+
+[functions.update-usage]
+verify_jwt = false
+
+[functions.mcp-admin]
 verify_jwt = false
 
 [functions.github-agent]
