@@ -1,8 +1,8 @@
 # Roadmap — Vintel IA
 
 ## Proteções solicitadas — RB07
-- [ ] 1. Autenticação, limite mensal e contagem única no servidor para imagens; testar.
-- [ ] 2. Limite de 10 mensagens por 60 segundos e aviso distinto; testar.
+- [x] 1. Autenticação, limite mensal e contagem única no servidor para imagens; testes automatizados aprovados.
+- [x] 2. Limite de 10 mensagens por 60 segundos e aviso distinto; testes automatizados e bloqueio HTTP 429 verificado na conversa autenticada.
 
 ## Melhorias gratuitas (lote atual)
 
