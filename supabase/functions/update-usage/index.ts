@@ -50,7 +50,8 @@ Deno.serve(async (req) => {
 
     if (action === "increment") {
       // Validate type
-      const validTypes = ["messages_used", "images_used", "files_used", "audio_minutes_used", "image_analyses_used"];
+      // Image usage is recorded exclusively by generate-image after success.
+      const validTypes = ["messages_used", "files_used", "audio_minutes_used", "image_analyses_used"];
       if (!validTypes.includes(type)) {
         return new Response(JSON.stringify({ error: "Invalid usage type" }), {
           status: 400,

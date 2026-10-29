@@ -7,7 +7,7 @@ const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 function mapErrorMessage(status: number, raw?: string): string {
   if (status === 401 || status === 403) return 'Sua sessão expirou. Faça login novamente para continuar.';
   if (status === 402) return 'Seus créditos de IA acabaram. Faça upgrade do plano para continuar conversando.';
-  if (status === 429) return 'Muitas requisições em pouco tempo. Aguarde alguns segundos e tente de novo.';
+  if (status === 429) return raw || 'Muitas requisições em pouco tempo. Aguarde alguns segundos e tente de novo.';
   if (status === 503) return 'O serviço está temporariamente indisponível. Tente novamente em instantes.';
   if (status >= 500) return 'Tivemos um problema no servidor. Já estamos verificando — tente novamente.';
   return raw || 'Não foi possível processar sua mensagem. Tente novamente.';
@@ -150,7 +150,7 @@ export async function streamChat({
 
   if (!resp.ok) {
     const data = await resp.json().catch(() => ({}));
-    const friendly = mapErrorMessage(resp.status, data?.error);
+    const friendly = mapErrorMessage(resp.status, data?.message || data?.error);
     reportChatRequestError(resp.status, 'http_error');
     emitHttpError('Falha ao gerar resposta', friendly);
     try {

@@ -1,5 +1,9 @@
 # Roadmap — Vintel IA
 
+## Proteções solicitadas — RB07
+- [ ] 1. Autenticação, limite mensal e contagem única no servidor para imagens; testar.
+- [ ] 2. Limite de 10 mensagens por 60 segundos e aviso distinto; testar.
+
 ## Melhorias gratuitas (lote atual)
 
 - [x] 1. Tarefas agendadas (pg_cron → edge function dedicada, salvar resultado como conversa, tela de config)

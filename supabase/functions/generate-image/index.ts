@@ -1,10 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'npm:@supabase/supabase-js@2';
+import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+export const IMAGE_LIMITS: Record<string, number> = { free: 3, starter: 20, pro: 100, agency: Infinity };
+const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
+const PLAN_LIMIT_MESSAGE = "Você atingiu o limite de imagens do seu plano neste mês.";
 
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const IMAGE_MODEL = "gemini-2.5-flash-image";
@@ -216,25 +216,81 @@ serve(async (req) => {
     });
 
   try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) return json({ error: "Faça login para gerar imagens." }, 401);
+    const url = Deno.env.get("SUPABASE_URL") ?? "";
+    const userClient = createClient(url, Deno.env.get("SUPABASE_ANON_KEY") ?? "", {
+      global: { headers: { Authorization: authHeader } }, auth: { persistSession: false },
+    });
+    const { data: claims, error: authError } = await userClient.auth.getClaims(authHeader.slice(7));
+    const userId = claims?.claims?.sub;
+    if (authError || typeof userId !== "string" || !userId) return json({ error: "Faça login para gerar imagens." }, 401);
+
     const { prompt, quality, editImageUrl } = await req.json();
     if (typeof prompt !== "string" || !prompt.trim()) {
       return json({ error: "Descreva a imagem que você quer gerar." }, 400);
     }
+    if (editImageUrl !== undefined && typeof editImageUrl !== "string") return json({ error: "Imagem para edição inválida." }, 400);
     const q = quality === "hd" ? "hd" : "fast";
+
+    const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "", { auth: { persistSession: false } });
+    const { data: sub, error: subError } = await admin.from("subscriptions").select("plan, status").eq("user_id", userId).maybeSingle();
+    if (subError) throw new Error("Não foi possível verificar seu plano.");
+    let plan = "free";
+    if (sub?.status === "active" && sub.plan) plan = sub.plan;
+    else {
+      const { data: profile, error } = await admin.from("profiles").select("plan").eq("id", userId).maybeSingle();
+      if (error) throw new Error("Não foi possível verificar seu plano.");
+      if (profile?.plan) plan = profile.plan;
+    }
+    const limit = IMAGE_LIMITS[plan] ?? IMAGE_LIMITS.free;
+    const now = new Date().toISOString();
+    let { data: usage, error: usageError } = await admin.from("usage_limits").select("id, images_used, reset_date").eq("user_id", userId).maybeSingle();
+    if (usageError) throw new Error("Não foi possível verificar seu uso de imagens.");
+    if (!usage) {
+      const { error } = await admin.from("usage_limits").upsert({ user_id: userId, plan, reset_date: now, messages_reset_date: now }, { onConflict: "user_id", ignoreDuplicates: true });
+      if (error) throw new Error("Não foi possível iniciar seu uso de imagens.");
+      const loaded = await admin.from("usage_limits").select("id, images_used, reset_date").eq("user_id", userId).single();
+      if (loaded.error || !loaded.data) throw new Error("Não foi possível verificar seu uso de imagens.");
+      usage = loaded.data;
+    }
+    if (Date.now() - new Date(usage.reset_date).getTime() > MONTH_MS) {
+      const reset = await admin.from("usage_limits").update({ images_used: 0, files_used: 0, audio_minutes_used: 0, image_analyses_used: 0, reset_date: now })
+        .eq("id", usage.id).eq("reset_date", usage.reset_date).select("id, images_used, reset_date").maybeSingle();
+      if (reset.error) throw new Error("Não foi possível renovar seu uso de imagens.");
+      const fresh = await admin.from("usage_limits").select("id, images_used, reset_date").eq("user_id", userId).single();
+      if (fresh.error || !fresh.data) throw new Error("Não foi possível verificar seu uso de imagens.");
+      usage = fresh.data;
+    }
+    if (usage.images_used >= limit) return json({ error: PLAN_LIMIT_MESSAGE, code: "image_plan_limit" }, 429);
+
+    // Compare-and-swap prevents concurrent successful requests from losing increments.
+    const recordSuccess = async (result: ImageResult) => {
+      for (let attempt = 0; attempt < 10; attempt++) {
+        const current = await admin.from("usage_limits").select("id, images_used, reset_date").eq("user_id", userId).single();
+        if (current.error || !current.data) throw new Error("Não foi possível registrar seu uso de imagens.");
+        const updated = await admin.from("usage_limits").update({ images_used: current.data.images_used + 1 })
+          .eq("id", current.data.id).eq("images_used", current.data.images_used).eq("reset_date", current.data.reset_date)
+          .select("id").maybeSingle();
+        if (updated.error) throw new Error("Não foi possível registrar seu uso de imagens.");
+        if (updated.data) return json(result);
+      }
+      throw new Error("Não foi possível registrar seu uso de imagens. Tente novamente.");
+    };
 
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     const gemini = GEMINI_API_KEY
       ? await tryGemini(prompt, q, editImageUrl, GEMINI_API_KEY)
       : { ok: false as const, reason: "error" as const, message: "Sem chave do Gemini." };
 
-    if (gemini.ok) return json(gemini.result);
+    if (gemini.ok) return await recordSuccess(gemini.result);
 
     // Edição de imagem precisa do Gemini (o gerador gratuito não edita).
     if (editImageUrl) return json({ error: gemini.message });
 
     const free = await tryFreeGenerator(prompt, q);
     if (!free.ok) return json({ error: free.message });
-    return json(free.result);
+    return await recordSuccess(free.result);
   } catch (e) {
     console.error("generate-image error:", e);
     return json(
