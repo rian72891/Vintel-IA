@@ -50,4 +50,4 @@ Projeto em desenvolvimento ativo.
 
 ---
 
-<p align="center">Desenvolvido por <a href="https://github.com/rian72891">Rian Bruno</a></p>
+<p align="center">Desenvolvido por <a href="https://github.com/rian72891">Rian</a></p>
